@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-900 text-gray-200 font-sans antialiased overflow-x-hidden;
+  }
+}
+
+@layer utilities {
+  .glow-blue {
+    box-shadow: 0 0 15px rgba(102, 252, 241, 0.5);
+  }
+  .glow-brand {
+    box-shadow: 0 0 15px rgba(255, 70, 85, 0.5);
+  }
+  .glow-purple {
+    box-shadow: 0 0 15px rgba(176, 38, 255, 0.5);
+  }
+}
