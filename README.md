@@ -19,9 +19,10 @@ AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
 ## 📦 Download
 
-Download the latest version from [Releases](https://github.com/KULLANICIADI/perfhub-ai/releases)
+Download the latest version from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases/download/v2.1.0/PerfHub_AI_WebApp.exe
+)
 
-**Latest:** [PerfHub AI v2.1.0](https://github.com/KULLANICIADI/perfhub-ai/releases/download/v2.1.0/PerfHub_AI_WebApp.exe)
+**Latest:** [PerfHub AI v2.1.0](https://github.com/SuleymanKilincc/perfhub-ai/releases/download/v2.1.0/PerfHub_AI_WebApp.exe)
 
 ## 🖥️ System Requirements
 
