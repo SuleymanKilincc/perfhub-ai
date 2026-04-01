@@ -116,7 +116,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Süleyman Kılınç**
 - Website: [suleymankilinc.com](https://suleymankilinc.com)
-- GitHub: [@KULLANICIADI](https://github.com/KULLANICIADI)
+- GitHub: [@SuleymanKilincc](https://github.com/SuleymanKilincc)
 
 ## 🙏 Acknowledgments
 
