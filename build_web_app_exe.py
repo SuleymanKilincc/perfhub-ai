@@ -1,6 +1,6 @@
 """
 PerfHub AI - Web App EXE Builder
-modern_desktop_app.py'yi EXE yapar (PyQt6 uygulaması)
+modern_desktop_app.py'yi EXE yapar (PyQt6 uygulamasi)
 """
 import os
 import sys
@@ -8,25 +8,25 @@ import subprocess
 
 print("="*60)
 print("PerfHub AI - Web App EXE Builder")
-print("modern_desktop_app.py → EXE")
+print("modern_desktop_app.py -> EXE")
 print("="*60)
 print()
 
 # Check PyInstaller
 try:
     import PyInstaller
-    print("✓ PyInstaller bulundu")
+    print("[OK] PyInstaller bulundu")
 except ImportError:
-    print("❌ PyInstaller bulunamadı!")
+    print("[ERROR] PyInstaller bulunamadi!")
     print("Kurulum: pip install pyinstaller")
     sys.exit(1)
 
 # Check PyQt6
 try:
     import PyQt6
-    print("✓ PyQt6 bulundu")
+    print("[OK] PyQt6 bulundu")
 except ImportError:
-    print("❌ PyQt6 bulunamadı!")
+    print("[ERROR] PyQt6 bulunamadi!")
     print("Kurulum: pip install PyQt6")
     sys.exit(1)
 
@@ -35,7 +35,7 @@ cmd = [
     "python", "-m", "PyInstaller",
     "--onefile",                    # Tek dosya
     "--windowed",                   # Console gizle
-    "--name=PerfHub_AI_WebApp",    # Exe adı
+    "--name=PerfHub_AI_WebApp",    # Exe adi
     "--add-data=data;data",        # Database dahil et
     "--add-data=backend;backend",  # Backend dahil et
     "--hidden-import=core.hardware_detector",
@@ -51,22 +51,23 @@ cmd = [
     "--hidden-import=PyQt6.QtWidgets",
     "--hidden-import=uvicorn",
     "--hidden-import=fastapi",
+    "--hidden-import=google.generativeai",
     "modern_desktop_app.py"        # Ana dosya
 ]
 
 # Add icon if exists
 if os.path.exists("icon.ico"):
     cmd.insert(5, "--icon=icon.ico")
-    print("✓ Icon bulundu, ekleniyor...")
+    print("[OK] Icon bulundu, ekleniyor...")
 
 # Add .env if exists
 if os.path.exists(".env"):
     cmd.insert(-1, "--add-data=.env;.")
-    print("✓ .env bulundu, ekleniyor...")
+    print("[OK] .env bulundu, ekleniyor...")
 
 print()
-print("Build başlatılıyor...")
-print("⏱️  Bu 3-7 dakika sürebilir...")
+print("Build baslatiiliyor...")
+print("Bu 3-7 dakika surebilir...")
 print()
 
 result = subprocess.run(cmd)
@@ -74,16 +75,16 @@ result = subprocess.run(cmd)
 if result.returncode == 0:
     print()
     print("="*60)
-    print("✅ Build başarılı!")
+    print("[SUCCESS] Build basarili!")
     print("="*60)
     print()
-    print("EXE dosyası: dist/PerfHub_AI_WebApp.exe")
-    print("Boyut: ~100-150 MB (tüm bağımlılıklar dahil)")
+    print("EXE dosyasi: dist/PerfHub_AI_WebApp.exe")
+    print("Boyut: ~100-150 MB (tum bagimliliklari dahil)")
     print()
-    print("Test etmek için:")
+    print("Test etmek icin:")
     print("  cd dist")
     print("  PerfHub_AI_WebApp.exe")
 else:
     print()
-    print("❌ Build başarısız!")
+    print("[ERROR] Build basarisiz!")
     print("Hata kodunu kontrol edin.")
