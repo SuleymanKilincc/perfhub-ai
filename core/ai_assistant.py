@@ -1,13 +1,14 @@
-import requests
 import json
 import os
 from typing import Dict, Any, Optional
+import google.generativeai as genai
 
-BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+# API key'i .env'den al
+API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 def analyze_hardware(hardware_name: str, is_cpu: bool = True, language: str = "TR") -> Dict[str, Any]:
     """
-    Analyzes hardware using AI backend.
+    Analyzes hardware using Gemini AI directly (no backend needed).
     
     Args:
         hardware_name: Name of the hardware component
@@ -18,31 +19,45 @@ def analyze_hardware(hardware_name: str, is_cpu: bool = True, language: str = "T
         Dict with analysis results or error
     """
     try:
-        url = f"{BACKEND_URL}/api/analyze"
-        payload = {
+        if not API_KEY:
+            return {"error": "❌ API key bulunamadı. .env dosyasını kontrol edin."}
+        
+        genai.configure(api_key=API_KEY)
+        model = genai.GenerativeModel('gemini-pro')
+        
+        component_type = "CPU" if is_cpu else "GPU"
+        lang_text = "Türkçe" if language == "TR" else "English"
+        
+        prompt = f"""
+        {lang_text} dilinde {component_type} analizi yap:
+        
+        Donanım: {hardware_name}
+        
+        Şunları içer:
+        1. Genel Değerlendirme (2-3 cümle)
+        2. Güçlü Yönler (3 madde)
+        3. Zayıf Yönler (2 madde)
+        4. Kullanım Senaryoları (oyun, iş, vb.)
+        5. Fiyat/Performans Değerlendirmesi
+        
+        Kısa ve öz yaz.
+        """
+        
+        response = model.generate_content(prompt)
+        
+        return {
             "hardware_name": hardware_name,
-            "is_cpu": is_cpu,
-            "language": language
+            "analysis": response.text,
+            "component_type": component_type
         }
-        
-        response = requests.post(url, json=payload, timeout=60)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return {"error": f"Sunucu Hatası ({response.status_code}): {response.text}"}
             
-    except requests.exceptions.Timeout:
-        return {"error": "⏳ Sunucu yanıt vermiyor. Lütfen backend'in çalıştığından emin olun."}
-    except requests.exceptions.ConnectionError:
-        return {"error": f"❌ Backend'e bağlanılamadı ({BACKEND_URL}). Backend çalışıyor mu?"}
     except Exception as e:
-        return {"error": f"Beklenmeyen Hata: {str(e)}"}
+        return {"error": f"AI Hatası: {str(e)}"}
 
 
 def general_chat(user_message: str, system_context: str = "", language: str = "TR") -> str:
     """
-    General chat with AI assistant.
+    General chat with AI assistant (no backend needed).
     
     Args:
         user_message: User's question
@@ -53,36 +68,42 @@ def general_chat(user_message: str, system_context: str = "", language: str = "T
         AI response string
     """
     try:
-        url = f"{BACKEND_URL}/api/chat"
-        payload = {
-            "user_message": user_message,
-            "system_context": system_context,
-            "language": language
-        }
+        if not API_KEY:
+            return "❌ API key bulunamadı. .env dosyasını kontrol edin."
         
-        response = requests.post(url, json=payload, timeout=60)
+        genai.configure(api_key=API_KEY)
+        model = genai.GenerativeModel('gemini-pro')
         
-        if response.status_code == 200:
-            return response.json().get("response", "Boş cevap döndü.")
-        else:
-            return f"❌ Sunucu Hatası ({response.status_code}): {response.text}"
+        lang_text = "Türkçe" if language == "TR" else "English"
+        
+        full_prompt = f"{lang_text} dilinde cevap ver.\n\n"
+        if system_context:
+            full_prompt += f"Bağlam: {system_context}\n\n"
+        full_prompt += f"Soru: {user_message}"
+        
+        response = model.generate_content(full_prompt)
+        return response.text
             
-    except requests.exceptions.Timeout:
-        return "⏳ Sunucu yanıt vermiyor. Backend çalışıyor mu?"
-    except requests.exceptions.ConnectionError:
-        return f"❌ Backend'e bağlanılamadı ({BACKEND_URL})."
     except Exception as e:
-        return f"❌ Beklenmeyen Hata: {str(e)}"
+        return f"❌ AI Hatası: {str(e)}"
 
 
 def check_backend_health() -> Dict[str, Any]:
     """
-    Checks if backend is running and healthy.
+    Checks if AI is working (no backend needed).
     
     Returns:
         Dict with health status
     """
     try:
+        if not API_KEY:
+            return {"status": "error", "message": "API key bulunamadı"}
+        
+        genai.configure(api_key=API_KEY)
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content("Test")
+        
+        return {"status": "ok", "message": "AI çalışıyor"}
         response = requests.get(f"{BACKEND_URL}/api/health", timeout=5)
         if response.status_code == 200:
             return response.json()
