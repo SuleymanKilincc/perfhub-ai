@@ -19,7 +19,7 @@ AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
 ## 📦 Download
 
-Download the latest version from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v3.0.0)
+Download the versions from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases)
 
 **Latest:** [PerfHub AI v3.0](https://github.com/SuleymanKilincc/perfhub-ai/releases/latest)
 
