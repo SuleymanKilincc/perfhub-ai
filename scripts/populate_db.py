@@ -66,6 +66,14 @@ def add_more_gpus():
     cursor = conn.cursor()
     
     new_gpus = [
+        # Intel iGPUs (Integrated Graphics)
+        ("Intel Iris Xe Graphics", 0, 1350, 0, "Xe", 18.0),
+        ("Intel UHD Graphics 770", 0, 1550, 0, "Xe", 12.0),
+        ("Intel UHD Graphics 730", 0, 1500, 0, "Xe", 10.0),
+        ("Intel UHD Graphics 630", 0, 1200, 0, "Gen 9.5", 8.0),
+        ("Intel Iris Xe Graphics G7", 0, 1350, 0, "Xe", 20.0),
+        ("Intel Iris Plus Graphics", 0, 1100, 0, "Gen 11", 15.0),
+        
         # NVIDIA Blackwell (RTX 5000)
         ("NVIDIA GeForce RTX 5090", 32, 2520, 1400, "Blackwell", 105.0),
         ("NVIDIA GeForce RTX 5080", 16, 2295, 1350, "Blackwell", 95.0),
@@ -126,45 +134,57 @@ def add_more_games():
     conn = db_manager.get_connection()
     cursor = conn.cursor()
     
+    # ram_sensitivity: 0.7=low RAM usage, 1.0=normal, 1.3=high, 1.6=very high
+    # RT support: 1=yes, 0=no | PT support: 1=yes, 0=no
+    # Format: (name, genre, diff, low, med, high, ultra, 1080p, 1440p, 4k, ram, rt, pt)
     new_games = [
-        # AAA Games
-        ("Starfield", "RPG", 1.7, 1.5, 1.0, 0.65, 0.4, 1.0, 0.6, 0.32),
-        ("Alan Wake 2", "Horror", 1.9, 1.4, 1.0, 0.6, 0.35, 1.0, 0.58, 0.28),
-        ("The Last of Us Part I", "Action", 1.6, 1.5, 1.0, 0.7, 0.45, 1.0, 0.62, 0.33),
-        ("Spider-Man Remastered", "Action", 1.4, 1.6, 1.0, 0.75, 0.5, 1.0, 0.68, 0.38),
-        ("God of War", "Action", 1.5, 1.5, 1.0, 0.72, 0.48, 1.0, 0.65, 0.35),
+        # AAA Games with RT/PT
+        ("Starfield", "RPG", 1.7, 1.5, 1.0, 0.65, 0.4, 1.0, 0.6, 0.32, 1.4, 0, 0),  # No RT/PT
+        ("Alan Wake 2", "Horror", 1.9, 1.4, 1.0, 0.6, 0.35, 1.0, 0.58, 0.28, 1.3, 1, 1),  # RT + PT
+        ("The Last of Us Part I", "Action", 1.6, 1.5, 1.0, 0.7, 0.45, 1.0, 0.62, 0.33, 1.2, 0, 0),  # No RT/PT
+        ("Spider-Man Remastered", "Action", 1.4, 1.6, 1.0, 0.75, 0.5, 1.0, 0.68, 0.38, 1.1, 1, 0),  # RT only
+        ("God of War", "Action", 1.5, 1.5, 1.0, 0.72, 0.48, 1.0, 0.65, 0.35, 1.2, 0, 0),  # No RT/PT
         
-        # Competitive FPS
-        ("Apex Legends", "FPS", 0.6, 1.7, 1.0, 0.85, 0.75, 1.0, 0.78, 0.55),
-        ("Overwatch 2", "FPS", 0.5, 1.8, 1.0, 0.9, 0.8, 1.0, 0.8, 0.6),
-        ("Rainbow Six Siege", "FPS", 0.55, 1.7, 1.0, 0.88, 0.78, 1.0, 0.75, 0.52),
-        ("Fortnite", "FPS", 0.5, 1.8, 1.0, 0.9, 0.82, 1.0, 0.82, 0.62),
+        # Competitive FPS (no RT/PT)
+        ("Apex Legends", "FPS", 0.6, 1.7, 1.0, 0.85, 0.75, 1.0, 0.78, 0.55, 0.8, 0, 0),
+        ("Overwatch 2", "FPS", 0.5, 1.8, 1.0, 0.9, 0.8, 1.0, 0.8, 0.6, 0.7, 0, 0),
+        ("Rainbow Six Siege", "FPS", 0.55, 1.7, 1.0, 0.88, 0.78, 1.0, 0.75, 0.52, 0.8, 0, 0),
+        ("Fortnite", "FPS", 0.5, 1.8, 1.0, 0.9, 0.82, 1.0, 0.82, 0.62, 0.8, 0, 0),
         
-        # Racing
-        ("Forza Horizon 5", "Racing", 1.2, 1.5, 1.0, 0.75, 0.55, 1.0, 0.7, 0.42),
-        ("F1 2024", "Racing", 1.3, 1.4, 1.0, 0.72, 0.52, 1.0, 0.68, 0.4),
+        # Racing with RT
+        ("Forza Horizon 5", "Racing", 1.2, 1.5, 1.0, 0.75, 0.55, 1.0, 0.7, 0.42, 1.1, 1, 0),  # RT only
+        ("F1 2024", "Racing", 1.3, 1.4, 1.0, 0.72, 0.52, 1.0, 0.68, 0.4, 1.0, 1, 0),  # RT only
         
-        # Strategy
-        ("Civilization VI", "Strategy", 0.8, 1.6, 1.0, 0.85, 0.7, 1.0, 0.75, 0.5),
-        ("Total War: Warhammer III", "Strategy", 1.4, 1.5, 1.0, 0.7, 0.5, 1.0, 0.65, 0.38),
+        # Strategy (no RT/PT)
+        ("Civilization VI", "Strategy", 0.8, 1.6, 1.0, 0.85, 0.7, 1.0, 0.75, 0.5, 1.3, 0, 0),
+        ("Total War: Warhammer III", "Strategy", 1.4, 1.5, 1.0, 0.7, 0.5, 1.0, 0.65, 0.38, 1.4, 0, 0),
         
-        # Simulation
-        ("Microsoft Flight Simulator", "Simulation", 2.0, 1.3, 1.0, 0.6, 0.35, 1.0, 0.55, 0.25),
-        ("Cities: Skylines II", "Simulation", 1.6, 1.4, 1.0, 0.68, 0.45, 1.0, 0.62, 0.35),
+        # Simulation (no RT/PT)
+        ("Microsoft Flight Simulator", "Simulation", 2.0, 1.3, 1.0, 0.6, 0.35, 1.0, 0.55, 0.25, 1.7, 0, 0),
+        ("Cities: Skylines II", "Simulation", 1.6, 1.4, 1.0, 0.68, 0.45, 1.0, 0.62, 0.35, 1.8, 0, 0),
         
-        # Indie/Light
-        ("Hades", "Roguelike", 0.3, 2.0, 1.0, 0.95, 0.9, 1.0, 0.9, 0.8),
-        ("Stardew Valley", "Simulation", 0.2, 2.2, 1.0, 1.0, 0.95, 1.0, 0.95, 0.9),
-        ("Terraria", "Sandbox", 0.25, 2.1, 1.0, 0.98, 0.92, 1.0, 0.92, 0.85),
+        # Indie/Light (no RT/PT)
+        ("Hades", "Roguelike", 0.3, 2.0, 1.0, 0.95, 0.9, 1.0, 0.9, 0.8, 0.6, 0, 0),
+        ("Stardew Valley", "Simulation", 0.2, 2.2, 1.0, 1.0, 0.95, 1.0, 0.95, 0.9, 0.5, 0, 0),
+        ("Terraria", "Sandbox", 0.25, 2.1, 1.0, 0.98, 0.92, 1.0, 0.92, 0.85, 0.6, 0, 0),
         
-        # Recent AAA
-        ("Elden Ring", "RPG", 1.5, 1.5, 1.0, 0.72, 0.48, 1.0, 0.65, 0.36),
-        ("Resident Evil 4 Remake", "Horror", 1.6, 1.4, 1.0, 0.7, 0.45, 1.0, 0.63, 0.34),
-        ("Street Fighter 6", "Fighting", 0.7, 1.7, 1.0, 0.85, 0.75, 1.0, 0.78, 0.58),
-        ("Baldur's Gate 3", "RPG", 1.4, 1.5, 1.0, 0.73, 0.5, 1.0, 0.66, 0.37),
-        ("Diablo IV", "RPG", 1.3, 1.5, 1.0, 0.75, 0.52, 1.0, 0.68, 0.4),
-        ("Palworld", "Survival", 1.1, 1.6, 1.0, 0.78, 0.6, 1.0, 0.72, 0.45),
-        ("Helldivers 2", "Shooter", 1.2, 1.5, 1.0, 0.75, 0.55, 1.0, 0.7, 0.43),
+        # Recent AAA with RT
+        ("Elden Ring", "RPG", 1.5, 1.5, 1.0, 0.72, 0.48, 1.0, 0.65, 0.36, 1.2, 0, 0),  # No RT/PT
+        ("Resident Evil 4 Remake", "Horror", 1.6, 1.4, 1.0, 0.7, 0.45, 1.0, 0.63, 0.34, 1.1, 1, 0),  # RT only
+        ("Street Fighter 6", "Fighting", 0.7, 1.7, 1.0, 0.85, 0.75, 1.0, 0.78, 0.58, 0.8, 0, 0),  # No RT/PT
+        ("Baldur's Gate 3", "RPG", 1.4, 1.5, 1.0, 0.73, 0.5, 1.0, 0.66, 0.37, 1.3, 0, 0),  # No RT/PT
+        ("Diablo IV", "RPG", 1.3, 1.5, 1.0, 0.75, 0.52, 1.0, 0.68, 0.4, 1.1, 0, 0),  # No RT/PT
+        ("Palworld", "Survival", 1.1, 1.6, 1.0, 0.78, 0.6, 1.0, 0.72, 0.45, 1.2, 0, 0),  # No RT/PT
+        ("Helldivers 2", "Shooter", 1.2, 1.5, 1.0, 0.75, 0.55, 1.0, 0.7, 0.43, 1.0, 0, 0),  # No RT/PT
+        
+        # RT/PT Showcase Games
+        ("Portal RTX", "Puzzle", 1.8, 1.3, 1.0, 0.6, 0.35, 1.0, 0.55, 0.28, 1.1, 1, 1),  # RT + PT (Full PT Remake)
+        ("Control", "Action", 1.5, 1.5, 1.0, 0.7, 0.45, 1.0, 0.63, 0.33, 1.2, 1, 0),  # RT only
+        ("Metro Exodus Enhanced", "FPS", 1.7, 1.4, 1.0, 0.65, 0.4, 1.0, 0.6, 0.32, 1.2, 1, 0),  # RT only
+        ("Dying Light 2", "Action", 1.6, 1.5, 1.0, 0.7, 0.45, 1.0, 0.62, 0.33, 1.3, 1, 0),  # RT only
+        ("Watch Dogs Legion", "Action", 1.5, 1.5, 1.0, 0.72, 0.48, 1.0, 0.65, 0.35, 1.2, 1, 0),  # RT only
+        ("Minecraft RTX", "Sandbox", 1.4, 1.6, 1.0, 0.75, 0.5, 1.0, 0.68, 0.38, 0.8, 1, 1),  # RT + PT
+        ("Quake II RTX", "FPS", 1.3, 1.6, 1.0, 0.75, 0.5, 1.0, 0.68, 0.38, 0.7, 1, 1),  # RT + PT (Full PT)
     ]
     
     for game in new_games:
@@ -172,8 +192,8 @@ def add_more_games():
             cursor.execute("""
                 INSERT OR IGNORE INTO games 
                 (name, genre, difficulty_multiplier, low_scaling, med_scaling, high_scaling, 
-                 ultra_scaling, res_1080p_scaling, res_1440p_scaling, res_4k_scaling) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ultra_scaling, res_1080p_scaling, res_1440p_scaling, res_4k_scaling, ram_sensitivity, supports_rt, supports_pt) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, game)
         except Exception as e:
             print(f"Error adding {game[0]}: {e}")

@@ -2,27 +2,30 @@
 
 AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
-![Version](https://img.shields.io/badge/version-2.1.0-blue)
+![Version](https://img.shields.io/badge/version-4.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 
 ## ✨ Features
 
-- 🔍 **Automatic Hardware Detection** - Detects CPU, GPU, and RAM automatically
+- 🔍 **Automatic Hardware Detection** - Detects CPU, GPU, RAM, and storage automatically
 - 📊 **Performance Scoring** - Calculates system performance score (0-100)
 - ⚠️ **Bottleneck Analysis** - Identifies CPU/GPU imbalances
-- 🎮 **FPS Prediction** - Estimates FPS for 40+ popular games
+- 🎮 **FPS Prediction** - Estimates FPS for 32+ popular games with RT/PT support
+- 🌟 **Ray Tracing / Path Tracing** - Toggle RT/PT for supported games
+- 💾 **RAM Impact** - Game-specific RAM sensitivity (4GB-128GB)
 - 🛠️ **PC Builder** - Build and test theoretical PC configurations
-- 🤖 **AI Assistant** - Get intelligent hardware recommendations
-- 🔬 **Hardware Analysis** - Detailed component analysis and insights
+- 🤖 **AI Assistant** - Powered by Google Gemini 2.5 Flash
+- 🔬 **Hardware Analysis** - Detailed component analysis with AI insights
+- 🌐 **Multi-Language** - Turkish & English support
+- 🖥️ **Intel iGPU Support** - Integrated graphics detection
 
 ## 📦 Download
 
-Download the latest version from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases/download/v2.1.0/PerfHub_AI_WebApp.exe
-)
+Download the latest version from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases)
 
-**Latest:** [PerfHub AI v2.1.0](https://github.com/SuleymanKilincc/perfhub-ai/releases/download/v2.1.0/PerfHub_AI_WebApp.exe)
+**Latest:** [PerfHub AI v4.0.0](https://github.com/SuleymanKilincc/perfhub-ai/releases/download/v4.0.0/PerfHub_AI_v4.0.0.zip) (52.77 MB)
 
 ## 🖥️ System Requirements
 
@@ -32,15 +35,19 @@ Download the latest version from [Releases](https://github.com/SuleymanKilincc/p
 
 ## 🚀 Quick Start
 
-1. Download `PerfHub_AI_WebApp.exe`
-2. Double-click to run
-3. First launch may take 5-10 seconds (normal)
-4. No API key required - works out of the box!
+1. Download `PerfHub_AI_v4.0.0.zip` from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases)
+2. Extract the ZIP file
+3. Run `PerfHub_AI_WebApp.exe`
+4. First launch may take 5-10 seconds (normal)
+5. No API key required - AI works out of the box!
 
-## ⚠️ Windows Defender Warning
+## ⚠️ Windows Security Warning
 
-On first run, Windows Defender may show a warning (no digital signature):
-- Click **"More info"** → **"Run anyway"**
+On first run, Windows may show a "Unknown publisher" warning:
+1. Click **"More info"**
+2. Click **"Run anyway"**
+
+**Security:** This app is safe and open-source. VirusTotal scan: [68/70 clean](https://www.virustotal.com/gui/file/6e43f2c8ef3efc586f752222c554046ff1ae204a114bfc947749da2fb346842d/detection)
 
 ## 🛠️ Development
 
@@ -79,9 +86,9 @@ python build_web_app_exe.py
 
 ## 📊 Database
 
-- **156 CPUs** (Intel, AMD)
-- **137 GPUs** (NVIDIA, AMD, Intel)
-- **42 Games** with FPS prediction data
+- **156+ CPUs** (Intel, AMD, Apple Silicon)
+- **137+ GPUs** (NVIDIA, AMD, Intel ARC + iGPUs)
+- **32 Games** with RT/PT support and RAM sensitivity data
 
 Database location: `data/hardware_db.sqlite`
 
@@ -122,8 +129,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Hardware data sourced from various benchmarking databases
-- AI powered by Google Gemini API
+- AI powered by Google Gemini 2.5 Flash
 - Built with PyQt6, FastAPI, and React
+- RT/PT support data from game documentation
 
 ## 📸 Screenshots
 

@@ -146,7 +146,8 @@ def get_games_fps(req: FPSRequest):
                 {"power_score": req.gpu_score, "vram": 8},
                 game,
                 resolution=req.res,
-                settings=req.preset
+                settings=req.preset,
+                ram_gb=16  # Default RAM for API
             )
             results.append({
                 "id": game["id"],

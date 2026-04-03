@@ -60,6 +60,10 @@ frontend/.next/
 dist/
 build/
 
+# Release files (upload manually to GitHub)
+*.zip
+
 # Temporary files
 *.tmp
 *.temp
+README.txt

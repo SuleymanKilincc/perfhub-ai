@@ -1,10 +1,11 @@
 import json
 import os
 from typing import Dict, Any, Optional
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
-# API key'i .env'den al
-API_KEY = os.getenv("GEMINI_API_KEY", "")
+# API key - embedded for distribution
+API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyB_WSEAF9MqDamosprk8hrzaCVBVbYulT4")
 
 def analyze_hardware(hardware_name: str, is_cpu: bool = True, language: str = "TR") -> Dict[str, Any]:
     """
@@ -22,8 +23,7 @@ def analyze_hardware(hardware_name: str, is_cpu: bool = True, language: str = "T
         if not API_KEY:
             return {"error": "❌ API key bulunamadı. .env dosyasını kontrol edin."}
         
-        genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel('gemini-pro')
+        client = genai.Client(api_key=API_KEY)
         
         component_type = "CPU" if is_cpu else "GPU"
         lang_text = "Türkçe" if language == "TR" else "English"
@@ -43,7 +43,10 @@ def analyze_hardware(hardware_name: str, is_cpu: bool = True, language: str = "T
         Kısa ve öz yaz.
         """
         
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
         
         return {
             "hardware_name": hardware_name,
@@ -71,8 +74,7 @@ def general_chat(user_message: str, system_context: str = "", language: str = "T
         if not API_KEY:
             return "❌ API key bulunamadı. .env dosyasını kontrol edin."
         
-        genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel('gemini-pro')
+        client = genai.Client(api_key=API_KEY)
         
         lang_text = "Türkçe" if language == "TR" else "English"
         
@@ -81,7 +83,10 @@ def general_chat(user_message: str, system_context: str = "", language: str = "T
             full_prompt += f"Bağlam: {system_context}\n\n"
         full_prompt += f"Soru: {user_message}"
         
-        response = model.generate_content(full_prompt)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=full_prompt
+        )
         return response.text
             
     except Exception as e:
@@ -99,16 +104,12 @@ def check_backend_health() -> Dict[str, Any]:
         if not API_KEY:
             return {"status": "error", "message": "API key bulunamadı"}
         
-        genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content("Test")
+        client = genai.Client(api_key=API_KEY)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents="Test"
+        )
         
         return {"status": "ok", "message": "AI çalışıyor"}
-        response = requests.get(f"{BACKEND_URL}/api/health", timeout=5)
-        if response.status_code == 200:
-            return response.json()
-        return {"status": "error", "detail": f"Status code: {response.status_code}"}
-    except requests.exceptions.ConnectionError:
-        return {"status": "error", "detail": f"Backend'e bağlanılamadı ({BACKEND_URL})"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}

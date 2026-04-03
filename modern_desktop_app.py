@@ -131,14 +131,15 @@ class ChatWorkerThread(QThread):
     """Runs AI chat in background so UI stays responsive."""
     finished = pyqtSignal(str)
     
-    def __init__(self, message, context, parent=None):
+    def __init__(self, message, context, language="TR", parent=None):
         super().__init__(parent)
         self._msg = message
         self._ctx = context
+        self._lang = language
     
     def run(self):
         try:
-            resp = ai_assistant.general_chat(self._msg, self._ctx)
+            resp = ai_assistant.general_chat(self._msg, self._ctx, self._lang)
             self.finished.emit(resp)
         except Exception as e:
             self.finished.emit(f"Hata: {str(e)}")
@@ -203,6 +204,11 @@ class BenchmarkApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("TUF GAMING - PERFORMANCE HUB [V2 PRO]")
         self.resize(1000, 750)
+        
+        # Set window icon if exists
+        if os.path.exists("icon.ico"):
+            self.setWindowIcon(QIcon("icon.ico"))
+        
         self.setStyleSheet(STYLESHEET)
         
         db_manager.initialize_db()
@@ -304,6 +310,23 @@ class BenchmarkApp(QMainWindow):
         ver = QLabel("v2.0 PRO")
         ver.setStyleSheet("color: #2C3E50; font-size: 10px; padding: 10px 18px;")
         sidebar_layout.addWidget(ver)
+        
+        # Language selector at bottom
+        lang_frame = QFrame()
+        lang_frame.setStyleSheet("background-color: #090912; border-top: 1px solid #1e2a38; padding: 10px;")
+        lang_layout = QVBoxLayout(lang_frame)
+        lang_layout.setContentsMargins(10, 10, 10, 10)
+        
+        lang_lbl = QLabel("🌐 Language / Dil")
+        lang_lbl.setStyleSheet("color: #45A29E; font-size: 11px; font-weight: bold;")
+        lang_layout.addWidget(lang_lbl)
+        
+        self.global_lang_combo = QComboBox()
+        self.global_lang_combo.addItems(["🇹🇷 Türkçe", "🇬🇧 English"])
+        self.global_lang_combo.setStyleSheet("background-color:#1F2833;color:white;padding:6px;border:1px solid #45A29E;border-radius:4px;font-size:11px;")
+        lang_layout.addWidget(self.global_lang_combo)
+        
+        sidebar_layout.addWidget(lang_frame)
 
         root_layout.addWidget(sidebar)
 
@@ -527,6 +550,29 @@ class BenchmarkApp(QMainWindow):
         ai_layout.addWidget(self.cmb_framegen)
         ai_layout.addStretch()
         layout.addLayout(ai_layout)
+        
+        # RT/PT Row
+        rt_layout = QHBoxLayout()
+        rt_lbl = QLabel("🌟 Ray/Path Tracing:")
+        rt_lbl.setStyleSheet("color: #9D00FF; font-weight: bold; font-size: 13px;")
+        rt_layout.addWidget(rt_lbl)
+        
+        self.chk_rt = QCheckBox("Ray Tracing")
+        self.chk_rt.setStyleSheet("color: #C5C6C7; font-size: 13px;")
+        self.chk_rt.stateChanged.connect(self.populate_games)
+        rt_layout.addWidget(self.chk_rt)
+        
+        self.chk_pt = QCheckBox("Path Tracing")
+        self.chk_pt.setStyleSheet("color: #C5C6C7; font-size: 13px;")
+        self.chk_pt.stateChanged.connect(self.populate_games)
+        rt_layout.addWidget(self.chk_pt)
+        
+        self.lbl_rt_support = QLabel("")
+        self.lbl_rt_support.setStyleSheet("color: #45A29E; font-size: 13px; font-weight: bold;")
+        rt_layout.addWidget(self.lbl_rt_support)
+        
+        rt_layout.addStretch()
+        layout.addLayout(rt_layout)
         layout.addSpacing(12)
 
         # FPS Progress Bars Container
@@ -655,8 +701,26 @@ class BenchmarkApp(QMainWindow):
             else:
                 self.gpu_list_intel.add_item(display, g)
              
-        # Button
+        # Button + RAM Selector
         layout.addSpacing(20)
+        
+        # RAM Selector
+        ram_layout = QHBoxLayout()
+        ram_lbl = QLabel("💾 RAM Miktarı:")
+        ram_lbl.setStyleSheet("color: #45A29E; font-size: 16px; font-weight: bold;")
+        ram_layout.addWidget(ram_lbl)
+        
+        self.b_cmb_ram = QComboBox()
+        self.b_cmb_ram.addItems(["4 GB", "8 GB", "16 GB", "32 GB", "64 GB", "128 GB"])
+        self.b_cmb_ram.setCurrentText("16 GB")  # Default
+        self.b_cmb_ram.setMinimumWidth(120)
+        self.b_cmb_ram.setStyleSheet("background-color: #1F2833; color: white; padding: 8px 15px; border: 1px solid #45A29E; border-radius: 5px; font-size: 14px; font-weight: bold;")
+        ram_layout.addWidget(self.b_cmb_ram)
+        ram_layout.addStretch()
+        layout.addLayout(ram_layout)
+        
+        layout.addSpacing(10)
+        
         btn_calc = QPushButton("⚙️ CALCULATE THEORETICAL SCORE")
         btn_calc.setFixedSize(400, 50)
         btn_calc.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -739,6 +803,14 @@ class BenchmarkApp(QMainWindow):
         self.b_cmb_res.addItems(["1080p", "1440p", "4k"])
         self.b_cmb_res.currentTextChanged.connect(self.calculate_custom_build)
         b_filter_layout.addWidget(self.b_cmb_res)
+        
+        b_filter_layout.addWidget(QLabel("  RAM: ", styleSheet="color: #45A29E; font-weight: bold;"))
+        self.b_cmb_ram_fps = QComboBox()
+        self.b_cmb_ram_fps.addItems(["4 GB", "8 GB", "16 GB", "32 GB", "64 GB", "128 GB"])
+        self.b_cmb_ram_fps.setCurrentText("16 GB")
+        self.b_cmb_ram_fps.currentTextChanged.connect(self.calculate_custom_build)
+        b_filter_layout.addWidget(self.b_cmb_ram_fps)
+        
         b_filter_layout.addWidget(QLabel("  Oyun: ", styleSheet="color: #45A29E; font-weight: bold;"))
         self.b_cmb_game = QComboBox()
         self.b_cmb_game.setMinimumWidth(250)
@@ -1308,6 +1380,10 @@ class BenchmarkApp(QMainWindow):
         if not text: return
         self.chat_input.clear()
         
+        # Get selected language from global selector
+        lang_text = self.global_lang_combo.currentText() if hasattr(self, 'global_lang_combo') else "🇹🇷 Türkçe"
+        language = "EN" if "English" in lang_text else "TR"
+        
         self.chat_history.append(f"<br><b style='color:#66FCF1;'>🧑 Sen:</b> {text}")
         QApplication.processEvents() # UI update
         self.chat_history.append("<i style='color:#45A29E;'>⏳ AI düşünüyor...</i>")
@@ -1319,23 +1395,23 @@ class BenchmarkApp(QMainWindow):
             hd = self.system_data.get('hw', {})
             raw_score = self.system_data.get('score', 0)
             if raw_score >= 90:
-                segment = "Tepe Model (Enthusiast)"
+                segment = "Tepe Model (Enthusiast)" if language == "TR" else "Top-Tier (Enthusiast)"
             elif raw_score >= 70:
-                segment = "Üst Düzey (High-End)"
+                segment = "Üst Düzey (High-End)" if language == "TR" else "High-End"
             elif raw_score >= 40:
-                segment = "Orta-Üst Seviye"
+                segment = "Orta-Üst Seviye" if language == "TR" else "Mid-High Level"
             else:
-                segment = "Giriş Seviyesi"
+                segment = "Giriş Seviyesi" if language == "TR" else "Entry Level"
             ctx = (
-                f"CPU: {hd.get('cpu','Bilinmiyor')}\n"
-                f"GPU: {hd.get('gpu','Bilinmiyor')}\n"
-                f"RAM: {hd.get('ram','Bilinmiyor')}GB\n"
-                f"PerfHub AI Skor: {raw_score}/100 — {segment}"
+                f"CPU: {hd.get('cpu','Bilinmiyor' if language == 'TR' else 'Unknown')}\n"
+                f"GPU: {hd.get('gpu','Bilinmiyor' if language == 'TR' else 'Unknown')}\n"
+                f"RAM: {hd.get('ram','Bilinmiyor' if language == 'TR' else 'Unknown')}GB\n"
+                f"PerfHub AI {'Skor' if language == 'TR' else 'Score'}: {raw_score}/100 — {segment}"
             )
 
         # Run in background thread (prevents crash on click during wait)
         self.chat_send_btn.setEnabled(False)
-        self._chat_worker = ChatWorkerThread(text, ctx)
+        self._chat_worker = ChatWorkerThread(text, ctx, language)
         self._chat_worker.finished.connect(self._on_chat_response)
         self._chat_worker.start()
 
@@ -1786,13 +1862,46 @@ class BenchmarkApp(QMainWindow):
         game_data = self.cmb_game.currentData()
         if not game_data: return
         
+        # Check RT/PT support
+        supports_rt = game_data.get("supports_rt", 0)
+        supports_pt = game_data.get("supports_pt", 0)
+        
+        # Update RT/PT checkboxes based on game support
+        self.chk_rt.setEnabled(supports_rt == 1)
+        self.chk_pt.setEnabled(supports_pt == 1)
+        
+        if supports_rt == 0:
+            self.chk_rt.setChecked(False)
+        if supports_pt == 0:
+            self.chk_pt.setChecked(False)
+        
+        # Update support label
+        if supports_pt == 1:
+            self.lbl_rt_support.setText("✅ Bu oyun RT + PT destekliyor")
+        elif supports_rt == 1:
+            self.lbl_rt_support.setText("✅ Bu oyun RT destekliyor")
+        else:
+            self.lbl_rt_support.setText("❌ Bu oyun RT/PT desteklemiyor")
+        
         cpu_data = self.system_data['cpu_data']
         gpu_data = self.system_data['gpu_data']
+        ram_gb = self.system_data['hw']['ram']
         upscaling = self.cmb_upscale.currentText()
         frame_gen_mode = self.cmb_framegen.currentText()
         
+        # RT/PT performance penalty
+        rt_enabled = self.chk_rt.isChecked() and supports_rt == 1
+        pt_enabled = self.chk_pt.isChecked() and supports_pt == 1
+        
         for preset, bar in self.fps_bars.items():
-            fps = scoring_engine.estimate_fps(cpu_data, gpu_data, game_data, res, preset, upscaling, frame_gen_mode)
+            fps = scoring_engine.estimate_fps(cpu_data, gpu_data, game_data, res, preset, upscaling, frame_gen_mode, ram_gb)
+            
+            # Apply RT/PT penalty
+            if pt_enabled:
+                fps = int(fps * 0.35)  # Path Tracing: ~65% FPS loss
+            elif rt_enabled:
+                fps = int(fps * 0.60)  # Ray Tracing: ~40% FPS loss
+            
             bar.setRange(0, max(fps * 2, 360))
             bar.setValue(fps)
             
@@ -1856,8 +1965,12 @@ class BenchmarkApp(QMainWindow):
             self._last_builder_gpu_name = new_gpu_name
             self.update_upscale_options(new_gpu_name, self.b_cmb_upscale, self.b_cmb_framegen)
         
-        # Assume standard 16GB RAM for simulation
-        sys_score = scoring_engine.calculate_system_score(cpu_data["power_score"], gpu_data["power_score"], 16.0)
+        # Get selected RAM from builder
+        ram_text = self.b_cmb_ram.currentText() if hasattr(self, 'b_cmb_ram') else "16 GB"
+        builder_ram_gb = int(ram_text.split()[0])  # Extract number from "16 GB"
+        
+        # Assume standard RAM for system score calculation
+        sys_score = scoring_engine.calculate_system_score(cpu_data["power_score"], gpu_data["power_score"], builder_ram_gb)
         bn_data = scoring_engine.analyze_bottleneck(cpu_data["power_score"], gpu_data["power_score"])
         
         # Animate the score bar
@@ -1923,9 +2036,13 @@ class BenchmarkApp(QMainWindow):
         b_upscaling = self.b_cmb_upscale.currentText()
         b_frame_gen_mode = self.b_cmb_framegen.currentText()
         
+        # Get RAM from FPS page selector (synced with builder)
+        b_ram_text = self.b_cmb_ram_fps.currentText() if hasattr(self, 'b_cmb_ram_fps') else "16 GB"
+        b_ram_gb = int(b_ram_text.split()[0])
+        
         if b_game:
             for preset, bar in self.b_fps_bars.items():
-                fps = scoring_engine.estimate_fps(cpu_data, gpu_data, b_game, b_res, preset, b_upscaling, b_frame_gen_mode)
+                fps = scoring_engine.estimate_fps(cpu_data, gpu_data, b_game, b_res, preset, b_upscaling, b_frame_gen_mode, b_ram_gb)
                 bar.setRange(0, max(fps * 2, 360))
                 bar.setValue(fps)
                 if fps >= 120: color = "#9D00FF"

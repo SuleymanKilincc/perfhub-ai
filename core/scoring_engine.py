@@ -124,7 +124,7 @@ def get_fg_options(gpu_name: str) -> list[str]:
 
 
 def estimate_fps(cpu_data, gpu_data, game, resolution="1080p",
-                 settings="High", upscaling="Native", frame_gen_mode="Kapalı"):
+                 settings="High", upscaling="Native", frame_gen_mode="Kapalı", ram_gb=16):
     """
     Estimates FPS for a game on specified hardware.
 
@@ -137,6 +137,7 @@ def estimate_fps(cpu_data, gpu_data, game, resolution="1080p",
     settings      : "Low" | "Medium" | "High" | "Ultra"
     upscaling     : upscaling mode label string
     frame_gen_mode: "Kapalı" | "2x" | "3x" | "4x" | "8x"
+    ram_gb        : RAM amount in GB (default: 16)
     """
     # ── 0. Extract scores ───────────────────────────────────────────────
     if isinstance(cpu_data, dict):
@@ -236,5 +237,41 @@ def estimate_fps(cpu_data, gpu_data, game, resolution="1080p",
             fps *= 0.82
         else:
             fps *= net_mult
+
+    # ── 9. RAM Impact (Game-Specific) ──────────────────────────────────────
+    # RAM affects FPS especially in modern games with large textures/assets
+    # Insufficient RAM causes stuttering and lower average FPS
+    # Game-specific sensitivity: some games (Cities Skylines 2, MSFS) need much more RAM
+    
+    game_ram_sensitivity = game.get("ram_sensitivity", 1.0)  # 1.0=normal, 1.5=high, 0.7=low
+    
+    ram_mult = 1.0
+    if ram_gb < 8:
+        # Severe bottleneck - constant paging
+        base_penalty = 0.65
+        ram_mult = base_penalty * (0.85 ** (game_ram_sensitivity - 1.0))  # More penalty for RAM-hungry games
+    elif ram_gb < 16:
+        if resolution == "4k" or settings == "Ultra":
+            # Modern games need 16GB+ for high settings
+            base_penalty = 0.78
+            ram_mult = base_penalty * (0.90 ** (game_ram_sensitivity - 1.0))
+        else:
+            # Acceptable for 1080p medium/high
+            base_penalty = 0.88
+            ram_mult = base_penalty * (0.95 ** (game_ram_sensitivity - 1.0))
+    elif ram_gb < 32:
+        # Sweet spot for most games, but RAM-hungry games still benefit from 32GB
+        if game_ram_sensitivity >= 1.5:
+            ram_mult = 0.95  # RAM-hungry games still want more
+        else:
+            ram_mult = 1.0  # Perfect for normal games
+    else:
+        # 32GB+ - excellent for all games
+        if game_ram_sensitivity >= 1.5:
+            ram_mult = 1.05  # RAM-hungry games finally shine
+        else:
+            ram_mult = 1.02  # Slight benefit for 4K ultra with heavy mods
+    
+    fps *= ram_mult
 
     return max(int(fps), 0)

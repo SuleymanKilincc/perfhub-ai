@@ -51,7 +51,9 @@ cmd = [
     "--hidden-import=PyQt6.QtWidgets",
     "--hidden-import=uvicorn",
     "--hidden-import=fastapi",
-    "--hidden-import=google.generativeai",
+    "--hidden-import=google.genai",
+    "--hidden-import=google.genai.types",
+    "--hidden-import=google.genai.client",
     "modern_desktop_app.py"        # Ana dosya
 ]
 

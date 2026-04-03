@@ -55,9 +55,26 @@ def initialize_db():
             ultra_scaling REAL DEFAULT 0.5,
             res_1080p_scaling REAL DEFAULT 1.0,
             res_1440p_scaling REAL DEFAULT 0.65,
-            res_4k_scaling REAL DEFAULT 0.35
+            res_4k_scaling REAL DEFAULT 0.35,
+            ram_sensitivity REAL DEFAULT 1.0,
+            supports_rt INTEGER DEFAULT 0,
+            supports_pt INTEGER DEFAULT 0
         )
     ''')
+    
+    # Add columns if they don't exist (for existing databases)
+    try:
+        cursor.execute("ALTER TABLE games ADD COLUMN ram_sensitivity REAL DEFAULT 1.0")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE games ADD COLUMN supports_rt INTEGER DEFAULT 0")
+    except:
+        pass
+    try:
+        cursor.execute("ALTER TABLE games ADD COLUMN supports_pt INTEGER DEFAULT 0")
+    except:
+        pass
 
     conn.commit()
     conn.close()
@@ -93,15 +110,16 @@ def _populate_initial_data():
         ]
         cursor.executemany("INSERT INTO gpus (name, vram, core_clock, memory_clock, architecture, power_score) VALUES (?, ?, ?, ?, ?, ?)", gpus)
 
-        # Initial Games
+        # Initial Games (with ram_sensitivity + RT/PT support: 0=no, 1=yes)
+        # Format: (name, genre, diff_mult, low, med, high, ultra, 1080p, 1440p, 4k, ram_sens, rt, pt)
         games = [
-            ("Cyberpunk 2077", "RPG", 1.8, 1.6, 1.0, 0.7, 0.4, 1.0, 0.6, 0.3),
-            ("Red Dead Redemption 2", "Action", 1.5, 1.4, 1.0, 0.75, 0.5, 1.0, 0.65, 0.35),
-            ("Valorant", "FPS", 0.4, 1.8, 1.0, 0.9, 0.8, 1.0, 0.8, 0.6),
-            ("CS:GO 2", "FPS", 0.5, 1.7, 1.0, 0.85, 0.75, 1.0, 0.75, 0.5),
-            ("Hogwarts Legacy", "RPG", 1.6, 1.4, 1.0, 0.7, 0.45, 1.0, 0.65, 0.35),
+            ("Cyberpunk 2077", "RPG", 1.8, 1.6, 1.0, 0.7, 0.4, 1.0, 0.6, 0.3, 1.3, 1, 1),  # RT + PT
+            ("Red Dead Redemption 2", "Action", 1.5, 1.4, 1.0, 0.75, 0.5, 1.0, 0.65, 0.35, 1.2, 0, 0),  # No RT/PT
+            ("Valorant", "FPS", 0.4, 1.8, 1.0, 0.9, 0.8, 1.0, 0.8, 0.6, 0.7, 0, 0),  # No RT/PT
+            ("CS:GO 2", "FPS", 0.5, 1.7, 1.0, 0.85, 0.75, 1.0, 0.75, 0.5, 0.7, 0, 0),  # No RT/PT
+            ("Hogwarts Legacy", "RPG", 1.6, 1.4, 1.0, 0.7, 0.45, 1.0, 0.65, 0.35, 1.6, 1, 0),  # RT only
         ]
-        cursor.executemany("INSERT INTO games (name, genre, difficulty_multiplier, low_scaling, med_scaling, high_scaling, ultra_scaling, res_1080p_scaling, res_1440p_scaling, res_4k_scaling) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", games)
+        cursor.executemany("INSERT INTO games (name, genre, difficulty_multiplier, low_scaling, med_scaling, high_scaling, ultra_scaling, res_1080p_scaling, res_1440p_scaling, res_4k_scaling, ram_sensitivity, supports_rt, supports_pt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", games)
 
         conn.commit()
     conn.close()
