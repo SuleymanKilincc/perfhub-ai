@@ -2,7 +2,7 @@
 
 AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
-![Version](https://img.shields.io/badge/version-4.0.1-blue)
+![Version](https://img.shields.io/badge/version-5.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -10,28 +10,29 @@ AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 ## ✨ Features
 
 ### 🎮 Gaming & Performance
-- 🔍 **Automatic Hardware Detection** - Detects CPU, GPU, RAM, and storage automatically
+- 🔍 **Automatic Hardware Detection** - Detects CPU, GPU, RAM, and storage automatically with precise WMI cleaning for laptops
 - 📊 **Performance Scoring** - Calculates system performance score (0-100)
 - ⚠️ **Bottleneck Analysis** - Identifies CPU/GPU imbalances with recommendations
-- 🎯 **FPS Prediction** - Estimates FPS for 32+ popular games across all presets
-- 🌟 **Ray Tracing / Path Tracing** - Toggle RT/PT for supported games with realistic performance impact
-- 💾 **RAM Impact Analysis** - Game-specific RAM sensitivity (4GB-128GB) with accurate FPS penalties
+- 🎯 **Massive FPS Prediction Database** - Estimates FPS for **160+ popular games** across all presets
+- 🌟 **Intelligent Upscaling Engine** - Accurately predicts DLSS, FSR, and XeSS performance. Warns if a game doesn't support the selected technology
+- 💡 **Ray Tracing / Path Tracing** - Toggle RT/PT for supported games with realistic, calibrated performance impacts (-40% for RT, -55% for PT)
+- 💾 **RAM Impact Analysis** - Game-specific RAM sensitivity with accurate FPS penalties
 
 ### 🤖 AI-Powered Features
-- 🧠 **AI Assistant** - Powered by Google Gemini 2.5 Flash (no API key needed!)
+- 🧠 **AI Assistant** - Powered by Groq Cloud (Llama 3.3 70B Versatile) for lightning-fast hardware consulting
 - 🔬 **Hardware Analysis** - Detailed component analysis with AI-generated insights
-- 💡 **Smart Recommendations** - AI suggests optimal hardware upgrades
+- 💡 **Smart Recommendations** - AI suggests optimal hardware upgrades (filters out workstation/server components for gamers)
 - 🌐 **Multi-Language** - Turkish & English support with AI responses in your language
 
 ### 🛠️ PC Building Tools
-- 🖥️ **PC Builder** - Build and test theoretical PC configurations
+- 🖥️ **PC Builder & Compare Tool** - Build and test theoretical PC configurations and compare FPS across 160+ games
 - 📈 **Upgrade Simulator** - Compare current vs. target system performance
 - 🔌 **PSU Calculator** - Automatic power supply recommendations
-- 💰 **Price/Performance** - Smart hardware value analysis
+- 🛒 **Dynamic Store Integration** - Compare prices instantly on Amazon, Trendyol, and Hepsiburada
 
 ### 🖥️ Hardware Support
-- **156+ CPUs** - Intel, AMD, Apple Silicon (M1-M5)
-- **137+ GPUs** - NVIDIA, AMD, Intel ARC + integrated graphics
+- **170+ CPUs** - Intel, AMD, Apple Silicon (M1-M5)
+- **144+ GPUs** - NVIDIA, AMD, Intel ARC + integrated graphics
 - **Intel iGPU Support** - Proper detection and scoring for integrated graphics
 - **Laptop Detection** - Accurate laptop vs desktop hardware differentiation
 
@@ -39,33 +40,33 @@ AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
 Download the latest version from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases)
 
-**Latest:** [PerfHub AI v4.0.1](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v4.0.1) (52.76 MB)
+**Latest:** [PerfHub AI v5.1.0](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v5.1.0) (64.50 MB)
 
 ## 🖥️ System Requirements
 
 - **OS**: Windows 10/11 (64-bit)
 - **RAM**: 4 GB minimum
-- **Storage**: 100 MB free disk space
+- **Storage**: 150 MB free disk space
 - **Internet**: Required for AI features
 
 ## 🚀 Quick Start
 
 ### Installation
-1. Download `PerfHub_AI_v4.0.0.zip` from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v4.0.0)
+1. Download `PerfHub_AI_v5.1.0.zip` from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v5.1.0)
 2. Extract the ZIP file to any folder
 3. Run `PerfHub_AI_WebApp.exe`
 4. First launch may take 5-10 seconds (normal)
 5. **No API key required** - AI works out of the box!
 
 ### Windows Security Warning
-On first run, Windows may show a "Unknown publisher" warning:
+On first run, Windows may show an "Unknown publisher" warning:
 1. Click **"More info"**
 2. Click **"Run anyway"**
 
 **Security Note**: This app is safe and open-source.  
-🔒 **VirusTotal Scan**: [68/70 clean](https://www.virustotal.com/gui/file/6e43f2c8ef3efc586f752222c554046ff1ae204a114bfc947749da2fb346842d/detection) (2 false positives - common for PyInstaller apps)
+🔒 **VirusTotal Scan**: Clean (Lütfen yayınladıktan sonra linki güncelleyin)
 
-## 🎮 Supported Games
+## 🎮 Supported Games (160+)
 
 ### Games with Ray Tracing + Path Tracing
 - Cyberpunk 2077
@@ -73,33 +74,28 @@ On first run, Windows may show a "Unknown publisher" warning:
 - Portal RTX
 - Minecraft RTX
 - Quake II RTX
+- Pragmata
 
 ### Games with Ray Tracing Only
 - Spider-Man Remastered
 - Hogwarts Legacy
 - Forza Horizon 5
-- F1 2024
+- F1 25 & F1 2024
 - Resident Evil 4 Remake
 - Control
 - Metro Exodus Enhanced Edition
 - Dying Light 2
 - Watch Dogs Legion
-- Shadow of the Tomb Raider
-- ...and 22 more!
+- ...and dozens more!
 
-### Competitive Games (Low RAM Impact)
+### E-Sports & Competitive (Native Rendering)
 - Valorant
-- CS:GO 2
+- CS2 (Counter-Strike 2)
 - Apex Legends
 - Fortnite
 - League of Legends
+- Dota 2
 - Overwatch 2
-
-### RAM-Intensive Games
-- Cities Skylines 2 (1.8x RAM impact)
-- Microsoft Flight Simulator (1.7x)
-- Hogwarts Legacy (1.6x)
-- Cyberpunk 2077 (1.3x)
 
 ## 🛠️ Development
 
@@ -118,7 +114,7 @@ cd perfhub-ai
 
 # Install dependencies
 pip install -r backend/requirements.txt
-pip install PyQt6 wmi psutil GPUtil google-genai
+pip install PyQt6 wmi psutil GPUtil openai python-dotenv
 
 # Run the application
 python modern_desktop_app.py
@@ -131,7 +127,7 @@ python modern_desktop_app.py
 pip install pyinstaller
 
 # Build the executable
-python build_web_app_exe.py
+python -m PyInstaller PerfHub_AI_WebApp.spec --noconfirm
 
 # Output: dist/PerfHub_AI_WebApp.exe
 ```
@@ -142,35 +138,26 @@ python build_web_app_exe.py
 # Build EXE first, then create release ZIP
 python create_release_zip.py
 
-# Output: PerfHub_AI_v4.0.0.zip
+# Output: PerfHub_AI_v5.1.0.zip
 ```
 
 ## 📊 Database
 
 - **170+ CPUs** - Intel (Core 5-14 Gen, Xeon), AMD (Ryzen 1000-9000, Threadripper), Apple Silicon (M1-M5)
 - **144+ GPUs** - NVIDIA (GTX 700-RTX 5000), AMD (Polaris-RDNA 4), Intel ARC + iGPUs
-- **66 Games** - Complete RT/PT support data and RAM sensitivity profiles
+- **160+ Games** - Complete RT/PT support data, DLSS/FSR/XeSS flags, and RAM sensitivity profiles
 - **Accurate Scoring** - Real-world benchmarks and performance data
 
 Database location: `data/hardware_db.sqlite`
-
-### Intel iGPU Models Supported
-- Intel Iris Xe Graphics (18 score)
-- Intel Iris Xe Graphics G7 (20 score)
-- Intel Iris Plus Graphics (15 score)
-- Intel UHD Graphics 770 (12 score)
-- Intel UHD Graphics 730 (10 score)
-- Intel UHD Graphics 630 (8 score)
 
 ## 🏗️ Architecture
 
 ```
 perfhub-ai/
 ├── modern_desktop_app.py    # Main PyQt6 application
-├── build_web_app_exe.py     # EXE builder script
-├── backend/                 # FastAPI backend
-│   ├── main.py
-│   └── requirements.txt
+├── PerfHub_AI_WebApp.spec   # PyInstaller spec file
+├── create_release_zip.py    # ZIP builder script
+├── backend/                 # FastAPI backend (Web Version)
 ├── core/                    # Core modules
 │   ├── hardware_detector.py # Hardware detection
 │   ├── db_manager.py        # Database operations
@@ -178,7 +165,7 @@ perfhub-ai/
 │   └── ai_assistant.py      # AI integration
 ├── data/                    # Database
 │   └── hardware_db.sqlite
-├── frontend/                # React web interface
+├── frontend/                # React web interface (Web Version)
 └── scripts/                 # Utility scripts
 ```
 
@@ -190,7 +177,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👨‍💻 Author
+## 👨💻 Author
 
 **Süleyman Kılınç**
 - Website: [suleymankilinc.com](https://suleymankilinc.com)
@@ -199,21 +186,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Hardware data sourced from various benchmarking databases
-- AI powered by Google Gemini 2.5 Flash
+- AI powered by Groq Cloud (Llama 3.3)
 - Built with PyQt6, FastAPI, and React
 - RT/PT support data from game documentation
 
 ## 📸 Screenshots
 
 ### Dashboard
-![Dashboard](https://via.placeholder.com/800x500?text=Dashboard+Screenshot)
+![Dashboard](screenshots/dashboard.png)
 
 ### FPS Prediction
-![FPS Prediction](https://via.placeholder.com/800x500?text=FPS+Prediction+Screenshot)
-
-### PC Builder
-![PC Builder](https://via.placeholder.com/800x500?text=PC+Builder+Screenshot)
-
----
-
-⭐ Star this repo if you find it useful!
+![FPS Prediction](screenshots/results.png)
