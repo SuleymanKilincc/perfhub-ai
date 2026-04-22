@@ -1,5 +1,5 @@
 """
-Scoring Engine - v3.0
+Scoring Engine - v4.0
 Handles system scoring, bottleneck analysis, and accurate FPS estimation.
 """
 
@@ -8,8 +8,11 @@ Handles system scoring, bottleneck analysis, and accurate FPS estimation.
 #
 # Gaming is ~70-75 % GPU-bound at medium-high resolution.
 # CPU matters more for 1080p / CPU-heavy games; GPU dominates 1440p/4K.
-GPU_WEIGHT  = 2.2   # scales the GPU power_score to "raw frame equivalents"
-CPU_WEIGHT  = 0.55  # CPU contributes significantly at low res, but less at 4K
+# 
+# UPDATED: Increased weights for more realistic FPS values
+# RTX 5070 Ti (88 score) should get ~60-80 FPS in 4K Ultra demanding games
+GPU_WEIGHT  = 3.8   # scales the GPU power_score to "raw frame equivalents"
+CPU_WEIGHT  = 1.2   # CPU contributes significantly at low res, but less at 4K
 
 
 def calculate_system_score(cpu_score, gpu_score, ram_gb):
@@ -168,12 +171,13 @@ def estimate_fps(cpu_data, gpu_data, game, resolution="1080p",
     # Resolution shifts CPU/GPU relevance:
     #   1080p → CPU matters more  (bottleneck often CPU)
     #   4K    → ~90 % GPU-limited
+    # UPDATED: Increased weights for more realistic FPS
     if resolution == "1080p":
-        g_w, c_w = 1.90, 0.75
+        g_w, c_w = 3.5, 1.5
     elif resolution == "1440p":
-        g_w, c_w = 2.20, 0.55
+        g_w, c_w = 3.8, 1.2
     else:  # 4k
-        g_w, c_w = 2.50, 0.35
+        g_w, c_w = 4.2, 0.9
 
     base_raw = (gpu_score * g_w) + (cpu_score * c_w)
 
@@ -198,44 +202,175 @@ def estimate_fps(cpu_data, gpu_data, game, resolution="1080p",
     # Apply scalings multiplicatively (they're already tuned per-game in DB)
     fps = fps_base * res_scale * qual_scale
 
-    # ── 6. VRAM penalty ─────────────────────────────────────────────────
-    # Only penalize when VRAM is genuinely insufficient for the task
-    vram_ok = True
-    if resolution == "1440p":
-        if settings == "Ultra" and vram < 10: fps *= 0.82; vram_ok = False
-        elif vram < 8:                         fps *= 0.68; vram_ok = False
-    elif resolution == "4k":
-        if settings == "Ultra" and vram < 16: fps *= 0.72; vram_ok = False
-        if vram < 12:                          fps *= 0.55; vram_ok = False
-        if vram < 8:                           fps *= 0.30; vram_ok = False  # Unplayable
+    # ── 6. VRAM penalty ──────────────────────────────────────────────────────
+    # KEY INSIGHT: VRAM penalty depends heavily on the GAME.
+    # Heavy games (Cyberpunk, Alan Wake 2) use 12-18 GB at 4K Ultra → full penalty.
+    # Light games (CS2, Valorant, LoL, Fortnite) use < 6 GB at 4K → NO penalty on 8GB.
+    # Medium games (GTA V, CoD, RDR2) use 7-10 GB at 4K Ultra → scaled penalty.
+    #
+    # We use difficulty_multiplier as a VRAM demand proxy:
+    #   diff < 1.6  = very light (Valorant, CS2, LoL, OW2)     → NO VRAM PENALTY at 8GB
+    #   diff 1.6-3.0 = moderate (GTA V, CoD, Apex, Fortnite)   → vram_demand ≈ 0.40-0.65
+    #   diff 3.0-5.0 = demanding (Elden Ring, RDR2, Hogwarts)   → vram_demand ≈ 0.70-0.90
+    #   diff > 5.0   = extreme VRAM (Cyberpunk, Alan Wake)       → vram_demand = 1.00
+    diff_mult = game.get("difficulty_multiplier", 2.5)
+    raw_demand = min(diff_mult / 5.0, 1.0)   # 0.0 – 1.0
+    vram_demand = max(0.10, raw_demand)      # floor keeps math clean
 
-    # ── 7. AI Upscaling multiplier ───────────────────────────────────────
+    # THRESHOLD: If vram_demand < 0.32 (diff < ~1.6), the game doesn't
+    # load VRAM heavily enough to cause overflow — skip penalty entirely.
+    VRAM_PENALTY_THRESHOLD = 0.32
+    apply_vram_penalty = (vram_demand >= VRAM_PENALTY_THRESHOLD)
+
+    vram_ok = True
+    vram_sufficient = True
+    vram_penalty_applied = 1.0  # track exact penalty for the undo step
+
+    if resolution == "4k":
+        if settings in ("Ultra", "High") and apply_vram_penalty:
+            if vram < 8:
+                base_pen = 0.42 + (1.0 - 0.42) * (1.0 - vram_demand)  # heavy=0.42, light→1.0
+                fps *= base_pen
+                vram_penalty_applied = base_pen
+                vram_ok = False
+            elif vram < 10:
+                base_pen = 0.55 + (1.0 - 0.55) * (1.0 - vram_demand)
+                fps *= base_pen
+                vram_penalty_applied = base_pen
+                vram_ok = False
+            elif vram < 12:
+                base_pen = 0.78 + (1.0 - 0.78) * (1.0 - vram_demand)
+                fps *= base_pen
+                vram_penalty_applied = base_pen
+                vram_ok = False
+            elif vram < 16:
+                base_pen = 0.92 + (1.0 - 0.92) * (1.0 - vram_demand)
+                fps *= base_pen
+                vram_penalty_applied = base_pen
+                vram_ok = False
+        elif vram < 8 and apply_vram_penalty:  # non-Ultra at 4K
+            fps *= 0.88
+            vram_penalty_applied = 0.88
+            vram_ok = False
+        if vram < 12:
+            vram_sufficient = False
+
+    elif resolution == "1440p":
+        if vram < 6:
+            base_pen = 0.72 + (1.0 - 0.72) * (1.0 - vram_demand)
+            fps *= base_pen
+            vram_penalty_applied = base_pen
+            vram_ok = False
+        elif settings == "Ultra" and vram < 8:
+            base_pen = 0.88 + (1.0 - 0.88) * (1.0 - vram_demand)
+            fps *= base_pen
+            vram_penalty_applied = base_pen
+            vram_ok = False
+        if vram < 8:
+            vram_sufficient = False
+
+    else:  # 1080p — VRAM rarely matters
+        if vram < 4:
+            fps *= 0.80
+            vram_penalty_applied = 0.80
+            vram_ok = False
+        elif vram < 6:
+            fps *= 0.92
+            vram_penalty_applied = 0.92
+            vram_ok = False
+        if vram < 4:
+            vram_sufficient = False
+
+    # -- 7. AI Upscaling multiplier -------------------------------------------
     up = upscaling.lower()
-    if "dlaa" in up or ("native" in up and "aa" in up):
-        up_mult = 0.94   # slight AA cost
-    elif "quality" in up:
-        up_mult = 1.23
-    elif "balanced" in up:
-        up_mult = 1.40
-    elif "ultra performance" in up:
-        up_mult = 1.82
-    elif "performance" in up:
-        up_mult = 1.58
+
+    # Gate: check if the game actually supports the selected upscaling tech.
+    # If not, treat as Native (no boost). Defaults to 1 (supported) for
+    # backwards compatibility if the column doesn't exist.
+    game_dlss = game.get("supports_dlss", 1)
+    game_fsr  = game.get("supports_fsr",  1)
+    game_xess = game.get("supports_xess", 0)
+
+    upscaling_supported = True
+    if "dlss" in up and not game_dlss:
+        upscaling_supported = False      # e.g. Elden Ring + DLSS -> Native
+    elif "fsr" in up and not game_fsr:
+        upscaling_supported = False      # e.g. Quake II RTX + FSR -> Native
+    elif "xess" in up and not game_xess:
+        upscaling_supported = False      # XeSS not supported
+
+    if not upscaling_supported:
+        # Fall back to native — no upscaling boost at all
+        fps *= 1.0
+        return max(1, round(fps))
+
+    # Technology efficiency delta vs DLSS reference
+    if "fsr" in up:
+        tech_scale = 0.88    # FSR2/3: ~12% less efficient than DLSS per mode
+    elif "xess" in up:
+        tech_scale = 0.93    # Intel XeSS: ~7% less efficient than DLSS
     else:
-        up_mult = 1.0    # Native
+        tech_scale = 1.00    # DLSS or generic
+
+
+    if "dlaa" in up or ("native" in up and "aa" in up):
+        up_mult = 0.96       # DLAA: renders at native res with AI AA
+
+    elif "ultra performance" in up:
+        # 4K->1080p / 1440p->720p render -- extreme load reduction
+        up_mult = {"4k": 3.05, "1440p": 2.05, "1080p": 1.90}.get(resolution, 2.05)
+
+    elif "performance" in up:
+        # 4K->~1080p / 1440p->~960p render
+        up_mult = {"4k": 2.38, "1440p": 1.72, "1080p": 1.58}.get(resolution, 1.72)
+
+    elif "balanced" in up:
+        # 4K->~1200p / 1440p->~1080p render
+        up_mult = {"4k": 1.92, "1440p": 1.50, "1080p": 1.43}.get(resolution, 1.50)
+
+    elif "quality" in up:
+        # 4K->~1440p / 1440p->~1080p render
+        up_mult = {"4k": 1.65, "1440p": 1.38, "1080p": 1.29}.get(resolution, 1.38)
+
+    else:
+        up_mult = 1.0        # Native rendering -- no upscaling
+
+    # Apply technology efficiency delta (only for non-native modes)
+    if up_mult > 1.0:
+        up_mult = (up_mult - 1.0) * tech_scale + 1.0
+
+    # VRAM UNDO: GPU renders at lower res -> VRAM pressure drops.
+    # Performance / Ultra Perf  -> full VRAM relief (renders at 720-1080p)
+    # Balanced / Quality        -> ~65% relief (renders at 60-70% output res)
+    if not vram_ok and up_mult > 1.05:
+        if "ultra performance" in up or "performance" in up:
+            fps /= vram_penalty_applied          # fully restore pre-penalty FPS
+        elif "balanced" in up or "quality" in up:
+            partial_undo = 1.0 + (1.0 / vram_penalty_applied - 1.0) * 0.65
+            fps *= partial_undo                  # undo ~65% of the VRAM penalty
 
     fps *= up_mult
 
-    # ── 8. Frame Generation ─────────────────────────────────────────────
+
+    # ── 8. Frame Generation ──────────────────────────────────────────────────
+    # Frame Gen creates AI-generated frames BETWEEN rendered frames.
+    # Important: FG multiplies the BASE rendered FPS, not the DLSS-output FPS.
+    # e.g. if native renders at 60 FPS → DLSS displays 80 FPS → FG creates
+    # 1 more per pair → 160 FPS output (≈ 2x the DLSS output).
+    # So the net effect: FG multiplies the final (post-DLSS) FPS by net_mult.
     if frame_gen_mode and frame_gen_mode != "Kapalı":
         net_mult = FG_NET_MULT.get(frame_gen_mode, 1.0)
 
-        # VRAM safeguard: FG needs extra frame buffer VRAM
-        vram_min_fg = {"1080p": 4, "1440p": 8, "4k": 12}.get(resolution, 4)
-        if not vram_ok or vram < vram_min_fg:
-            # Already VRAM-starved — FG makes it worse
-            fps *= 0.82
+        # CRITICAL: Frame Gen requires extra VRAM for frame buffers
+        # If VRAM is insufficient, Frame Gen causes STUTTERING and LOWER FPS
+        vram_min_fg = {"1080p": 6, "1440p": 10, "4k": 14}.get(resolution, 6)
+        
+        if vram < vram_min_fg or not vram_sufficient:
+            # VRAM insufficient - Frame Gen HURTS performance
+            # The GPU has to swap frame buffers to system RAM = massive slowdown
+            fps *= 0.70  # Frame Gen with insufficient VRAM = 30% FPS LOSS (reduced from 35%)
         else:
+            # VRAM sufficient - Frame Gen works as intended
             fps *= net_mult
 
     # ── 9. RAM Impact (Game-Specific) ──────────────────────────────────────

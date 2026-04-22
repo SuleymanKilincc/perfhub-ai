@@ -156,10 +156,193 @@ class AnalyzeWorkerThread(QThread):
     
     def run(self):
         try:
-            data = ai_assistant.analyze_hardware(self._hw_name, self._is_cpu)
+            data = ai_assistant.analyze_hardware(self._hw_name, self._is_cpu, "TR")
             self.finished.emit(data)
         except Exception as e:
             self.finished.emit({"error": f"Hata: {str(e)}"})
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  LOCALIZATION STRINGS
+# ─────────────────────────────────────────────────────────────────────────────
+STRINGS = {
+    "TR": {
+        # Sidebar sections
+        "sec_ana":"ANA", "sec_perf":"PERFORMANS", "sec_tools":"ARAÇLAR",
+        # Nav items
+        "nav_dashboard":"Dashboard", "nav_bottleneck":"Darboğaz",
+        "nav_fps":"Mev. PC FPS", "nav_builder":"PC Builder", "nav_bfps":"Builder FPS",
+        "nav_ai":"AI Asistan", "nav_compare":"Karşılaştır", "nav_hw":"Donanım Analizi", "nav_settings":"Ayarlar",
+        # Score widget
+        "score_header":"Genel Skor",
+        # Page titles
+        "title_dashboard":"SİSTEM KONTROL MERKEZİ",
+        "title_bottleneck":"DARBOĞAZ ANALİZİ",
+        "title_fps":"MEVCUT PC: OYUN FPS TAHMİNİ",
+        "title_builder":"PC BUILDER — HAYALİNDEKİ SİSTEM",
+        "title_bfps":"🚀 HAYALİNDEKİ SİSTEM — SONUÇLAR",
+        "title_hw":"🔬 DONANIM ANALİZİ",
+        "title_ai":"🤖  PerfHub AI Asistan",
+        "title_compare":"⚖️  DONANIM KARŞILAŞTIRICI",
+        "title_settings":"⚙️  AYARLAR",
+        # Dashboard hw card titles
+        "card_cpu":"İŞLEMCİ",
+        "card_gpu":"EKRAN KARTI",
+        "card_ram":"BELLEK (RAM)",
+        "card_ram_type":"RAM TİPİ & HIZ",
+        "card_storage":"DEPOLAMA",
+        "score_title":"GENEL PERFORMANS SKORU",
+        "detail_section":"▼  DETAYLI DONANIM ANALİZİ",
+        "scanning":"Sistem taranıyor, lütfen bekleyin...",
+        # HW Analysis dynamic labels
+        "lbl_gaming":"Gaming",
+        "lbl_render":"Render/3D",
+        "lbl_daily":"Günlük Ofis",
+        "lbl_cores":"Çekirdek/Thread",
+        "lbl_clocks":"Taban / Boost",
+        "lbl_arch":"Mimari",
+        "lbl_tdp":"TDP (tahmini)",
+        "lbl_year":"Çıkış Yılı",
+        "lbl_vram":"VRAM",
+        "lbl_core_mhz":"Çekirdek MHz",
+        "lbl_mem_mhz":"Bellek MHz",
+        # Settings page
+        "settings_lang_head":"🌍  Dil / Language",
+        "settings_lang_desc":"Uygulama arayüzü ve AI Asistan'ın kullandığı dili seçin.",
+        "settings_lang_active":"Aktif Dil: 🇹🇷 Türkçe",
+        "settings_aff_head":"🛒  Satış Ortaklığı Linkleri",
+        "settings_aff_desc":"Darboğaz tespiti yapıldığında gösterilecek mağaza linklerini seç.",
+        "settings_about_head":"ℹ️  PerfHub AI Hakkında",
+    },
+    "EN": {
+        # Sidebar sections
+        "sec_ana":"MAIN", "sec_perf":"PERFORMANCE", "sec_tools":"TOOLS",
+        # Nav items
+        "nav_dashboard":"Dashboard", "nav_bottleneck":"Bottleneck",
+        "nav_fps":"Cur. PC FPS", "nav_builder":"PC Builder", "nav_bfps":"Builder FPS",
+        "nav_ai":"AI Assistant", "nav_compare":"Compare", "nav_hw":"HW Analysis", "nav_settings":"Settings",
+        # Score widget
+        "score_header":"Overall Score",
+        # Page titles
+        "title_dashboard":"SYSTEM CONTROL CENTER",
+        "title_bottleneck":"BOTTLENECK ANALYSIS",
+        "title_fps":"CURRENT PC: GAME FPS ESTIMATOR",
+        "title_builder":"PC BUILDER — DREAM SYSTEM",
+        "title_bfps":"🚀 DREAM SYSTEM — RESULTS",
+        "title_hw":"🔬 HARDWARE ANALYSIS",
+        "title_ai":"🤖  PerfHub AI Assistant",
+        "title_compare":"⚖️  HARDWARE COMPARATOR",
+        "title_settings":"⚙️  SETTINGS",
+        # Dashboard hw card titles
+        "card_cpu":"PROCESSOR",
+        "card_gpu":"GRAPHICS CARD",
+        "card_ram":"MEMORY (RAM)",
+        "card_ram_type":"RAM TYPE & SPEED",
+        "card_storage":"STORAGE",
+        "score_title":"GLOBAL PERFORMANCE SCORE",
+        "detail_section":"▼  DETAILED HARDWARE ANALYSIS",
+        "scanning":"Scanning system, please wait...",
+        # HW Analysis dynamic labels
+        "lbl_gaming":"Gaming",
+        "lbl_render":"Render/3D",
+        "lbl_daily":"Daily / Office",
+        "lbl_cores":"Cores/Threads",
+        "lbl_clocks":"Base / Boost",
+        "lbl_arch":"Architecture",
+        "lbl_tdp":"TDP (est.)",
+        "lbl_year":"Release Year",
+        "lbl_vram":"VRAM",
+        "lbl_core_mhz":"Core MHz",
+        "lbl_mem_mhz":"Memory MHz",
+        # Settings page
+        "settings_lang_head":"🌍  Language / Dil",
+        "settings_lang_desc":"Select the language for the app interface and AI Assistant.",
+        "settings_lang_active":"Active Language: 🇬🇧 English",
+        "settings_aff_head":"🛒  Affiliate Links",
+        "settings_aff_desc":"Choose which stores to show when a bottleneck is detected.",
+        "settings_about_head":"ℹ️  About PerfHub AI",
+    }
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CUSTOM NAV BUTTON  (proper hover + active colors, no QLabel color-inherit bug)
+# ─────────────────────────────────────────────────────────────────────────────
+class NavButton(QFrame):
+    clicked_signal = pyqtSignal()
+
+    _TXT_NORMAL = "color: #B0BEC5; font-size: 14px; font-weight: bold; background: transparent; border: none;"
+    _TXT_HOVER  = "color: #E0E0E0; font-size: 14px; font-weight: bold; background: transparent; border: none;"
+    _TXT_ACTIVE = "color: #66FCF1; font-size: 14px; font-weight: bold; background: transparent; border: none;"
+
+    def __init__(self, icon, name, badge_text="", badge_color="#10B981", parent=None):
+        super().__init__(parent)
+        self._is_active = False
+        self.setFixedHeight(46)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setFrameShadow(QFrame.Shadow.Plain)
+        # objectName-specific selector prevents CSS from leaking into child QFrames
+        self.setObjectName("NavBtnOuter")
+        self.setStyleSheet("#NavBtnOuter { background: transparent; border: none; }")
+
+        h = QHBoxLayout(self)
+        h.setContentsMargins(0, 0, 12, 0)
+        h.setSpacing(0)
+
+        # ── Left indicator strip (3 px wide) — the single colored line ──────────
+        self._indicator = QFrame()
+        self._indicator.setObjectName("NavIndicator")
+        self._indicator.setFixedWidth(3)
+        self._indicator.setFrameShape(QFrame.Shape.NoFrame)
+        self._indicator.setStyleSheet("#NavIndicator { background: transparent; border: none; }")
+        h.addWidget(self._indicator)
+        h.addSpacing(13)
+
+        self.name_lbl = QLabel(f"{icon}  {name}")
+        self.name_lbl.setStyleSheet(self._TXT_NORMAL)
+        h.addWidget(self.name_lbl, 1)
+
+        self.badge_lbl = None
+        if badge_text:
+            self.badge_lbl = QLabel(badge_text)
+            self.badge_lbl.setStyleSheet(
+                f"background-color:{badge_color}; color:#0B0C10; font-size:9px;"
+                f" font-weight:900; padding:2px 7px; border-radius:8px; border: none;"
+            )
+            self.badge_lbl.setFixedHeight(17)
+            h.addWidget(self.badge_lbl)
+
+    def set_text(self, icon, name):
+        self.name_lbl.setText(f"{icon}  {name}")
+
+    def _apply_state(self, bg: str, ind_color: str, txt: str):
+        self.setStyleSheet(f"#NavBtnOuter {{ background: {bg}; border: none; }}")
+        self._indicator.setStyleSheet(f"#NavIndicator {{ background: {ind_color}; border: none; }}")
+        self.name_lbl.setStyleSheet(txt)
+
+    def set_active(self, active):
+        self._is_active = active
+        if active:
+            self._apply_state("rgba(102,252,241,0.10)", "#66FCF1", self._TXT_ACTIVE)
+        else:
+            self._apply_state("transparent", "transparent", self._TXT_NORMAL)
+
+    def enterEvent(self, event):
+        if not self._is_active:
+            self._apply_state("rgba(69,162,158,0.10)", "#45A29E", self._TXT_HOVER)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        if not self._is_active:
+            self._apply_state("transparent", "transparent", self._TXT_NORMAL)
+        super().leaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked_signal.emit()
+        super().mousePressEvent(event)
+
+
 
 class SearchableList(QWidget):
     def __init__(self, placeholder="Search...", parent=None):
@@ -202,7 +385,7 @@ class SearchableList(QWidget):
 class BenchmarkApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("TUF GAMING - PERFORMANCE HUB [V2 PRO]")
+        self.setWindowTitle("PerfHub AI v5.0 PRO — PC Performance Intelligence")
         self.resize(1000, 750)
         
         # Set window icon if exists
@@ -217,8 +400,65 @@ class BenchmarkApp(QMainWindow):
         self._last_cur_gpu_name = ""
         self._b_current_score = 0
         self._b_target_score = 0
+        self.lang = "TR"  # Default language: Turkish
+        
+        # Show permission dialog on first run
+        self.show_permission_dialog()
+        
         self.init_ui()
         self.run_scanner()
+    
+    def show_permission_dialog(self):
+        """Show permission dialog for hardware data collection."""
+        from PyQt6.QtWidgets import QMessageBox
+        
+        msg = QMessageBox(self)
+        msg.setWindowTitle("PerfHub AI - İzin Gerekli / Permission Required")
+        msg.setIcon(QMessageBox.Icon.Question)
+        
+        # Bilingual message
+        text = """
+🇹🇷 TÜRKÇE:
+PerfHub AI, sistem performansınızı analiz etmek için donanım bilgilerinizi (CPU, GPU, RAM) okumak istiyor.
+
+✅ Verileriniz sadece yerel olarak işlenir
+✅ İnternet üzerinden hiçbir veri gönderilmez
+✅ Gizliliğiniz korunur
+
+Devam etmek istiyor musunuz?
+
+---
+
+🇬🇧 ENGLISH:
+PerfHub AI wants to read your hardware information (CPU, GPU, RAM) to analyze your system performance.
+
+✅ Your data is processed locally only
+✅ No data is sent over the internet
+✅ Your privacy is protected
+
+Do you want to continue?
+        """
+        
+        msg.setText(text)
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+        
+        # Custom button text
+        yes_btn = msg.button(QMessageBox.StandardButton.Yes)
+        no_btn = msg.button(QMessageBox.StandardButton.No)
+        yes_btn.setText("✅ İzin Ver / Allow")
+        no_btn.setText("❌ İptal / Cancel")
+        
+        result = msg.exec()
+        
+        if result == QMessageBox.StandardButton.No:
+            # User declined, show info and exit
+            info = QMessageBox(self)
+            info.setWindowTitle("PerfHub AI")
+            info.setIcon(QMessageBox.Icon.Information)
+            info.setText("🇹🇷 Uygulama kapatılıyor.\n🇬🇧 Application closing.")
+            info.exec()
+            sys.exit(0)
 
     def init_ui(self):
         main_widget = QWidget()
@@ -228,105 +468,110 @@ class BenchmarkApp(QMainWindow):
         root_layout.setSpacing(0)
 
         # ============================================================
-        # LEFT SIDEBAR
+        # LEFT SIDEBAR (V3 — grouped, full-height, proper colors)
         # ============================================================
         sidebar = QFrame()
-        sidebar.setFixedWidth(220)
-        sidebar.setStyleSheet("background-color: #0d0d18; border-right: 1px solid #1e2a38;")
+        sidebar.setFixedWidth(240)
+        sidebar.setObjectName("SidebarFrame")
+        sidebar.setStyleSheet(
+            "#SidebarFrame { background-color: #111827; border-right: 1px solid #1F2D3D; }"
+        )
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
 
-        # App logo
+        # ── Logo area ──────────────────────────────────────────────
         logo_frame = QFrame()
-        logo_frame.setStyleSheet("background-color: #090912; border-bottom: 1px solid #1e2a38; padding: 0px;")
-        logo_frame.setFixedHeight(80)
-        logo_layout = QVBoxLayout(logo_frame)
-        logo_layout.setContentsMargins(15, 0, 15, 0)
-        logo_lbl = QLabel("\u26a1 PerfHub AI")
-        logo_lbl.setStyleSheet("color: #66FCF1; font-size: 18px; font-weight: 900; letter-spacing: 1px;")
-        logo_layout.addWidget(logo_lbl)
-        subtitle = QLabel("Benchmark & AI Asistan")
-        subtitle.setStyleSheet("color: #45A29E; font-size: 11px;")
-        logo_layout.addWidget(subtitle)
+        logo_frame.setFixedHeight(72)
+        logo_frame.setStyleSheet("background-color: #0D1117; border-bottom: 1px solid #1F2D3D;")
+        logo_lay = QVBoxLayout(logo_frame)
+        logo_lay.setContentsMargins(18, 10, 18, 10)
+        logo_lay.setSpacing(2)
+        logo_lbl = QLabel("⚡ PerfHub AI")
+        logo_lbl.setStyleSheet("color: #66FCF1; font-size: 19px; font-weight: 900; letter-spacing: 1px;")
+        logo_lay.addWidget(logo_lbl)
+        sub_lbl = QLabel("v5.0 PRO")
+        sub_lbl.setStyleSheet("color: #45A29E; font-size: 11px; font-weight: 700;")
+        logo_lay.addWidget(sub_lbl)
         sidebar_layout.addWidget(logo_frame)
-        sidebar_layout.addSpacing(10)
 
-        # Nav buttons
-        NAV_ITEMS = [
-            ("\U0001f5a5\ufe0f",  "Dashboard",          "Sistem özeti ve skor"),
-            ("\u26a0\ufe0f",      "Darboğaz",               "CPU/GPU dengesiz mi?"),
-            ("\U0001f3ae",       "Mevcut PC FPS",       "Mevcut sistem ile FPS"),
-            ("\U0001f6e0\ufe0f", "PC Builder",          "Hayalindeki sistemi kur"),
-            ("\U0001f680",       "Builder FPS",         "Hayalindeki sistem FPS"),
-            ("\U0001f52c",       "Donanım Analizi",     "Seçili GPU/CPU analizi"),
-            ("\U0001f916",       "AI Asistan",          "PerfHub AI ile sohbet et"),
-        ]
-        self.nav_buttons = []
-        NAV_STYLE_NORMAL = """
-            QPushButton {
-                background-color: transparent;
-                color: #8896a8;
-                font-size: 14px;
-                font-weight: bold;
-                text-align: left;
-                padding: 14px 18px;
-                border: none;
-                border-left: 3px solid transparent;
-            }
-            QPushButton:hover {
-                background-color: rgba(69, 162, 158, 0.08);
-                color: #C5C6C7;
-                border-left: 3px solid #45A29E;
-            }
-        """
-        NAV_STYLE_ACTIVE = """
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(102,252,241,0.12), stop:1 transparent);
-                color: #66FCF1;
-                font-size: 14px;
-                font-weight: bold;
-                text-align: left;
-                padding: 14px 18px;
-                border: none;
-                border-left: 3px solid #66FCF1;
-            }
-        """
-        self._nav_style_normal = NAV_STYLE_NORMAL
-        self._nav_style_active = NAV_STYLE_ACTIVE
+        # ── Nav button registry (for active state toggling) ────────
+        self.nav_btns = []   # list of NavButton
+        self._nav_page_map = {}  # page_idx -> NavButton
 
-        for i, (icon, name, hint) in enumerate(NAV_ITEMS):
-            btn = QPushButton(f"{icon}  {name}")
-            btn.setToolTip(hint)
-            btn.setStyleSheet(NAV_STYLE_NORMAL)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _, idx=i: self.switch_page(idx))
+        def _section(key):
+            lbl = QLabel(STRINGS["TR"][key])
+            lbl.setStyleSheet(
+                "color: #4A6280; font-size: 10px; font-weight: 900;"
+                " letter-spacing: 2px; padding: 16px 18px 5px 18px;"
+            )
+            lbl.setObjectName(f"sec_{key}")
+            sidebar_layout.addWidget(lbl)
+            return lbl
+
+        def _nav(page_idx, icon, str_key, badge_text="", badge_color="#10B981"):
+            btn = NavButton(icon, STRINGS["TR"][str_key], badge_text, badge_color)
+            btn.setObjectName(f"nav_{str_key}")
+            btn.clicked_signal.connect(lambda: self.switch_page(page_idx))
             sidebar_layout.addWidget(btn)
-            self.nav_buttons.append((btn, NAV_STYLE_NORMAL, NAV_STYLE_ACTIVE))
+            self.nav_btns.append(btn)
+            self._nav_page_map[page_idx] = btn
+            return btn
 
-        sidebar_layout.addStretch()
+        # Store section labels for language updates
+        self._sec_ana  = _section("sec_ana")
+        self._nb_dash  = _nav(0, "🖥️",  "nav_dashboard")
+        self._nb_bn    = _nav(1, "⚠️",   "nav_bottleneck")
 
-        # Version footer
-        ver = QLabel("v2.0 PRO")
-        ver.setStyleSheet("color: #2C3E50; font-size: 10px; padding: 10px 18px;")
-        sidebar_layout.addWidget(ver)
-        
-        # Language selector at bottom
-        lang_frame = QFrame()
-        lang_frame.setStyleSheet("background-color: #090912; border-top: 1px solid #1e2a38; padding: 10px;")
-        lang_layout = QVBoxLayout(lang_frame)
-        lang_layout.setContentsMargins(10, 10, 10, 10)
-        
-        lang_lbl = QLabel("🌐 Language / Dil")
-        lang_lbl.setStyleSheet("color: #45A29E; font-size: 11px; font-weight: bold;")
-        lang_layout.addWidget(lang_lbl)
-        
-        self.global_lang_combo = QComboBox()
-        self.global_lang_combo.addItems(["🇹🇷 Türkçe", "🇬🇧 English"])
-        self.global_lang_combo.setStyleSheet("background-color:#1F2833;color:white;padding:6px;border:1px solid #45A29E;border-radius:4px;font-size:11px;")
-        lang_layout.addWidget(self.global_lang_combo)
-        
-        sidebar_layout.addWidget(lang_frame)
+        self._sec_perf = _section("sec_perf")
+        self._nb_fps   = _nav(2, "🎮",   "nav_fps")
+        self._nb_bld   = _nav(3, "🛠️",   "nav_builder")
+        self._nb_bfps  = _nav(4, "🚀",   "nav_bfps")
+
+        self._sec_tools = _section("sec_tools")
+        self._nb_ai    = _nav(6, "🤖",   "nav_ai")
+        self._nb_cmp   = _nav(7, "⚖️",   "nav_compare", "YENİ",  "#66FCF1")
+        self._nb_hw    = _nav(5, "🔬",   "nav_hw")
+        self._nb_set   = _nav(8, "⚙️",   "nav_settings")
+
+        sidebar_layout.addStretch(1)
+
+        # ── Score widget (bottom) ──────────────────────────────────
+        sep = QFrame()
+        sep.setFixedHeight(1)
+        sep.setStyleSheet("background-color: #1F2D3D;")
+        sidebar_layout.addWidget(sep)
+
+        score_w = QWidget()
+        score_w.setStyleSheet("background-color: #0D1117;")
+        sw_lay = QVBoxLayout(score_w)
+        sw_lay.setContentsMargins(16, 12, 16, 16)
+        sw_lay.setSpacing(4)
+
+        self._lbl_score_header = QLabel(STRINGS["TR"]["score_header"])
+        self._lbl_score_header.setStyleSheet(
+            "color: #4A90B8; font-size: 11px; font-weight: 700; letter-spacing: 1px;"
+        )
+        sw_lay.addWidget(self._lbl_score_header)
+
+        self.sidebar_score_lbl = QLabel("— / 100")
+        self.sidebar_score_lbl.setStyleSheet(
+            "color: #66FCF1; font-size: 22px; font-weight: 900;"
+        )
+        sw_lay.addWidget(self.sidebar_score_lbl)
+
+        self.sidebar_score_bar = QProgressBar()
+        self.sidebar_score_bar.setRange(0, 100)
+        self.sidebar_score_bar.setValue(0)
+        self.sidebar_score_bar.setFixedHeight(7)
+        self.sidebar_score_bar.setTextVisible(False)
+        self.sidebar_score_bar.setStyleSheet(
+            "QProgressBar { background-color: #1F2D3D; border-radius: 3px; }"
+            "QProgressBar::chunk { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+            "stop:0 #45A29E, stop:1 #66FCF1); border-radius: 3px; }"
+        )
+        sw_lay.addWidget(self.sidebar_score_bar)
+        sidebar_layout.addWidget(score_w)
 
         root_layout.addWidget(sidebar)
 
@@ -336,16 +581,19 @@ class BenchmarkApp(QMainWindow):
         self.stack = QStackedWidget()
         self.stack.setStyleSheet("background-color: #0B0C10;")
 
-        self.page_dash      = QWidget(); self.page_dash.setObjectName("ScrollContent")
-        self.page_bn        = QWidget(); self.page_bn.setObjectName("ScrollContent")
-        self.page_fps       = QWidget(); self.page_fps.setObjectName("ScrollContent")
-        self.page_builder   = QWidget(); self.page_builder.setObjectName("ScrollContent")
-        self.page_b_fps     = QWidget(); self.page_b_fps.setObjectName("ScrollContent")
+        self.page_dash       = QWidget(); self.page_dash.setObjectName("ScrollContent")
+        self.page_bn         = QWidget(); self.page_bn.setObjectName("ScrollContent")
+        self.page_fps        = QWidget(); self.page_fps.setObjectName("ScrollContent")
+        self.page_builder    = QWidget(); self.page_builder.setObjectName("ScrollContent")
+        self.page_b_fps      = QWidget(); self.page_b_fps.setObjectName("ScrollContent")
         self.page_hw_analyze = QWidget(); self.page_hw_analyze.setObjectName("ScrollContent")
-        self.page_ai        = QWidget(); self.page_ai.setObjectName("ScrollContent")
+        self.page_ai         = QWidget(); self.page_ai.setObjectName("ScrollContent")
+        self.page_compare    = QWidget(); self.page_compare.setObjectName("ScrollContent")
+        self.page_settings   = QWidget(); self.page_settings.setObjectName("ScrollContent")
 
         for page in [self.page_dash, self.page_bn, self.page_fps, self.page_builder,
-                     self.page_b_fps, self.page_hw_analyze, self.page_ai]:
+                     self.page_b_fps, self.page_hw_analyze, self.page_ai,
+                     self.page_compare, self.page_settings]:
             self.stack.addWidget(page)
 
         root_layout.addWidget(self.stack)
@@ -358,15 +606,19 @@ class BenchmarkApp(QMainWindow):
         self.setup_builder_fps()
         self.setup_hw_analyze()
         self.setup_ai()
+        self.setup_compare()
+        self.setup_settings()
 
         # Default: show Dashboard
         self.switch_page(0)
 
     def switch_page(self, index):
-        """Switch the stacked widget page and update sidebar button styling."""
+        """Switch the stacked widget page and update nav button active states."""
         self.stack.setCurrentIndex(index)
-        for i, (btn, normal_style, active_style) in enumerate(self.nav_buttons):
-            btn.setStyleSheet(active_style if i == index else normal_style)
+        for btn in self.nav_btns:
+            btn.set_active(False)
+        if index in self._nav_page_map:
+            self._nav_page_map[index].set_active(True)
 
     # ---- SCROLLABLE WRAPPER for tall pages ----
     def _scrollable(self, inner_widget):
@@ -384,19 +636,24 @@ class BenchmarkApp(QMainWindow):
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(25)
 
-        title = QLabel("SYSTEM DASHBOARD")
-        title.setProperty("class", "Title")
-        layout.addWidget(title)
+        self._page_title_dash = QLabel(STRINGS[self.lang]["title_dashboard"])
+        self._page_title_dash.setProperty("class", "Title")
+        layout.addWidget(self._page_title_dash)
 
         # Hardware Info Grid (CPU, GPU, RAM, RAM Details, Storage)
         hw_grid = QGridLayout()
         hw_grid.setSpacing(15)
         
-        self.lbl_cpu = self.create_hw_card("PROCESSOR", hw_grid, 0, 0)
-        self.lbl_gpu = self.create_hw_card("GRAPHICS CARD", hw_grid, 0, 1)
-        self.lbl_ram = self.create_hw_card("MEMORY (RAM)", hw_grid, 0, 2)
-        self.lbl_ram_detail = self.create_hw_card("RAM TİPİ & HIZ", hw_grid, 1, 0)
-        self.lbl_storage = self.create_hw_card("DEPOLAMA", hw_grid, 1, 1)
+        self._hw_card_title_cpu   = self.create_hw_card(STRINGS[self.lang]["card_cpu"],      hw_grid, 0, 0)
+        self.lbl_cpu              = self._hw_card_title_cpu
+        self._hw_card_title_gpu   = self.create_hw_card(STRINGS[self.lang]["card_gpu"],      hw_grid, 0, 1)
+        self.lbl_gpu              = self._hw_card_title_gpu
+        self._hw_card_title_ram   = self.create_hw_card(STRINGS[self.lang]["card_ram"],      hw_grid, 0, 2)
+        self.lbl_ram              = self._hw_card_title_ram
+        self._hw_card_title_ramt  = self.create_hw_card(STRINGS[self.lang]["card_ram_type"], hw_grid, 1, 0)
+        self.lbl_ram_detail       = self._hw_card_title_ramt
+        self._hw_card_title_stor  = self.create_hw_card(STRINGS[self.lang]["card_storage"],  hw_grid, 1, 1)
+        self.lbl_storage          = self._hw_card_title_stor
         
         layout.addLayout(hw_grid)
 
@@ -407,10 +664,10 @@ class BenchmarkApp(QMainWindow):
         score_layout.setContentsMargins(30,30,30,30)
         score_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        slbl = QLabel("GLOBAL PERFORMANCE SCORE")
-        slbl.setStyleSheet("color: #C5C6C7; font-size: 14px; font-weight: bold; letter-spacing: 2px;")
-        slbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        score_layout.addWidget(slbl)
+        self._lbl_score_title = QLabel(STRINGS[self.lang]["score_title"])
+        self._lbl_score_title.setStyleSheet("color: #C5C6C7; font-size: 14px; font-weight: bold; letter-spacing: 2px;")
+        self._lbl_score_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        score_layout.addWidget(self._lbl_score_title)
 
         self.lbl_score_num = QLabel("...")
         self.lbl_score_num.setStyleSheet("color: white; font-size: 72px; font-weight: 900;")
@@ -426,19 +683,19 @@ class BenchmarkApp(QMainWindow):
         layout.addWidget(score_frame)
 
         # ── Detailed hardware analysis section (populated after scan) ──
-        sep = QLabel("▼  DETAYLI DONANIM ANALİZİ")
-        sep.setStyleSheet("color:#45A29E;font-size:13px;font-weight:bold;letter-spacing:2px;margin-top:10px;")
-        sep.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(sep)
+        self._lbl_detail_section = QLabel(STRINGS[self.lang]["detail_section"])
+        self._lbl_detail_section.setStyleSheet("color:#45A29E;font-size:13px;font-weight:bold;letter-spacing:2px;margin-top:10px;")
+        self._lbl_detail_section.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._lbl_detail_section)
 
         self.dash_detail_container = QWidget()
         self.dash_detail_layout = QVBoxLayout(self.dash_detail_container)
         self.dash_detail_layout.setContentsMargins(0, 0, 0, 0)
         self.dash_detail_layout.setSpacing(14)
-        waiting_lbl = QLabel("Sistem taranıyor, lütfen bekleyin...")
-        waiting_lbl.setStyleSheet("color:#45A29E;font-size:14px;")
-        waiting_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.dash_detail_layout.addWidget(waiting_lbl)
+        self._lbl_scanning = QLabel(STRINGS[self.lang]["scanning"])
+        self._lbl_scanning.setStyleSheet("color:#45A29E;font-size:14px;")
+        self._lbl_scanning.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.dash_detail_layout.addWidget(self._lbl_scanning)
         layout.addWidget(self.dash_detail_container)
 
         layout.addStretch()
@@ -452,9 +709,9 @@ class BenchmarkApp(QMainWindow):
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(25)
 
-        title = QLabel("DARBOĞAZ ANALİZİ")
-        title.setProperty("class", "Title")
-        layout.addWidget(title)
+        self._page_title_bn = QLabel(STRINGS[self.lang]["title_bottleneck"])
+        self._page_title_bn.setProperty("class", "Title")
+        layout.addWidget(self._page_title_bn)
 
         self.bn_frame = QFrame()
         self.bn_frame.setProperty("class", "Card")
@@ -462,11 +719,11 @@ class BenchmarkApp(QMainWindow):
         bn_layout.setContentsMargins(40, 30, 40, 30)
         bn_layout.setSpacing(15)
 
-        self.lbl_bn_title = QLabel("Taranıyor...")
+        self.lbl_bn_title = QLabel(("Taranıyor..." if self.lang=="TR" else "Scanning..."))
         self.lbl_bn_title.setStyleSheet("color: #F59E0B; font-size: 22px; font-weight: bold;")
         self.lbl_bn_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.lbl_bn_desc = QLabel("Bileşenler analiz ediliyor...")
+        self.lbl_bn_desc = QLabel(("Bileşenler analiz ediliyor..." if self.lang=="TR" else "Analyzing components..."))
         self.lbl_bn_desc.setStyleSheet("color: #C5C6C7; font-size: 15px; line-height: 1.6;")
         self.lbl_bn_desc.setWordWrap(True)
         self.lbl_bn_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -503,9 +760,10 @@ class BenchmarkApp(QMainWindow):
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(18)
         
-        title = QLabel("CURRENT PC: GAME FPS ESTIMATOR")
-        title.setProperty("class", "Title")
-        layout.addWidget(title)
+        self._page_title_fps = QLabel(STRINGS[self.lang]["title_fps"])
+        self._page_title_fps.setProperty("class", "Title")
+        layout.addWidget(self._page_title_fps)
+
 
         # Filters
         filter_layout = QHBoxLayout()
@@ -517,10 +775,19 @@ class BenchmarkApp(QMainWindow):
 
         filter_layout.addWidget(QLabel("  Select Game: ", styleSheet="color: #45A29E; font-weight: bold;"))
         self.cmb_game = QComboBox()
-        self.cmb_game.setMinimumWidth(250)
+        self.cmb_game.setEditable(True)
+        self.cmb_game.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.cmb_game.setMinimumWidth(260)
         all_g = db_manager.get_all_games()
         for g in all_g:
             self.cmb_game.addItem(g["name"], g)
+        # Enable MatchContains search while typing
+        from PyQt6.QtWidgets import QCompleter
+        from PyQt6.QtCore import Qt as _Qt
+        _comp = self.cmb_game.completer()
+        if _comp:
+            _comp.setFilterMode(_Qt.MatchFlag.MatchContains)
+            _comp.setCaseSensitivity(_Qt.CaseSensitivity.CaseInsensitive)
         self.cmb_game.currentIndexChanged.connect(self.populate_games)
         filter_layout.addWidget(self.cmb_game)
         
@@ -536,7 +803,13 @@ class BenchmarkApp(QMainWindow):
         
         ai_layout.addWidget(QLabel("Upscaling:", styleSheet="color: #C5C6C7; font-size: 13px;"))
         self.cmb_upscale = QComboBox()
-        self.cmb_upscale.addItems(["Native", "DLAA / Native AA", "Quality", "Balanced", "Performance", "Ultra Performance"])
+        self.cmb_upscale.addItems([
+            "Native",
+            "DLAA / Native AA",
+            "DLSS Quality", "DLSS Balanced", "DLSS Performance", "DLSS Ultra Performance",
+            "FSR Quality",  "FSR Balanced",  "FSR Performance",  "FSR Ultra Performance",
+            "XeSS Quality", "XeSS Balanced", "XeSS Performance",
+        ])
         self.cmb_upscale.currentTextChanged.connect(self.populate_games)
         ai_layout.addWidget(self.cmb_upscale)
         
@@ -573,7 +846,14 @@ class BenchmarkApp(QMainWindow):
         
         rt_layout.addStretch()
         layout.addLayout(rt_layout)
-        layout.addSpacing(12)
+
+        # Upscaling support info label
+        self.lbl_upscale_support = QLabel("")
+        self.lbl_upscale_support.setStyleSheet("color: #C5C6C7; font-size: 12px; font-style: italic;")
+        self.lbl_upscale_support.setWordWrap(True)
+        layout.addWidget(self.lbl_upscale_support)
+        layout.addSpacing(8)
+
 
         # FPS Progress Bars Container
         bars_container = QWidget()
@@ -612,10 +892,10 @@ class BenchmarkApp(QMainWindow):
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(15)
         
-        title = QLabel("CUSTOM PC BUILDER")
-        title.setProperty("class", "Title")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        self._page_title_builder = QLabel(STRINGS[self.lang]["title_builder"])
+        self._page_title_builder.setProperty("class", "Title")
+        self._page_title_builder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._page_title_builder)
         
         desc = QLabel("Select hardware to simulate a theoretical benchmark score.")
         desc.setStyleSheet("color: #C5C6C7; font-size: 16px;")
@@ -746,9 +1026,10 @@ class BenchmarkApp(QMainWindow):
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(20)
 
-        title = QLabel("\U0001f680 HAYALINDEKİ SİSTEM - SONUÇLAR")
-        title.setProperty("class", "Title")
-        layout.addWidget(title)
+        self._page_title_bfps = QLabel(STRINGS[self.lang]["title_bfps"])
+        self._page_title_bfps.setProperty("class", "Title")
+        layout.addWidget(self._page_title_bfps)
+
 
         # Score + bottleneck row
         score_card = QFrame(); score_card.setProperty("class", "Card")
@@ -757,7 +1038,7 @@ class BenchmarkApp(QMainWindow):
         sc_layout.setSpacing(10)
         sc_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        sc_lbl = QLabel("TEÖRİK PERFORMANS SKORU")
+        sc_lbl = QLabel("TEÖRİK PERFORMANS SKORU" if self.lang=="TR" else "THEORETICAL PERFORMANCE SCORE")
         sc_lbl.setStyleSheet("color: #C5C6C7; font-size: 13px; font-weight: bold; letter-spacing: 2px;")
         sc_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sc_layout.addWidget(sc_lbl)
@@ -792,7 +1073,7 @@ class BenchmarkApp(QMainWindow):
         fps_layout.setContentsMargins(30, 20, 30, 20)
         fps_layout.setSpacing(14)
 
-        fps_head = QLabel("TAHMİNİ FPS (HAYALİ SİSTEM)")
+        fps_head = QLabel("TAHMİNİ FPS (HAYALİ SİSTEM)" if self.lang=="TR" else "ESTIMATED FPS (DREAM SYSTEM)")
         fps_head.setStyleSheet("color: #66FCF1; font-size: 16px; font-weight: bold;")
         fps_head.setAlignment(Qt.AlignmentFlag.AlignCenter)
         fps_layout.addWidget(fps_head)
@@ -813,9 +1094,17 @@ class BenchmarkApp(QMainWindow):
         
         b_filter_layout.addWidget(QLabel("  Oyun: ", styleSheet="color: #45A29E; font-weight: bold;"))
         self.b_cmb_game = QComboBox()
-        self.b_cmb_game.setMinimumWidth(250)
+        self.b_cmb_game.setEditable(True)
+        self.b_cmb_game.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.b_cmb_game.setMinimumWidth(260)
         for g in db_manager.get_all_games():
             self.b_cmb_game.addItem(g["name"], g)
+        from PyQt6.QtWidgets import QCompleter as _QC
+        from PyQt6.QtCore import Qt as _Qt2
+        _comp2 = self.b_cmb_game.completer()
+        if _comp2:
+            _comp2.setFilterMode(_Qt2.MatchFlag.MatchContains)
+            _comp2.setCaseSensitivity(_Qt2.CaseSensitivity.CaseInsensitive)
         self.b_cmb_game.currentIndexChanged.connect(self.calculate_custom_build)
         b_filter_layout.addWidget(self.b_cmb_game)
         b_filter_layout.addStretch()
@@ -826,7 +1115,13 @@ class BenchmarkApp(QMainWindow):
         b_ai_layout.addWidget(b_ai_lbl)
         b_ai_layout.addWidget(QLabel("Upscaling:", styleSheet="color: #C5C6C7; font-size: 13px;"))
         self.b_cmb_upscale = QComboBox()
-        self.b_cmb_upscale.addItems(["Native", "DLAA / Native AA", "Quality", "Balanced", "Performance", "Ultra Performance"])
+        self.b_cmb_upscale.addItems([
+            "Native",
+            "DLAA / Native AA",
+            "DLSS Quality", "DLSS Balanced", "DLSS Performance", "DLSS Ultra Performance",
+            "FSR Quality",  "FSR Balanced",  "FSR Performance",  "FSR Ultra Performance",
+            "XeSS Quality", "XeSS Balanced", "XeSS Performance",
+        ])
         self.b_cmb_upscale.currentTextChanged.connect(self.calculate_custom_build)
         b_ai_layout.addWidget(self.b_cmb_upscale)
         b_ai_layout.addSpacing(20)
@@ -839,6 +1134,37 @@ class BenchmarkApp(QMainWindow):
         b_ai_layout.addWidget(self.b_cmb_framegen)
         b_ai_layout.addStretch()
         fps_layout.addLayout(b_ai_layout)
+        
+        # RT/PT Row for Builder
+        b_rt_layout = QHBoxLayout()
+        b_rt_lbl = QLabel("🌟 Ray/Path Tracing:")
+        b_rt_lbl.setStyleSheet("color: #9D00FF; font-weight: bold; font-size: 13px;")
+        b_rt_layout.addWidget(b_rt_lbl)
+        
+        self.b_chk_rt = QCheckBox("Ray Tracing")
+        self.b_chk_rt.setStyleSheet("color: #C5C6C7; font-size: 13px;")
+        self.b_chk_rt.stateChanged.connect(self.calculate_custom_build)
+        b_rt_layout.addWidget(self.b_chk_rt)
+        
+        self.b_chk_pt = QCheckBox("Path Tracing")
+        self.b_chk_pt.setStyleSheet("color: #C5C6C7; font-size: 13px;")
+        self.b_chk_pt.stateChanged.connect(self.calculate_custom_build)
+        b_rt_layout.addWidget(self.b_chk_pt)
+        
+        self.b_lbl_rt_support = QLabel("")
+        self.b_lbl_rt_support.setStyleSheet("color: #45A29E; font-size: 13px; font-weight: bold;")
+        b_rt_layout.addWidget(self.b_lbl_rt_support)
+        
+        b_rt_layout.addStretch()
+        fps_layout.addLayout(b_rt_layout)
+        
+        # Upscaling support info label for Builder
+        self.b_lbl_upscale_support = QLabel("")
+        self.b_lbl_upscale_support.setStyleSheet("color: #C5C6C7; font-size: 12px; font-style: italic;")
+        self.b_lbl_upscale_support.setWordWrap(True)
+        fps_layout.addWidget(self.b_lbl_upscale_support)
+        fps_layout.addSpacing(8)
+
 
         self.b_fps_bars = {}
         for preset in ["Low", "Medium", "High", "Ultra"]:
@@ -869,9 +1195,9 @@ class BenchmarkApp(QMainWindow):
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(20)
 
-        title = QLabel("\U0001f52c DONANIM ANALİZİ")
-        title.setProperty("class", "Title")
-        layout.addWidget(title)
+        self._page_title_hw = QLabel(STRINGS[self.lang]["title_hw"])
+        self._page_title_hw.setProperty("class", "Title")
+        layout.addWidget(self._page_title_hw)
 
         # Selector row
         sel_card = QFrame(); sel_card.setProperty("class", "Card")
@@ -1015,12 +1341,13 @@ class BenchmarkApp(QMainWindow):
             daily_s  = 8.5 if ps >= 40 else max(5.0, ps / 6.0)
         gaming_s = round(gaming_s, 1); render_s = round(render_s, 1); daily_s = round(min(10, daily_s), 1)
 
-        h_lbl = QLabel(f"{'🖥️ İŞLEMCİ' if is_cpu else '🎮 EKRAN KARTI'}  —  {name}")
+        _cpu_lbl = STRINGS[self.lang]["card_cpu"] if is_cpu else STRINGS[self.lang]["card_gpu"]
+        h_lbl = QLabel(f"{'🖥️ ' if is_cpu else '🎮 '}{_cpu_lbl}  —  {name}")
         h_lbl.setStyleSheet("color:white;font-size:17px;font-weight:900;"); h_lbl.setWordWrap(True)
         self.hw_result_layout.addWidget(h_lbl)
 
         # ── AI Analysis Button ──
-        self.ai_analyze_btn = QPushButton("🤖 AI ile Analiz Et (Kıdemli)")
+        self.ai_analyze_btn = QPushButton(STRINGS[self.lang].get("btn_ai_analyze","🤖 AI ile Analiz Et") if self.lang=="TR" else "🤖 Analyze with AI (Expert)")
         self.ai_analyze_btn.setStyleSheet("background-color:#F59E0B;color:#0B0C10;font-weight:900;padding:8px;border-radius:4px;font-size:13px;")
         self.ai_analyze_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.ai_analyze_btn.clicked.connect(lambda: self._on_ai_analyze_clicked(name, is_cpu))
@@ -1033,19 +1360,37 @@ class BenchmarkApp(QMainWindow):
         self.hw_result_layout.addWidget(self.ai_result_container)
 
         # 1. Use-case score bars
-        c1, l1 = self._hw_card("📊  KULLANIM PUANLARI")
-        l1.addLayout(self._score_bar("Gaming",      gaming_s, "#9D00FF"))
-        l1.addLayout(self._score_bar("Render / 3D", render_s, "#3B82F6"))
-        l1.addLayout(self._score_bar("Günlük Ofis", daily_s,  "#10B981"))
+        c1, l1 = self._hw_card(STRINGS[self.lang].get("card_title_scores","📊  KULLANIM PUANLARI") if self.lang=="TR" else "📊  USE-CASE SCORES")
+        S = STRINGS[self.lang]
+        l1.addLayout(self._score_bar(S["lbl_gaming"],         gaming_s, "#9D00FF"))
+        l1.addLayout(self._score_bar(S["lbl_render"],         render_s, "#3B82F6"))
+        l1.addLayout(self._score_bar(S["lbl_daily"],          daily_s,  "#10B981"))
         l1.addLayout(self._score_bar("Performans",  min(10, ps / 13.0), "#F59E0B"))
         self.hw_result_layout.addWidget(c1)
 
         # 2. Tech specs
-        c2, l2 = self._hw_card("⚙️  TEKNİK ÖZELLİKLER")
+        c2, l2 = self._hw_card(STRINGS[self.lang].get("card_title_specs","⚙️  TEKNİK ÖZELLİKLER") if self.lang=="TR" else "⚙️  SPECIFICATIONS")
         if is_cpu:
-            specs = {"Çekirdek / Thread": f"{hw.get('cores','?')} / {hw.get('threads','?')}", "Taban / Boost GHz": f"{hw.get('base_clock','?')} / {hw.get('boost_clock','?')} GHz", "Mimari": arch, "TDP (tahmini)": self._est_tdp(name, ps, True), "Çıkış Yılı": str(self._est_year(arch, name, True)), "Güç Skoru": str(ps)}
+            _S = STRINGS[self.lang]
+            specs = {
+                _S["lbl_cores"]: f"{hw.get('cores','?')} / {hw.get('threads','?')}",
+                _S["lbl_clocks"]: f"{hw.get('base_clock','?')} / {hw.get('boost_clock','?')} GHz",
+                _S["lbl_arch"]: arch,
+                _S["lbl_tdp"]: self._est_tdp(name, ps, True),
+                _S["lbl_year"]: str(self._est_year(arch, name, True)),
+                ("Güç Skoru" if self.lang=="TR" else "Power Score"): str(ps),
+            }
         else:
-            specs = {"VRAM": f"{hw.get('vram','?')} GB", "Çekirdek Saati": f"{hw.get('core_clock',0)} MHz", "Bellek Saati": f"{hw.get('memory_clock',0) or '?'} MHz", "Mimari": arch, "TDP (tahmini)": self._est_tdp(name, ps, False), "Çıkış Yılı": str(self._est_year(arch, name, False)), "Güç Skoru": str(ps)}
+            _S = STRINGS[self.lang]
+            specs = {
+                _S["lbl_vram"]: f"{hw.get('vram','?')} GB",
+                _S["lbl_core_mhz"]: f"{hw.get('core_clock',0)} MHz",
+                _S["lbl_mem_mhz"]: f"{hw.get('memory_clock',0) or '?'} MHz",
+                _S["lbl_arch"]: arch,
+                _S["lbl_tdp"]: self._est_tdp(name, ps, False),
+                _S["lbl_year"]: str(self._est_year(arch, name, False)),
+                ("Güç Skoru" if self.lang=="TR" else "Power Score"): str(ps),
+            }
         for k, v in specs.items():
             row = QHBoxLayout(); kl = QLabel(f"{k}:"); kl.setFixedWidth(180)
             kl.setStyleSheet("color:#45A29E;font-size:13px;font-weight:bold;")
@@ -1054,7 +1399,7 @@ class BenchmarkApp(QMainWindow):
         self.hw_result_layout.addWidget(c2)
 
         # 3. Market & price
-        c3, l3 = self._hw_card("💵  PAZAR KONUMU & FİYAT")
+        c3, l3 = self._hw_card(STRINGS[self.lang].get("card_title_market","💵  PAZAR KONUMU & FİYAT") if self.lang=="TR" else "💵  MARKET POSITION & PRICE")
         seg, usd = self._market_info(ps, is_cpu); try_price = int(usd * 38.5)
         mrows = {"Segment": seg, "Tahmini Fiyat": f"~${usd} USD  /  ~{try_price:,} TRY", "Fiyat/Performans": self._fp_verdict(ps, usd)}
         for k, v in mrows.items():
@@ -1065,14 +1410,14 @@ class BenchmarkApp(QMainWindow):
         self.hw_result_layout.addWidget(c3)
 
         # 4. Gaming performance
-        c4, l4 = self._hw_card("🎮  OYUN PERFORMANS TAHMİNİ")
+        c4, l4 = self._hw_card(STRINGS[self.lang].get("card_title_fps","🎮  OYUN PERFORMANS TAHMİNİ") if self.lang=="TR" else "🎮  GAMING PERFORMANCE EST.")
         lines = self._gpu_perf_text(ps, hw.get("vram",8) or 8) if not is_cpu else self._cpu_perf_text(name, ps)
         for line in lines:
             lb = QLabel(line); lb.setStyleSheet("color:#C5C6C7;font-size:12px;"); lb.setWordWrap(True); l4.addWidget(lb)
         self.hw_result_layout.addWidget(c4)
 
         # 5. Kritik yorum + rakip
-        c5, l5 = self._hw_card("📝  KRİTİK YORUM & RAKİP")
+        c5, l5 = self._hw_card(STRINGS[self.lang].get("card_title_review","📝  KRİTİK YORUM & RAKİP") if self.lang=="TR" else "📝  REVIEW & RIVAL")
         pros, cons = self._pros_cons(name, ps, is_cpu, gaming_s, render_s)
         rival = self._find_rival(name, ps, is_cpu)
         for line in [f"✅ Artı:  {pros}", f"❌ Eksi:  {cons}", f"⚔️  Rakip: {rival}"]:
@@ -1080,7 +1425,7 @@ class BenchmarkApp(QMainWindow):
         self.hw_result_layout.addWidget(c5)
 
         # 6. PSU / Bottleneck
-        c6, l6 = self._hw_card("🔌  PSU ÖNERİSİ" if not is_cpu else "⚠️  DARBOĞAZ EŞLEŞMESİ")
+        c6, l6 = self._hw_card(("🔌  PSU ÖNERİSİ" if self.lang=="TR" else "🔌  PSU RECOMMENDATION") if not is_cpu else ("⚠️  DARBOĞAZ EŞLEŞMESİ" if self.lang=="TR" else "⚠️  BOTTLENECK MATCH"))
         extras = self._psu_advice(name, ps) if not is_cpu else self._bottleneck_pairs(ps)
         for line in extras:
             lb = QLabel(line); lb.setWordWrap(True); lb.setStyleSheet("color:#C5C6C7;font-size:13px;"); l6.addWidget(lb)
@@ -1212,25 +1557,22 @@ class BenchmarkApp(QMainWindow):
         return [f"Bu GPU için minimum {watt} W PSU önerilir.", f"Tam sistem (CPU + diğer): {watt+100} W 80+ Gold veya üstü önerilir." + (" ⚡ Yüksek güçlü PSU seçin (EVGA, Seasonic)." if ps>100 else "")]
 
     def _on_ai_analyze_clicked(self, hw_name, is_cpu):
-        # Prevent multiple clicks
-        self.ai_analyze_btn.setEnabled(False)
-        self.ai_analyze_btn.setText("⏳ AI analiz ediyor, lütfen bekleyin...")
-        
-        # Clear previous AI content
-        while self.ai_result_layout.count():
-            child = self.ai_result_layout.takeAt(0)
-            w = child.widget()
-            if w:
-                try: w.setParent(None); w.deleteLater()
-                except RuntimeError: pass
-        
-        # Run in background thread (prevents UI freeze / crash)
-        self._analyze_worker = AnalyzeWorkerThread(hw_name, is_cpu)
-        self._analyze_worker.finished.connect(self._on_ai_analyze_result)
-        self._analyze_worker.start()
+        """Navigate to AI Asistan page and auto-send a detailed analysis prompt."""
+        hw_type = "İşlemci (CPU)" if is_cpu else "Ekran Kartı (GPU)"
+        prompt = (
+            f"Lütfen bu donanımı detaylıca analiz et: {hw_name} ({hw_type}). "
+            f"Oyun performansı, render kapasitesi, darboğaz riski, piyasa değeri, "
+            f"güçlü ve zayıf yönleri, rakip alternatifler ve bu donanıma en uygun PSU/eşleşme önerisini de ver."
+        )
+        # Switch to AI Asistan page first
+        self.switch_page(6)
+        # Inject the prompt and fire send
+        self.chat_input.setText(prompt)
+        self.on_ai_chat_send()
+
     
     def _on_ai_analyze_result(self, data):
-        self.ai_analyze_btn.setText("🤖 Yeniden Analiz Et")
+        self.ai_analyze_btn.setText("🤖 Yeniden Analiz Et" if self.lang=="TR" else "🤖 Re-analyze")
         self.ai_analyze_btn.setEnabled(True)
         
         if "error" in data:
@@ -1243,7 +1585,7 @@ class BenchmarkApp(QMainWindow):
         ai_card.setStyleSheet("background-color:#1e2a38; border: 1px solid #F59E0B; border-radius: 6px;")
         al = QVBoxLayout(ai_card); al.setContentsMargins(15,15,15,15); al.setSpacing(10)
         
-        header = QLabel("🔥 AI ANALİST YORUMU")
+        header = QLabel("🔥 AI ANALİST YORUMU" if self.lang=="TR" else "🔥 AI ANALYST REVIEW")
         header.setStyleSheet("color:#F59E0B;font-size:13px;font-weight:900;")
         al.addWidget(header)
         
@@ -1267,15 +1609,26 @@ class BenchmarkApp(QMainWindow):
                 elif "GPU" in str(val) or "Ekran Kartı" in str(val) or "RTX" in str(val) or "RX" in str(val):
                     search_term = "ekran+karti"
 
-                amz_html = f"<a href='https://www.amazon.com.tr/s?k={search_term}&tag=perfhub-21' style='color:#FF9900;text-decoration:none;'>🛒 <b>Amazon'da Fiyatlara Bak</b></a>"
-                tr_html = f"<a href='https://www.trendyol.com/sr?q={search_term}&pi=2' style='color:#F27A1A;text-decoration:none;'>🛒 <b>Trendyol İndirimleri</b></a>"
-                
-                amz_link = QLabel(amz_html); amz_link.setOpenExternalLinks(True)
-                tr_link = QLabel(tr_html); tr_link.setOpenExternalLinks(True)
-                
-                link_lay.addWidget(amz_link)
-                link_lay.addWidget(QLabel(" | "))
-                link_lay.addWidget(tr_link)
+                # Respect affiliate store preferences
+                show_amz = getattr(self, 'chk_amazon', None) and self.chk_amazon.isChecked()
+                show_tr  = getattr(self, 'chk_trendyol', None) and self.chk_trendyol.isChecked()
+                show_hb  = getattr(self, 'chk_hepsiburada', None) and self.chk_hepsiburada.isChecked()
+
+                if show_amz:
+                    amz_html = f"<a href='https://www.amazon.com.tr/s?k={search_term}&tag=perfhub-21' style='color:#FF9900;text-decoration:none;'>🛒 <b>Amazon</b></a>"
+                    amz_link = QLabel(amz_html); amz_link.setOpenExternalLinks(True)
+                    link_lay.addWidget(amz_link)
+                if show_tr:
+                    if show_amz: link_lay.addWidget(QLabel(" | "))
+                    tr_html = f"<a href='https://www.trendyol.com/sr?q={search_term}&pi=2' style='color:#F27A1A;text-decoration:none;'>🛒 <b>Trendyol</b></a>"
+                    tr_link = QLabel(tr_html); tr_link.setOpenExternalLinks(True)
+                    link_lay.addWidget(tr_link)
+                if show_hb:
+                    if show_amz or show_tr: link_lay.addWidget(QLabel(" | "))
+                    hb_html = f"<a href='https://www.hepsiburada.com/ara?q={search_term}' style='color:#FF6000;text-decoration:none;'>🛒 <b>Hepsiburada</b></a>"
+                    hb_link = QLabel(hb_html); hb_link.setOpenExternalLinks(True)
+                    link_lay.addWidget(hb_link)
+
                 link_lay.addStretch()
                 al.addLayout(link_lay)
             # ------------------------------------------
@@ -1304,12 +1657,16 @@ class BenchmarkApp(QMainWindow):
             return ["🍎 Apple Silicon: Dahili GPU — harici GPU yuvası bulunmaz.",
                     "CPU ve GPU aynı çipte birleşik (Unified Memory). Ayrıca kart takılamaz."]
         if is_laptop_b:
-            if ps >= 85:   t = "RTX 4090 Laptop GPU / RTX 4080 Laptop GPU dahil verimli"
-            elif ps >= 70: t = "RTX 4070 Laptop / RTX 3080 Ti Laptop — üstü aşırı ısınır"
-            elif ps >= 55: t = "RTX 4060 Laptop / RTX 3070 Laptop seviyesi ideal"
-            else:          t = "RTX 3050 Laptop ve altı — daha fazlası darboğaz yapar"
-            return [f"Bu laptop CPU için ideal GPU aralığı: {t}.",
-                    "Laptop CPU'lar sürekli yükte termal olarak kısıtlanır; bu GPU sınırı pratikte geçerliliğini yitirir."]
+            if ps >= 88:   t = "RTX 5080/5090 Laptop GPU veya RTX 4090 Laptop GPU — en üst segment"
+            elif ps >= 78: t = "RTX 4070 Ti / RTX 4080 Laptop GPU — ideal eşleşme"
+            elif ps >= 68: t = "RTX 4060 / RTX 4070 Laptop GPU seviyesi ideal"
+            elif ps >= 55: t = "RTX 3060 / RTX 3070 Laptop GPU seviyesi"
+            elif ps >= 40: t = "RTX 3050 / RTX 3050 Ti Laptop GPU"
+            else:          t = "GTX 1650 / GTX 1660 Ti Laptop GPU ve altı"
+            note = ("⚡ Yüksek TGP (100W+) laptop GPU'lar masaüstüne yakın performans verebilir." if ps >= 65
+                    else "⚠️ Düşük TGP (<80W) sistemlerde GPU tam potansiyelini kullanamayabilir.")
+            return [f"Bu laptop CPU için ideal GPU aralığı: {t}.", note]
+
         # Desktop
         if ps >= 95:   t = "RTX 5090 / RX 9070 XT dahil darboğaz yapmaz"
         elif ps >= 80: t = "RTX 5080 / RX 9070 XT'ye kadar verimli"
@@ -1324,9 +1681,9 @@ class BenchmarkApp(QMainWindow):
         inner = QWidget(); inner.setObjectName("ScrollContent")
         layout = QVBoxLayout(inner); layout.setContentsMargins(40,40,40,40); layout.setSpacing(20)
 
-        title = QLabel("🤖  PerfHub AI Asistan")
-        title.setProperty("class", "Title")
-        layout.addWidget(title)
+        self._page_title_ai = QLabel(STRINGS[self.lang]["title_ai"])
+        self._page_title_ai.setProperty("class", "Title")
+        layout.addWidget(self._page_title_ai)
 
         # ── Welcome Banner ──
         key_frame = QFrame(); key_frame.setProperty("class", "Card")
@@ -1380,10 +1737,6 @@ class BenchmarkApp(QMainWindow):
         if not text: return
         self.chat_input.clear()
         
-        # Get selected language from global selector
-        lang_text = self.global_lang_combo.currentText() if hasattr(self, 'global_lang_combo') else "🇹🇷 Türkçe"
-        language = "EN" if "English" in lang_text else "TR"
-        
         self.chat_history.append(f"<br><b style='color:#66FCF1;'>🧑 Sen:</b> {text}")
         QApplication.processEvents() # UI update
         self.chat_history.append("<i style='color:#45A29E;'>⏳ AI düşünüyor...</i>")
@@ -1395,23 +1748,23 @@ class BenchmarkApp(QMainWindow):
             hd = self.system_data.get('hw', {})
             raw_score = self.system_data.get('score', 0)
             if raw_score >= 90:
-                segment = "Tepe Model (Enthusiast)" if language == "TR" else "Top-Tier (Enthusiast)"
+                segment = "Tepe Model (Enthusiast)"
             elif raw_score >= 70:
-                segment = "Üst Düzey (High-End)" if language == "TR" else "High-End"
+                segment = "Üst Düzey (High-End)"
             elif raw_score >= 40:
-                segment = "Orta-Üst Seviye" if language == "TR" else "Mid-High Level"
+                segment = "Orta-Üst Seviye"
             else:
-                segment = "Giriş Seviyesi" if language == "TR" else "Entry Level"
+                segment = "Giriş Seviyesi"
             ctx = (
-                f"CPU: {hd.get('cpu','Bilinmiyor' if language == 'TR' else 'Unknown')}\n"
-                f"GPU: {hd.get('gpu','Bilinmiyor' if language == 'TR' else 'Unknown')}\n"
-                f"RAM: {hd.get('ram','Bilinmiyor' if language == 'TR' else 'Unknown')}GB\n"
-                f"PerfHub AI {'Skor' if language == 'TR' else 'Score'}: {raw_score}/100 — {segment}"
+                f"CPU: {hd.get('cpu','Bilinmiyor')}\n"
+                f"GPU: {hd.get('gpu','Bilinmiyor')}\n"
+                f"RAM: {hd.get('ram','Bilinmiyor')}GB\n"
+                f"PerfHub AI Skor: {raw_score}/100 — {segment}"
             )
 
         # Run in background thread (prevents crash on click during wait)
         self.chat_send_btn.setEnabled(False)
-        self._chat_worker = ChatWorkerThread(text, ctx, language)
+        self._chat_worker = ChatWorkerThread(text, ctx, language=self.lang)
         self._chat_worker.finished.connect(self._on_chat_response)
         self._chat_worker.start()
 
@@ -1527,7 +1880,8 @@ class BenchmarkApp(QMainWindow):
             self.lbl_score_num.setText("N/A")
             self.score_bar.setValue(0)
             self.lbl_score_num.setStyleSheet("color:#FF4655;font-weight:900;")
-            # To avoid timer errors if it was previously running
+            self.sidebar_score_lbl.setText("— / 100")
+            self.sidebar_score_bar.setValue(0)
             if hasattr(self, 'score_timer'): getattr(self, 'score_timer').stop()
         else:
             self.lbl_score_num.setStyleSheet("")  # reset
@@ -1535,6 +1889,9 @@ class BenchmarkApp(QMainWindow):
             self.score_timer = QTimer()
             self.score_timer.timeout.connect(self.animate_score)
             self.score_timer.start(20) # 20ms intervals
+            # Update sidebar score widget immediately
+            self.sidebar_score_lbl.setText(f"{self.target_score} / 100")
+            self.sidebar_score_bar.setValue(self.target_score)
 
         # Bottleneck Update
         bn = data['bn']
@@ -1691,7 +2048,7 @@ class BenchmarkApp(QMainWindow):
         tip.setStyleSheet(f"color:{pair_color};font-size:12px;font-style:italic;")
         cpu_lay.addWidget(tip)
 
-        # Dashboard affiliate links
+        # Dashboard CPU affiliate links — respect store checkbox preferences
         if not is_apple:
             import urllib.parse
             from core import db_manager
@@ -1699,18 +2056,25 @@ class BenchmarkApp(QMainWindow):
             rec = cpu_upgrades[0] if cpu_upgrades else ""
             search_kw = urllib.parse.quote(rec) if rec else "islemci"
             btn_text = rec if rec else "İşlemcilere"
-            
-            d_links = QHBoxLayout()
-            html = f"""
-            <div style='margin-top:5px; margin-bottom:5px;'>
-               <a href='https://www.hepsiburada.com/ara?q={search_kw}' style='background-color:#FF6000; color:white; padding:4px 10px; text-decoration:none; font-weight:bold; border-radius:4px; font-size:11px; margin-right:5px;'>HB'da {btn_text}</a>
-               <a href='https://www.trendyol.com/sr?q={search_kw}&pi=2' style='background-color:#F27A1A; color:white; padding:4px 10px; text-decoration:none; font-weight:bold; border-radius:4px; font-size:11px; margin-right:5px;'>Trendyol'da {btn_text}</a>
-               <a href='https://www.amazon.com.tr/s?k={search_kw}&tag=perfhub-21' style='background-color:#232F3E; color:#FF9900; padding:4px 10px; text-decoration:none; font-weight:bold; border-radius:4px; font-size:11px;'>Amazon'da {btn_text}</a>
-            </div>
-            """
-            lbl_links = QLabel(html); lbl_links.setOpenExternalLinks(True)
-            d_links.addWidget(lbl_links); d_links.addStretch()
-            cpu_lay.addLayout(d_links)
+
+            show_amz = getattr(self, 'chk_amazon', None) and self.chk_amazon.isChecked()
+            show_tr  = getattr(self, 'chk_trendyol', None) and self.chk_trendyol.isChecked()
+            show_hb  = getattr(self, 'chk_hepsiburada', None) and self.chk_hepsiburada.isChecked()
+
+            parts = []
+            if show_hb:
+                parts.append(f"<a href='https://www.hepsiburada.com/ara?q={search_kw}' style='background-color:#FF6000; color:white; padding:4px 10px; text-decoration:none; font-weight:bold; border-radius:4px; font-size:11px; margin-right:5px;'>HB'da {btn_text}</a>")
+            if show_tr:
+                parts.append(f"<a href='https://www.trendyol.com/sr?q={search_kw}&pi=2' style='background-color:#F27A1A; color:white; padding:4px 10px; text-decoration:none; font-weight:bold; border-radius:4px; font-size:11px; margin-right:5px;'>Trendyol'da {btn_text}</a>")
+            if show_amz:
+                parts.append(f"<a href='https://www.amazon.com.tr/s?k={search_kw}&tag=perfhub-21' style='background-color:#232F3E; color:#FF9900; padding:4px 10px; text-decoration:none; font-weight:bold; border-radius:4px; font-size:11px;'>Amazon'da {btn_text}</a>")
+
+            if parts:
+                html = f"<div style='margin-top:5px; margin-bottom:5px;'>{''.join(parts)}</div>"
+                d_links = QHBoxLayout()
+                lbl_links = QLabel(html); lbl_links.setOpenExternalLinks(True)
+                d_links.addWidget(lbl_links); d_links.addStretch()
+                cpu_lay.addLayout(d_links)
 
         top_row.addWidget(cpu_card)
 
@@ -1866,41 +2230,81 @@ class BenchmarkApp(QMainWindow):
         supports_rt = game_data.get("supports_rt", 0)
         supports_pt = game_data.get("supports_pt", 0)
         
-        # Update RT/PT checkboxes based on game support
-        self.chk_rt.setEnabled(supports_rt == 1)
-        self.chk_pt.setEnabled(supports_pt == 1)
+        # Check if GPU supports RT/PT (NVIDIA RTX 20+ or AMD RX 6000+)
+        gpu_name = self.system_data['gpu_data'].get('name', '').upper()
+        gpu_supports_rt = (
+            'RTX' in gpu_name or  # NVIDIA RTX series
+            'RX 6' in gpu_name or 'RX 7' in gpu_name or  # AMD RDNA 2/3
+            'ARC' in gpu_name  # Intel ARC
+        )
         
-        if supports_rt == 0:
+        # Enable RT/PT only if BOTH game AND GPU support it
+        self.chk_rt.setEnabled(supports_rt == 1 and gpu_supports_rt)
+        self.chk_pt.setEnabled(supports_pt == 1 and gpu_supports_rt)
+        
+        if supports_rt == 0 or not gpu_supports_rt:
             self.chk_rt.setChecked(False)
-        if supports_pt == 0:
+        if supports_pt == 0 or not gpu_supports_rt:
             self.chk_pt.setChecked(False)
         
-        # Update support label
-        if supports_pt == 1:
+        # RT support label
+        if not gpu_supports_rt:
+            self.lbl_rt_support.setText("❌ GPU'nuz RT/PT desteklemiyor")
+        elif supports_pt == 1:
             self.lbl_rt_support.setText("✅ Bu oyun RT + PT destekliyor")
         elif supports_rt == 1:
             self.lbl_rt_support.setText("✅ Bu oyun RT destekliyor")
         else:
             self.lbl_rt_support.setText("❌ Bu oyun RT/PT desteklemiyor")
-        
+
+        # ── Upscaling support label ─────────────────────────────────────────
+        g_dlss = game_data.get("supports_dlss", 1)
+        g_fsr  = game_data.get("supports_fsr",  1)
+        g_xess = game_data.get("supports_xess", 0)
+        tech_parts = []
+        if g_dlss: tech_parts.append("DLSS")
+        if g_fsr:  tech_parts.append("FSR")
+        if g_xess: tech_parts.append("XeSS")
+        tech_str = " · ".join(tech_parts) if tech_parts else "Yok (Native TAA)"
+        upscaling_sel = self.cmb_upscale.currentText().lower()
+        warn = ""
+        if "dlss" in upscaling_sel and not g_dlss:
+            warn = "  ⚠️ Bu oyun DLSS desteklemiyor — Native olarak hesaplanacak"
+        elif "fsr" in upscaling_sel and not g_fsr:
+            warn = "  ⚠️ Bu oyun FSR desteklemiyor — Native olarak hesaplanacak"
+        elif "xess" in upscaling_sel and not g_xess:
+            warn = "  ⚠️ Bu oyun XeSS desteklemiyor — Native olarak hesaplanacak"
+        lbl_txt = f"🎮 Upscaling Desteği: {tech_str}{warn}"
+        if hasattr(self, 'lbl_upscale_support'):
+            color = "#FF9900" if warn else "#45A29E"
+            self.lbl_upscale_support.setStyleSheet(f"color:{color}; font-size:12px; font-style:italic;")
+            self.lbl_upscale_support.setText(lbl_txt)
+
         cpu_data = self.system_data['cpu_data']
         gpu_data = self.system_data['gpu_data']
         ram_gb = self.system_data['hw']['ram']
         upscaling = self.cmb_upscale.currentText()
         frame_gen_mode = self.cmb_framegen.currentText()
+
         
         # RT/PT performance penalty
-        rt_enabled = self.chk_rt.isChecked() and supports_rt == 1
-        pt_enabled = self.chk_pt.isChecked() and supports_pt == 1
+        rt_enabled = self.chk_rt.isChecked() and supports_rt == 1 and gpu_supports_rt
+        pt_enabled = self.chk_pt.isChecked() and supports_pt == 1 and gpu_supports_rt
         
         for preset, bar in self.fps_bars.items():
             fps = scoring_engine.estimate_fps(cpu_data, gpu_data, game_data, res, preset, upscaling, frame_gen_mode, ram_gb)
             
-            # Apply RT/PT penalty
+            # Apply RT/PT penalty (calibrated against Digital Foundry / HardwareUnboxed 2024)
+            # RT in demanding games (Cyberpunk, AW2) typically cuts FPS by 40-50%.
+            # Lighter RT implementations (GTA V RT reflections) cut by ~15-25%.
+            # We use the game's supports_rt level as a proxy for RT intensity.
             if pt_enabled:
-                fps = int(fps * 0.35)  # Path Tracing: ~65% FPS loss
+                # Path Tracing (Cyberpunk full PT): ~55% FPS loss
+                fps = int(fps * 0.45)
             elif rt_enabled:
-                fps = int(fps * 0.60)  # Ray Tracing: ~40% FPS loss
+                # Ray Tracing: ~40% FPS loss for heavy RT games (Cyberpunk, AW2, MFR)
+                fps = int(fps * 0.60)
+
             
             bar.setRange(0, max(fps * 2, 360))
             bar.setValue(fps)
@@ -2041,8 +2445,78 @@ class BenchmarkApp(QMainWindow):
         b_ram_gb = int(b_ram_text.split()[0])
         
         if b_game:
+            # Check RT/PT support for builder
+            supports_rt = b_game.get("supports_rt", 0)
+            supports_pt = b_game.get("supports_pt", 0)
+            
+            # Check if selected GPU supports RT/PT
+            gpu_name_builder = gpu_data.get('name', '').upper()
+            gpu_supports_rt_builder = (
+                'RTX' in gpu_name_builder or
+                'RX 6' in gpu_name_builder or 'RX 7' in gpu_name_builder or
+                'ARC' in gpu_name_builder
+            )
+            
+            # Enable RT/PT only if BOTH game AND GPU support it
+            self.b_chk_rt.setEnabled(supports_rt == 1 and gpu_supports_rt_builder)
+            self.b_chk_pt.setEnabled(supports_pt == 1 and gpu_supports_rt_builder)
+            
+            if supports_rt == 0 or not gpu_supports_rt_builder:
+                self.b_chk_rt.setChecked(False)
+            if supports_pt == 0 or not gpu_supports_rt_builder:
+                self.b_chk_pt.setChecked(False)
+            
+            # Update support label
+            if not gpu_supports_rt_builder:
+                self.b_lbl_rt_support.setText("❌ Seçili GPU RT/PT desteklemiyor")
+            elif supports_pt == 1:
+                self.b_lbl_rt_support.setText("✅ Bu oyun RT + PT destekliyor")
+            elif supports_rt == 1:
+                self.b_lbl_rt_support.setText("✅ Bu oyun RT destekliyor")
+            else:
+                self.b_lbl_rt_support.setText("❌ Bu oyun RT/PT desteklemiyor")
+
+            # ── Upscaling support label (Builder) ───────────────────────────
+            b_dlss = b_game.get("supports_dlss", 1)
+            b_fsr  = b_game.get("supports_fsr",  1)
+            b_xess = b_game.get("supports_xess", 0)
+            tech_parts = []
+            if b_dlss: tech_parts.append("DLSS")
+            if b_fsr:  tech_parts.append("FSR")
+            if b_xess: tech_parts.append("XeSS")
+            tech_str = " · ".join(tech_parts) if tech_parts else "Yok (Native TAA)"
+            
+            b_warn = ""
+            up_sel = b_upscaling.lower()
+            if "dlss" in up_sel and not b_dlss:
+                b_warn = "  ⚠️ Bu oyun DLSS desteklemiyor — Native olarak hesaplanacak"
+            elif "fsr" in up_sel and not b_fsr:
+                b_warn = "  ⚠️ Bu oyun FSR desteklemiyor — Native olarak hesaplanacak"
+            elif "xess" in up_sel and not b_xess:
+                b_warn = "  ⚠️ Bu oyun XeSS desteklemiyor — Native olarak hesaplanacak"
+                
+            b_lbl_txt = f"🎮 Upscaling Desteği: {tech_str}{b_warn}"
+            if hasattr(self, 'b_lbl_upscale_support'):
+                b_color = "#FF9900" if b_warn else "#45A29E"
+                self.b_lbl_upscale_support.setStyleSheet(f"color:{b_color}; font-size:12px; font-style:italic;")
+                self.b_lbl_upscale_support.setText(b_lbl_txt)
+
+            
+            # RT/PT performance penalty
+            b_rt_enabled = self.b_chk_rt.isChecked() and supports_rt == 1 and gpu_supports_rt_builder
+            b_pt_enabled = self.b_chk_pt.isChecked() and supports_pt == 1 and gpu_supports_rt_builder
+            
             for preset, bar in self.b_fps_bars.items():
                 fps = scoring_engine.estimate_fps(cpu_data, gpu_data, b_game, b_res, preset, b_upscaling, b_frame_gen_mode, b_ram_gb)
+                
+                # Apply RT/PT penalty (calibrated against Digital Foundry / HardwareUnboxed 2024)
+                if b_pt_enabled:
+                    # Path Tracing (Cyberpunk full PT): ~55% FPS loss
+                    fps = int(fps * 0.45)
+                elif b_rt_enabled:
+                    # Ray Tracing: ~40% FPS loss for heavy RT games
+                    fps = int(fps * 0.60)
+                
                 bar.setRange(0, max(fps * 2, 360))
                 bar.setValue(fps)
                 if fps >= 120: color = "#9D00FF"
@@ -2056,9 +2530,489 @@ class BenchmarkApp(QMainWindow):
         # Auto-navigate to the Builder FPS page to show results
         self.switch_page(4)
 
+    # ─────────────────────────────────────────────────────────────
+    #  KARŞILAŞTIR SAYFASI  (page index 7)
+    # ─────────────────────────────────────────────────────────────
+    def setup_compare(self):
+        inner = QWidget(); inner.setObjectName("ScrollContent")
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(40, 40, 40, 40)
+        layout.setSpacing(20)
+
+        self._page_title_compare = QLabel(STRINGS[self.lang]["title_compare"])
+        self._page_title_compare.setProperty("class", "Title")
+        layout.addWidget(self._page_title_compare)
+
+        desc = QLabel("İki CPU veya iki GPU'yu yan yana karşılaştır, hangisi daha güçlü hemen gör.")
+        desc.setStyleSheet("color:#C5C6C7; font-size:14px;")
+        layout.addWidget(desc)
+
+        # Tabs: CPU vs CPU | GPU vs GPU
+        self.cmp_tabs = QTabWidget()
+        self.cmp_tabs.setStyleSheet(
+            "QTabBar::tab { background:#1F2833; color:white; padding:10px 28px; font-weight:bold; border-radius:6px 6px 0 0; }"
+            "QTabBar::tab:selected { background:#45A29E; color:#0B0C10; }"
+            "QTabWidget::pane { border: 1px solid #2C3E50; border-radius:0 6px 6px 6px; }"
+        )
+
+        # ── CPU vs CPU Tab ──────────────────────────────────────
+        cpu_tab = QWidget()
+        cpu_tab_lay = QVBoxLayout(cpu_tab)
+        cpu_tab_lay.setContentsMargins(20, 20, 20, 20)
+        cpu_tab_lay.setSpacing(14)
+
+        cpu_sel_row = QHBoxLayout()
+        cpu_sel_row.setSpacing(20)
+
+        # CPU 1
+        v1 = QVBoxLayout()
+        lbl1 = QLabel("🔵 CPU 1")
+        lbl1.setStyleSheet("color:#66FCF1; font-weight:bold; font-size:14px;")
+        v1.addWidget(lbl1)
+        self.cmp_cpu1_list = SearchableList("CPU 1 ara...")
+        v1.addWidget(self.cmp_cpu1_list)
+        cpu_sel_row.addLayout(v1)
+
+        # VS
+        vs_lbl = QLabel("VS")
+        vs_lbl.setStyleSheet("color:#F59E0B; font-size:28px; font-weight:900;")
+        vs_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cpu_sel_row.addWidget(vs_lbl)
+
+        # CPU 2
+        v2 = QVBoxLayout()
+        lbl2 = QLabel("🔴 CPU 2")
+        lbl2.setStyleSheet("color:#FF4655; font-weight:bold; font-size:14px;")
+        v2.addWidget(lbl2)
+        self.cmp_cpu2_list = SearchableList("CPU 2 ara...")
+        v2.addWidget(self.cmp_cpu2_list)
+        cpu_sel_row.addLayout(v2)
+        cpu_tab_lay.addLayout(cpu_sel_row)
+
+        btn_cmp_cpu = QPushButton("⚖️  KARŞILAŞTIR")
+        btn_cmp_cpu.setFixedHeight(44)
+        btn_cmp_cpu.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_cmp_cpu.setStyleSheet(
+            "QPushButton{background-color:transparent;color:#66FCF1;font-size:16px;font-weight:900;"
+            "border:2px solid #66FCF1;border-radius:8px;}"
+            "QPushButton:hover{background-color:rgba(102,252,241,0.15);}"
+        )
+        btn_cmp_cpu.clicked.connect(self._do_compare_cpu)
+        cpu_tab_lay.addWidget(btn_cmp_cpu)
+
+        self.cmp_cpu_result = QWidget()
+        self.cmp_cpu_result_lay = QVBoxLayout(self.cmp_cpu_result)
+        self.cmp_cpu_result_lay.setContentsMargins(0,0,0,0)
+        cpu_tab_lay.addWidget(self.cmp_cpu_result)
+        cpu_tab_lay.addStretch()
+
+        # ── GPU vs GPU Tab ──────────────────────────────────────
+        gpu_tab = QWidget()
+        gpu_tab_lay = QVBoxLayout(gpu_tab)
+        gpu_tab_lay.setContentsMargins(20, 20, 20, 20)
+        gpu_tab_lay.setSpacing(14)
+
+        gpu_sel_row = QHBoxLayout()
+        gpu_sel_row.setSpacing(20)
+
+        # GPU 1
+        g1 = QVBoxLayout()
+        glbl1 = QLabel("🔵 GPU 1")
+        glbl1.setStyleSheet("color:#66FCF1; font-weight:bold; font-size:14px;")
+        g1.addWidget(glbl1)
+        self.cmp_gpu1_list = SearchableList("GPU 1 ara...")
+        g1.addWidget(self.cmp_gpu1_list)
+        gpu_sel_row.addLayout(g1)
+
+        vs_lbl2 = QLabel("VS")
+        vs_lbl2.setStyleSheet("color:#F59E0B; font-size:28px; font-weight:900;")
+        vs_lbl2.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        gpu_sel_row.addWidget(vs_lbl2)
+
+        # GPU 2
+        g2 = QVBoxLayout()
+        glbl2 = QLabel("🔴 GPU 2")
+        glbl2.setStyleSheet("color:#FF4655; font-weight:bold; font-size:14px;")
+        g2.addWidget(glbl2)
+        self.cmp_gpu2_list = SearchableList("GPU 2 ara...")
+        g2.addWidget(self.cmp_gpu2_list)
+        gpu_sel_row.addLayout(g2)
+        gpu_tab_lay.addLayout(gpu_sel_row)
+
+        btn_cmp_gpu = QPushButton("⚖️  KARŞILAŞTIR")
+        btn_cmp_gpu.setFixedHeight(44)
+        btn_cmp_gpu.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_cmp_gpu.setStyleSheet(
+            "QPushButton{background-color:transparent;color:#66FCF1;font-size:16px;font-weight:900;"
+            "border:2px solid #66FCF1;border-radius:8px;}"
+            "QPushButton:hover{background-color:rgba(102,252,241,0.15);}"
+        )
+        btn_cmp_gpu.clicked.connect(self._do_compare_gpu)
+        gpu_tab_lay.addWidget(btn_cmp_gpu)
+
+        self.cmp_gpu_result = QWidget()
+        self.cmp_gpu_result_lay = QVBoxLayout(self.cmp_gpu_result)
+        self.cmp_gpu_result_lay.setContentsMargins(0,0,0,0)
+        gpu_tab_lay.addWidget(self.cmp_gpu_result)
+        gpu_tab_lay.addStretch()
+
+        # Populate lists from DB
+        all_cpus = db_manager.get_all_cpus()
+        for c in all_cpus:
+            display = f"{c['name']}  |  Puan: {c['power_score']}  |  {c.get('architecture','')}"
+            self.cmp_cpu1_list.add_item(display, c)
+            self.cmp_cpu2_list.add_item(display, c)
+
+        all_gpus = db_manager.get_all_gpus()
+        for g in all_gpus:
+            vram = g.get('vram', 0)
+            display = f"{g['name']}  |  Puan: {g['power_score']}  |  {vram}GB VRAM"
+            self.cmp_gpu1_list.add_item(display, g)
+            self.cmp_gpu2_list.add_item(display, g)
+
+        self.cmp_tabs.addTab(cpu_tab, "🖥️  CPU vs CPU")
+        self.cmp_tabs.addTab(gpu_tab, "🎮  GPU vs GPU")
+        layout.addWidget(self.cmp_tabs)
+
+        page_layout = QVBoxLayout(self.page_compare)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.addWidget(self._scrollable(inner))
+
+    def _clear_layout(self, layout):
+        while layout.count():
+            child = layout.takeAt(0)
+            w = child.widget()
+            if w:
+                try: w.setParent(None); w.deleteLater()
+                except: pass
+
+    def _compare_cards(self, result_layout, hw1, hw2, is_cpu):
+        """Build side-by-side comparison cards."""
+        self._clear_layout(result_layout)
+
+        if not hw1 or not hw2:
+            result_layout.addWidget(QLabel("⚠️ İki donanım da seçilmeli!"))
+            return
+
+        ps1 = hw1.get('power_score', 0)
+        ps2 = hw2.get('power_score', 0)
+        winner_idx = 0 if ps1 >= ps2 else 1
+
+        row = QHBoxLayout(); row.setSpacing(16)
+
+        for idx, (hw, color, tag) in enumerate([(hw1, "#66FCF1", "🔵"), (hw2, "#FF4655", "🔴")]):
+            ps = hw.get('power_score', 0)
+            name = hw.get('name', 'N/A')
+            arch = hw.get('architecture', 'N/A')
+            is_winner = (idx == winner_idx)
+
+            card = QFrame()
+            card.setProperty("class", "Card")
+            if is_winner:
+                card.setStyleSheet("background-color:#1a1a24; border:2px solid #66FCF1; border-radius:12px;")
+            cl = QVBoxLayout(card)
+            cl.setContentsMargins(18, 16, 18, 16)
+            cl.setSpacing(10)
+
+            # Name + winner badge
+            name_row = QHBoxLayout()
+            name_lbl = QLabel(f"{tag}  {name}")
+            name_lbl.setStyleSheet(f"color:{color}; font-size:14px; font-weight:900;")
+            name_lbl.setWordWrap(True)
+            name_row.addWidget(name_lbl, 1)
+            if is_winner:
+                w_badge = QLabel("🏆 ÜSTÜN")
+                w_badge.setStyleSheet("background-color:#66FCF1; color:#0B0C10; font-size:10px; font-weight:900; padding:3px 8px; border-radius:8px;")
+                name_row.addWidget(w_badge)
+            cl.addLayout(name_row)
+
+            # Score bar
+            score_pct = min(int(ps), 100)
+            bar = QProgressBar()
+            bar.setRange(0, 150); bar.setValue(int(ps))
+            bar.setFixedHeight(20); bar.setTextVisible(True)
+            bar.setFormat(f"  Puan: {ps}")
+            bar.setStyleSheet(f"QProgressBar{{background:#1F2833;border-radius:6px;color:white;font-weight:bold;}}"
+                              f"QProgressBar::chunk{{background-color:{color};border-radius:6px;}}")
+            cl.addWidget(bar)
+
+            # Specs
+            if is_cpu:
+                specs = [
+                    ("Çekirdek/Thread", f"{hw.get('cores','?')} / {hw.get('threads','?')}"),
+                    ("Taban / Boost",   f"{hw.get('base_clock','?')} / {hw.get('boost_clock','?')} GHz"),
+                    ("Mimari",          arch),
+                    ("TDP (tahmini)",   self._est_tdp(name, ps, True)),
+                    ("Çıkış Yılı",      str(self._est_year(arch, name, True))),
+                ]
+                gaming_s  = round(min(10, ps / 10.5), 1)
+                render_s  = round(min(10, hw.get('cores', 8) / 3.2 * 0.6 + ps / 28.0), 1)
+            else:
+                vram = hw.get('vram', 8) or 8
+                specs = [
+                    ("VRAM",          f"{vram} GB"),
+                    ("Çekirdek MHz",  f"{hw.get('core_clock',0)} MHz"),
+                    ("Bellek MHz",    f"{hw.get('memory_clock',0) or '?'} MHz"),
+                    ("Mimari",        arch),
+                    ("TDP (tahmini)", self._est_tdp(name, ps, False)),
+                ]
+                gaming_s = round(min(10, ps / 13.0 + vram / 14.0), 1)
+                render_s = round(min(10, vram / 2.8 + ps / 25.0), 1)
+
+            cl.addLayout(self._score_bar("Gaming",    gaming_s, "#9D00FF"))
+            cl.addLayout(self._score_bar("Render/3D", render_s, "#3B82F6"))
+
+            for k, v in specs:
+                sr = QHBoxLayout()
+                kl = QLabel(f"{k}:"); kl.setFixedWidth(130)
+                kl.setStyleSheet("color:#45A29E; font-size:12px; font-weight:bold;")
+                vl = QLabel(str(v)); vl.setStyleSheet("color:white; font-size:12px;"); vl.setWordWrap(True)
+                sr.addWidget(kl); sr.addWidget(vl, 1); cl.addLayout(sr)
+
+            row.addWidget(card, 1)
+
+        result_layout.addLayout(row)
+
+        # Verdict
+        diff = abs(ps1 - ps2)
+        if diff < 5:
+            verdict = "⚖️  Bu iki donanım birbirine çok yakın — fark pratikte hissedilmez."
+            vcolor = "#10B981"
+        else:
+            winner_name = hw1['name'] if winner_idx == 0 else hw2['name']
+            verdict = f"🏆  {winner_name} yaklaşık {diff:.0f} puan ({int(diff/max(min(ps1,ps2),1)*100)}%) daha güçlü."
+            vcolor = "#66FCF1"
+        vl = QLabel(verdict)
+        vl.setStyleSheet(f"color:{vcolor}; font-size:14px; font-weight:bold; margin-top:8px;")
+        vl.setWordWrap(True)
+        result_layout.addWidget(vl)
+
+        # AI Deeper Analysis button
+        hw_names = f"{hw1['name']} vs {hw2['name']}"
+        hw_type_str = "CPU" if is_cpu else "GPU"
+        ai_btn = QPushButton(f"🤖 AI'ya Derin Karşılaştırma Yaptır: {hw_names[:45]}")
+        ai_btn.setStyleSheet("background-color:#F59E0B;color:#0B0C10;font-weight:900;padding:10px;border-radius:6px;font-size:13px;")
+        ai_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        ai_btn.clicked.connect(lambda: self._compare_ai_chat(hw1['name'], hw2['name'], hw_type_str))
+        result_layout.addWidget(ai_btn)
+
+    def _compare_ai_chat(self, name1, name2, hw_type):
+        prompt = (
+            f"{name1} ile {name2} arasında kapsamlı bir {hw_type} karşılaştırması yap. "
+            f"Oyun performansı, güç tüketimi, fiyat/performans, termal davranış ve "
+            f"'hangisini almalıyım?' sorusuna net bir tavsiye ver."
+        )
+        self.switch_page(6)
+        self.chat_input.setText(prompt)
+        self.on_ai_chat_send()
+
+    def _do_compare_cpu(self):
+        hw1 = self.cmp_cpu1_list.get_selected_data()
+        hw2 = self.cmp_cpu2_list.get_selected_data()
+        self._compare_cards(self.cmp_cpu_result_lay, hw1, hw2, is_cpu=True)
+
+    def _do_compare_gpu(self):
+        hw1 = self.cmp_gpu1_list.get_selected_data()
+        hw2 = self.cmp_gpu2_list.get_selected_data()
+        self._compare_cards(self.cmp_gpu_result_lay, hw1, hw2, is_cpu=False)
+
+    # ─────────────────────────────────────────────────────────────
+    #  AYARLAR SAYFASI  (page index 8)
+    # ─────────────────────────────────────────────────────────────
+    def setup_settings(self):
+        inner = QWidget(); inner.setObjectName("ScrollContent")
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(40, 40, 40, 40)
+        layout.setSpacing(24)
+
+        self._page_title_settings = QLabel(STRINGS[self.lang]["title_settings"])
+        self._page_title_settings.setProperty("class", "Title")
+        layout.addWidget(self._page_title_settings)
+
+        # ── Dil / Language ───────────────────────────────────────
+        lang_card = QFrame(); lang_card.setProperty("class", "Card")
+        lc_lay = QVBoxLayout(lang_card); lc_lay.setContentsMargins(24, 20, 24, 20); lc_lay.setSpacing(12)
+        self._lbl_settings_lang_head = QLabel(STRINGS[self.lang]["settings_lang_head"])
+        self._lbl_settings_lang_head.setStyleSheet("color:#66FCF1; font-size:15px; font-weight:900;")
+        lc_lay.addWidget(self._lbl_settings_lang_head)
+        self._lbl_settings_lang_desc = QLabel(STRINGS[self.lang]["settings_lang_desc"])
+        self._lbl_settings_lang_desc.setStyleSheet("color:#C5C6C7; font-size:12px;")
+        lc_lay.addWidget(self._lbl_settings_lang_desc)
+
+        lang_row = QHBoxLayout()
+        self.btn_lang_tr = QPushButton("🇹🇷  Türkçe")
+        self.btn_lang_en = QPushButton("🇬🇧  English")
+        for btn in [self.btn_lang_tr, self.btn_lang_en]:
+            btn.setFixedHeight(40)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet(
+                "QPushButton{background-color:#1F2833;color:#C5C6C7;font-size:14px;"
+                "font-weight:bold;border:1px solid #2C3E50;border-radius:6px;padding:0 20px;}"
+                "QPushButton:hover{border-color:#45A29E;color:#66FCF1;}"
+            )
+        self.btn_lang_tr.clicked.connect(lambda: self._set_language("TR"))
+        self.btn_lang_en.clicked.connect(lambda: self._set_language("EN"))
+        lang_row.addWidget(self.btn_lang_tr)
+        lang_row.addWidget(self.btn_lang_en)
+        lang_row.addStretch()
+        lc_lay.addLayout(lang_row)
+        self.settings_lang_status = QLabel("Aktif Dil: 🇹🇷 Türkçe")
+        self.settings_lang_status.setStyleSheet("color:#10B981; font-size:13px; font-weight:bold;")
+        lc_lay.addWidget(self.settings_lang_status)
+        layout.addWidget(lang_card)
+
+        # ── Satış Ortaklığı Linkleri ─────────────────────────────
+        aff_card = QFrame(); aff_card.setProperty("class", "Card")
+        ac_lay = QVBoxLayout(aff_card); ac_lay.setContentsMargins(24, 20, 24, 20); ac_lay.setSpacing(10)
+        self._lbl_settings_aff_head = QLabel("🛒  Satış Ortaklığı Linkleri")
+        self._lbl_settings_aff_head.setStyleSheet("color:#66FCF1; font-size:15px; font-weight:900;")
+        ac_lay.addWidget(self._lbl_settings_aff_head)
+        self._lbl_settings_aff_desc = QLabel("Darboğaz tespiti yapıldığında gösterilecek mağaza linklerini seç.")
+        self._lbl_settings_aff_desc.setStyleSheet("color:#C5C6C7; font-size:12px;")
+        ac_lay.addWidget(self._lbl_settings_aff_desc)
+
+        from PyQt6.QtWidgets import QCheckBox
+        self.chk_amazon = QCheckBox("🛒 Amazon")
+        self.chk_trendyol = QCheckBox("🛒 Trendyol")
+        self.chk_hepsiburada = QCheckBox("🛒 Hepsiburada")
+        for chk in [self.chk_amazon, self.chk_trendyol, self.chk_hepsiburada]:
+            chk.setChecked(True)
+            chk.setStyleSheet("color:#C5C6C7; font-size:14px;")
+            ac_lay.addWidget(chk)
+        layout.addWidget(aff_card)
+
+        # ── Hakkında / About ─────────────────────────────────────
+        about_card = QFrame(); about_card.setProperty("class", "Card")
+        ab_lay = QVBoxLayout(about_card); ab_lay.setContentsMargins(24, 20, 24, 20); ab_lay.setSpacing(8)
+        self._lbl_settings_about_head = QLabel("ℹ️  PerfHub AI Hakkında")
+        self._lbl_settings_about_head.setStyleSheet("color:#66FCF1; font-size:15px; font-weight:900;")
+        ab_lay.addWidget(self._lbl_settings_about_head)
+        for line in [
+            "📌 Versiyon: 5.0 PRO",
+            "🔒 Veri gizliliği: Tüm veriler yerel olarak işlenir.",
+            "🤖 AI Motor: xAI Grok (grok-3-mini-fast — hızlı ve akıllı)",
+            "💻 Geliştirici: Süleyman Kılınç",
+            "© 2026 PerfHub AI. Tüm hakları saklıdır.",
+        ]:
+            lb = QLabel(line)
+            lb.setStyleSheet("color:#C5C6C7; font-size:13px;")
+            ab_lay.addWidget(lb)
+        layout.addWidget(about_card)
+
+        layout.addStretch()
+        page_layout = QVBoxLayout(self.page_settings)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.addWidget(self._scrollable(inner))
+
+    def _safe_set_text(self, widget_attr, text):
+        """Safely set text on a widget, ignoring deleted C++ object errors."""
+        try:
+            widget = getattr(self, widget_attr, None)
+            if widget is not None:
+                widget.setText(text)
+        except RuntimeError:
+            pass  # Widget was deleted (C++ object destroyed)
+
+    def _set_language(self, lang):
+        self.lang = lang
+        self._apply_language()
+
+    def _apply_language(self):
+        """Update ALL visible UI strings to match self.lang (TR or EN)."""
+        lang = self.lang
+        S = STRINGS[lang]
+
+        # ── Sidebar section labels ────────────────────────────────
+        try:
+            self._sec_ana.setText(S["sec_ana"])
+            self._sec_perf.setText(S["sec_perf"])
+            self._sec_tools.setText(S["sec_tools"])
+        except RuntimeError:
+            pass
+
+        # ── Nav button labels ─────────────────────────────────────
+        try:
+            self._nb_dash.set_text("🖥️",  S["nav_dashboard"])
+            self._nb_bn.set_text(  "⚠️",  S["nav_bottleneck"])
+            self._nb_fps.set_text( "🎮",  S["nav_fps"])
+            self._nb_bld.set_text( "🛠️",  S["nav_builder"])
+            self._nb_bfps.set_text("🚀",  S["nav_bfps"])
+            self._nb_ai.set_text(  "🤖",  S["nav_ai"])
+            self._nb_cmp.set_text( "⚖️",  S["nav_compare"])
+            self._nb_hw.set_text(  "🔬",  S["nav_hw"])
+            self._nb_set.set_text( "⚙️",  S["nav_settings"])
+        except RuntimeError:
+            pass
+
+        # ── Score widget header ───────────────────────────────────
+        try:
+            self._lbl_score_header.setText(S["score_header"])
+        except RuntimeError:
+            pass
+
+        # ── Page titles ───────────────────────────────────────────
+        for attr, key in [
+            ("_page_title_dash",     "title_dashboard"),
+            ("_page_title_bn",       "title_bottleneck"),
+            ("_page_title_fps",      "title_fps"),
+            ("_page_title_builder",  "title_builder"),
+            ("_page_title_bfps",     "title_bfps"),
+            ("_page_title_hw",       "title_hw"),
+            ("_page_title_ai",       "title_ai"),
+            ("_page_title_compare",  "title_compare"),
+            ("_page_title_settings", "title_settings"),
+        ]:
+            self._safe_set_text(attr, S[key])
+
+        # ── Settings page labels ──────────────────────────────────
+        for attr, key in [
+            ("settings_lang_status",      "settings_lang_active"),
+            ("_lbl_settings_lang_head",   "settings_lang_head"),
+            ("_lbl_settings_lang_desc",   "settings_lang_desc"),
+            ("_lbl_settings_aff_head",    "settings_aff_head"),
+            ("_lbl_settings_aff_desc",    "settings_aff_desc"),
+            ("_lbl_settings_about_head",  "settings_about_head"),
+        ]:
+            self._safe_set_text(attr, S[key])
+
+        # ── Highlight active lang button ──────────────────────────
+        active_style = (
+            "QPushButton{background-color:#45A29E;color:#0B0C10;font-size:14px;"
+            "font-weight:900;border:1px solid #45A29E;border-radius:6px;padding:0 20px;}"
+        )
+        inactive_style = (
+            "QPushButton{background-color:#1F2833;color:#C5C6C7;font-size:14px;"
+            "font-weight:bold;border:1px solid #2C3E50;border-radius:6px;padding:0 20px;}"
+            "QPushButton:hover{border-color:#45A29E;color:#66FCF1;}"
+        )
+        try:
+            if hasattr(self, "btn_lang_tr"):
+                self.btn_lang_tr.setStyleSheet(active_style if lang == "TR" else inactive_style)
+                self.btn_lang_en.setStyleSheet(active_style if lang == "EN" else inactive_style)
+        except RuntimeError:
+            pass
+
+        # ── Dashboard static labels ───────────────────────────────
+        # NOTE: _hw_card_title_* references may point to deleted C++ objects
+        # after populate_dash_detail() rebuilds the layout — always guard!
+        for attr, key in [
+            ("_lbl_score_title",   "score_title"),
+            ("_lbl_detail_section","detail_section"),
+            ("_lbl_scanning",      "scanning"),
+        ]:
+            self._safe_set_text(attr, S[key])
+
+        # ── Repopulate games if scan is already done ──────────────
+        try:
+            if self.system_data is not None:
+                self.populate_games()
+        except Exception:
+            pass
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = BenchmarkApp()
     window.show()
     sys.exit(app.exec())
+

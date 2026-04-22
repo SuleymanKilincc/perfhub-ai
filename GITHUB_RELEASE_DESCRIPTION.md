@@ -27,7 +27,7 @@ AI-powered hardware analysis with Gemini 2.5 Flash, Ray Tracing/Path Tracing sup
 - Better laptop detection
 
 ### 🌐 Global Language Selector
-- 🇹🇷 Türkçe / 🇬🇧 English
+- 🇹🇷 Turkish / 🇬🇧 English
 - Sidebar language picker
 - Affects all AI responses
 
@@ -41,23 +41,56 @@ AI-powered hardware analysis with Gemini 2.5 Flash, Ray Tracing/Path Tracing sup
 
 **File**: `PerfHub_AI_v4.0.0.zip` (52.77 MB)
 
-### Installation
-1. Download and extract ZIP
-2. Run `PerfHub_AI_WebApp.exe`
-3. No API key needed!
+### Installation Steps
+1. Download the ZIP file below
+2. Extract all files (Right-click → "Extract All")
+3. Run `PerfHub_AI_WebApp.exe`
+4. First launch may take 5-10 seconds (normal)
+5. No API key needed - AI ready to use!
 
 ### Windows Security Warning
-First run may show "Unknown publisher":
-- Click "More info" → "Run anyway"
+On first run, Windows may show "Unknown publisher" warning:
+1. Click **"More info"**
+2. Click **"Run anyway"**
+
+This is normal for applications without a code signing certificate.
 
 ---
 
-## 🛡️ Security
+## 🛡️ Security & Trust
 
-**VirusTotal**: 68/70 clean ✅  
-🔗 [View Scan Report](https://www.virustotal.com/gui/file/6e43f2c8ef3efc586f752222c554046ff1ae204a114bfc947749da2fb346842d/detection)
+### VirusTotal Scan Results
+- **68/70 Clean** ✅
+- 2 false positives (VIPRE, CrowdStrike) - common for PyInstaller apps
+- **Scan Report**: [View on VirusTotal](https://www.virustotal.com/gui/file/6e43f2c8ef3efc586f752222c554046ff1ae204a114bfc947749da2fb346842d/detection)
 
-2 false positives (VIPRE, CrowdStrike) - common for PyInstaller apps. This app is safe and open-source.
+### Open Source
+- Full source code available on GitHub
+- MIT License - free to use and modify
+- Community-driven development
+
+---
+
+## 🎮 Supported Games (RT/PT)
+
+### Ray Tracing + Path Tracing
+- Cyberpunk 2077
+- Alan Wake 2
+- Portal RTX
+- Minecraft RTX
+- Quake II RTX
+
+### Ray Tracing Only
+- Spider-Man Remastered
+- Hogwarts Legacy
+- Forza Horizon 5
+- F1 2024
+- Resident Evil 4 Remake
+- Control
+- Metro Exodus Enhanced
+- Dying Light 2
+- Watch Dogs Legion
+- ...and 23 more!
 
 ---
 
@@ -69,37 +102,43 @@ First run may show "Unknown publisher":
 
 ---
 
-## 🎮 Featured Games (RT/PT)
-
-**RT + PT**: Cyberpunk 2077, Alan Wake 2, Portal RTX, Minecraft RTX  
-**RT Only**: Spider-Man, Hogwarts Legacy, Forza Horizon 5, F1 2024, Resident Evil 4
-
----
-
-## 🔧 Technical
+## 🔧 Technical Details
 
 - **Python**: 3.8+
 - **Framework**: PyQt6
 - **AI Model**: Google Gemini 2.5 Flash
 - **License**: MIT
+- **Platform**: Windows 10/11 (64-bit)
 
 ---
 
 ## 🐛 Bug Fixes
 
-- Fixed API key detection
-- Resolved iGPU scoring (was 0)
-- Fixed RAM impact on FPS
+- Fixed API key detection issues
+- Resolved iGPU scoring (was showing 0)
+- Fixed RAM impact not affecting FPS calculations
 - Corrected language selector placement
-- Fixed taskbar icon
+- Fixed application icon not appearing in taskbar
 
 ---
 
-## 🙏 Credits
+## 🙏 Acknowledgments
 
-- Hardware data from benchmarking databases
-- AI by Google Gemini 2.5 Flash
-- RT/PT data from game documentation
+- Hardware data from various benchmarking databases
+- AI powered by Google Gemini 2.5 Flash
+- RT/PT support data from game documentation
+- Community feedback and testing
+
+---
+
+## 🔮 What's Next?
+
+### Planned for v4.1.0
+- More games with RT/PT support
+- DLSS 4 Multi Frame Generation
+- AMD FSR 3.1 support
+- Laptop vs Desktop GPU comparison
+- Power consumption estimates
 
 ---
 

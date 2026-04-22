@@ -2,7 +2,7 @@
 
 AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
-![Version](https://img.shields.io/badge/version-4.0.0-blue)
+![Version](https://img.shields.io/badge/version-4.0.1-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -39,7 +39,7 @@ AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
 Download the latest version from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases)
 
-**Latest:** [PerfHub AI v4.0.0](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v4.0.0) (52.77 MB)
+**Latest:** [PerfHub AI v4.0.1](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v4.0.1) (52.76 MB)
 
 ## 🖥️ System Requirements
 
@@ -147,9 +147,9 @@ python create_release_zip.py
 
 ## 📊 Database
 
-- **156+ CPUs** - Intel (Core, Xeon), AMD (Ryzen, Threadripper), Apple Silicon (M1-M5)
-- **137+ GPUs** - NVIDIA (RTX 50/40/30/20 series), AMD (RX 7000/6000), Intel ARC + iGPUs
-- **32 Games** - Complete RT/PT support data and RAM sensitivity profiles
+- **170+ CPUs** - Intel (Core 5-14 Gen, Xeon), AMD (Ryzen 1000-9000, Threadripper), Apple Silicon (M1-M5)
+- **144+ GPUs** - NVIDIA (GTX 700-RTX 5000), AMD (Polaris-RDNA 4), Intel ARC + iGPUs
+- **66 Games** - Complete RT/PT support data and RAM sensitivity profiles
 - **Accurate Scoring** - Real-world benchmarks and performance data
 
 Database location: `data/hardware_db.sqlite`

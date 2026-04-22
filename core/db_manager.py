@@ -125,25 +125,68 @@ def _populate_initial_data():
     conn.close()
 
 def find_cpu(search_name):
-    """Finds a CPU by matching the name roughly."""
+    """Finds a CPU by matching the name robustly.
+    Handles WMI suffixes like 'with Radeon Graphics', 'Processor', etc.
+    """
+    import re
     conn = get_connection()
     cursor = conn.cursor()
-    # Simple LIKE search for now
-    cursor.execute("SELECT * FROM cpus WHERE name LIKE ?", (f"%{search_name}%",))
-    result = cursor.fetchone()
-    conn.close()
-    
-    if result:
+
+    def _row_to_dict(row):
         return {
-            "id": result[0],
-            "name": result[1],
-            "cores": result[2],
-            "threads": result[3],
-            "base_clock": result[4],
-            "boost_clock": result[5],
-            "architecture": result[6],
-            "power_score": result[7]
+            "id": row[0], "name": row[1], "cores": row[2],
+            "threads": row[3], "base_clock": row[4], "boost_clock": row[5],
+            "architecture": row[6], "power_score": row[7]
         }
+
+    def _try(term):
+        cursor.execute("SELECT * FROM cpus WHERE name LIKE ?", (f"%{term}%",))
+        return cursor.fetchone()
+
+    # 1. Direct LIKE search
+    result = _try(search_name)
+    if result:
+        conn.close(); return _row_to_dict(result)
+
+    # 2. Strip common WMI / marketing suffixes/prefixes and retry
+    cleaned = search_name
+    # (a) Strip embedded (R) and (TM) anywhere (with or without space)
+    cleaned = re.sub(r"\(R\)|\(TM\)", "", cleaned, flags=re.IGNORECASE)
+    # (b) Strip "Nth Gen" prefix: "12th Gen Intel" → "Intel"
+    cleaned = re.sub(r"^\d+(?:st|nd|rd|th)\s+Gen\s+", "", cleaned, flags=re.IGNORECASE)
+    # (c) Strip " @ 3.60GHz" frequency suffix
+    cleaned = re.sub(r"\s*@\s*\d+[\.,]\d+\s*GHz.*", "", cleaned, flags=re.IGNORECASE)
+    # (d) Other common suffixes
+    STRIP_PATTERNS = [
+        r"\s+with\s+Radeon\s+Graphics.*",   # AMD APU
+        r"\s+with\s+Intel.*Graphics.*",      # Intel iGPU
+        r"\s+Processor\b",
+        r"\s+CPU\b",
+        r"\s+\d+-Core\s+Processor.*",
+        r"\s+\d+\.\d+GHz.*",
+        r"\s+Gen\s+\d+.*",
+        r"\s+Laptop\b",
+        r"\s+Mobile\b",
+    ]
+    for pat in STRIP_PATTERNS:
+        cleaned = re.sub(pat, "", cleaned, flags=re.IGNORECASE)
+    # Normalize whitespace
+    cleaned = " ".join(cleaned.split()).strip()
+
+    if cleaned != search_name:
+        result = _try(cleaned)
+        if result:
+            conn.close(); return _row_to_dict(result)
+
+    # 3. Token-based: try progressively shorter name tokens
+    tokens = cleaned.split()
+    for n_tokens in range(len(tokens), 1, -1):
+        term = " ".join(tokens[:n_tokens])
+        result = _try(term)
+        if result:
+            conn.close(); return _row_to_dict(result)
+
+    conn.close()
     return None
 
 def find_gpu(search_name):
@@ -243,18 +286,42 @@ def get_recommended_upgrades(target_score: float, is_cpu: bool = True,
     
     query = f"SELECT name, power_score FROM {table} WHERE power_score >= ? AND power_score <= ? "
     
-    # Exclude laptop hardware from recommendations
     if is_cpu:
+        # ── Exclude laptop CPUs ────────────────────────────────────────────────
         query += " AND name NOT LIKE '%HX%' AND name NOT LIKE '%HS%' "
         query += " AND name NOT LIKE '% H%' AND name NOT LIKE '%-H%' "
         query += " AND name NOT LIKE '% U%' AND name NOT LIKE '%-U%' "
         query += " AND name NOT LIKE '% P%' AND name NOT LIKE '%-P%' "
         query += " AND name NOT LIKE '%Mobile%' "
         query += " AND name NOT LIKE '%H ' AND name NOT LIKE '%U ' AND name NOT LIKE '%P ' "
+        # ── Exclude workstation / server CPUs (gamers NEVER need these) ────────
+        query += " AND name NOT LIKE '%Threadripper%' "   # AMD HEDT / workstation
+        query += " AND name NOT LIKE '%Xeon%' "           # Intel server / workstation
+        query += " AND name NOT LIKE '%EPYC%' "           # AMD server
+        query += " AND name NOT LIKE '%Opteron%' "        # AMD server (legacy)
+        query += " AND name NOT LIKE '%W-%' "             # Intel W-series workstation
+        query += " AND name NOT LIKE '%W3%' "             # Intel Xeon W3xxx
+        query += " AND name NOT LIKE '%W5%' "             # Intel Xeon W5xxx
+        query += " AND name NOT LIKE '%W7%' "             # Intel Xeon W7xxx
+        query += " AND name NOT LIKE '%W9%' "             # Intel Xeon W9xxx
+        # ── Exclude Apple Silicon (macOS only, can't be used in PC gaming builds) ─
+        query += " AND name NOT LIKE '%Apple%' "          # Apple M1/M2/M3/M4/M5 series
     else:
+        # ── Exclude laptop GPUs ────────────────────────────────────────────────
         query += " AND name NOT LIKE '%Laptop%' AND name NOT LIKE '%Mobile%' "
+        # ── Exclude professional / workstation GPUs ───────────────────────────
+        query += " AND name NOT LIKE '%Quadro%' "         # NVIDIA professional series
+        query += " AND name NOT LIKE '% RTX A%' "        # NVIDIA RTX A-series (A2000, A4000…)
+        query += " AND name NOT LIKE '%Tesla%' "          # NVIDIA compute (T4, V100…)
+        query += " AND name NOT LIKE '%A100%' "           # NVIDIA data center
+        query += " AND name NOT LIKE '%H100%' "
+        query += " AND name NOT LIKE '%Instinct%' "       # AMD compute (MI series)
+        query += " AND name NOT LIKE '%Radeon Pro%' "     # AMD professional
+        query += " AND name NOT LIKE '%FirePro%' "        # AMD legacy professional
+        query += " AND name NOT LIKE '%WX%' "             # AMD Radeon Pro WX series
     
     query += " ORDER BY power_score DESC"
+
     
     try:
         cursor.execute(query, (low_bound, high_bound))
