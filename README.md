@@ -2,7 +2,7 @@
 
 AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
-![Version](https://img.shields.io/badge/version-5.1.0-blue)
+![Version](https://img.shields.io/badge/version-5.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -40,7 +40,7 @@ AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
 Download the latest version from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases)
 
-**Latest:** [PerfHub AI v5.1.0](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v5.1.0) (64.50 MB)
+**Latest:** [PerfHub AI v5.0.0](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v5.1.0) (64.50 MB)
 
 ## 🖥️ System Requirements
 
@@ -52,7 +52,7 @@ Download the latest version from [Releases](https://github.com/SuleymanKilincc/p
 ## 🚀 Quick Start
 
 ### Installation
-1. Download `PerfHub_AI_v5.1.0.zip` from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v5.1.0)
+1. Download `PerfHub_AI_v5.0.0.zip` from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v5.1.0)
 2. Extract the ZIP file to any folder
 3. Run `PerfHub_AI_WebApp.exe`
 4. First launch may take 5-10 seconds (normal)
