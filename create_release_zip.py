@@ -6,7 +6,7 @@ import zipfile
 import os
 import shutil
 
-VERSION = "4.0.1"
+VERSION = "5.1.0"
 ZIP_NAME = f"PerfHub_AI_v{VERSION}.zip"
 
 print("="*60)
