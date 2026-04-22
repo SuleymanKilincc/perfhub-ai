@@ -2,7 +2,7 @@
 
 AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
 
-![Version](https://img.shields.io/badge/version-4.0.1-blue)
+![Version](https://img.shields.io/badge/version-5.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
