@@ -167,6 +167,41 @@ def detect_storage():
     return drives
 
 
+def detect_cpu_temperature():
+    """
+    Reads CPU temperature via the WMI ACPI thermal zone (root/wmi ->
+    MSAcpi_ThermalZoneTemperature). This is the Windows equivalent of
+    psutil.sensors_temperatures(), which only reads Linux's lm-sensors
+    /sys interface and returns nothing at all on Windows.
+
+    Even on Windows this path is not guaranteed: MSAcpi_ThermalZoneTemperature
+    is populated by the motherboard's ACPI BIOS tables, and many boards
+    (especially modern desktop boards from ASUS/MSI/Gigabyte) simply don't
+    expose it. A None return here is a legitimate "not available on this
+    system" result, not necessarily a bug — callers must handle it
+    explicitly (e.g. show "sıcaklık verisi bu sistemde okunamıyor") instead
+    of assuming a numeric fallback, since 0°C would be indistinguishable
+    from "unknown".
+
+    Returns:
+        float Celsius, or None if no ACPI thermal zone is exposed on this
+        system.
+    """
+    try:
+        pythoncom.CoInitialize()
+        w = wmi.WMI(namespace="root/wmi")
+        zones = w.MSAcpi_ThermalZoneTemperature()
+        if not zones:
+            return None
+        # CurrentTemperature is reported in tenths of a Kelvin.
+        temp_decikelvin = zones[0].CurrentTemperature
+        celsius = (temp_decikelvin / 10.0) - 273.15
+        return round(celsius, 1)
+    except Exception as e:
+        print(f"Error detecting CPU temperature: {e}")
+        return None
+
+
 def get_system_info():
     """Returns a dictionary containing all detected hardware."""
     ram_sticks = detect_ram_details()

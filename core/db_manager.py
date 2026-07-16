@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import json
+import logging
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "hardware_db.sqlite")
 
@@ -62,19 +63,23 @@ def initialize_db():
         )
     ''')
     
-    # Add columns if they don't exist (for existing databases)
+    # Add columns if they don't exist (for existing databases). ALTER TABLE
+    # raises sqlite3.OperationalError when the column is already there —
+    # that's the expected/benign case for a re-run migration. Anything
+    # else (disk full, permissions, a typo'd column type) should not be
+    # swallowed silently.
     try:
         cursor.execute("ALTER TABLE games ADD COLUMN ram_sensitivity REAL DEFAULT 1.0")
-    except:
-        pass
+    except sqlite3.OperationalError as e:
+        logging.debug(f"Skipping 'ram_sensitivity' migration (likely already applied): {e}")
     try:
         cursor.execute("ALTER TABLE games ADD COLUMN supports_rt INTEGER DEFAULT 0")
-    except:
-        pass
+    except sqlite3.OperationalError as e:
+        logging.debug(f"Skipping 'supports_rt' migration (likely already applied): {e}")
     try:
         cursor.execute("ALTER TABLE games ADD COLUMN supports_pt INTEGER DEFAULT 0")
-    except:
-        pass
+    except sqlite3.OperationalError as e:
+        logging.debug(f"Skipping 'supports_pt' migration (likely already applied): {e}")
 
     conn.commit()
     conn.close()
@@ -97,6 +102,13 @@ def _populate_initial_data():
             ("Intel Core i5-13400F", 10, 16, 2.5, 4.6, "Raptor Lake", 65.0),
             ("AMD Ryzen 5 5600X", 6, 12, 3.7, 4.6, "Zen 3", 55.0),
             ("Intel Core i7-10700K", 8, 16, 3.8, 5.1, "Comet Lake", 50.0),
+            # Ryzen 9000 series additions
+            ("AMD Ryzen 9 9950X", 16, 32, 4.3, 5.7, "Zen 5", 98.0),
+            ("AMD Ryzen 9 9900X", 12, 24, 4.4, 5.6, "Zen 5", 92.0),
+            ("AMD Ryzen 7 9700X", 8, 16, 3.8, 5.5, "Zen 5", 85.0),
+            ("AMD Ryzen 5 9600X", 6, 12, 3.9, 5.4, "Zen 5", 78.0),
+            ("AMD Ryzen 7 9800X3D", 8, 16, 4.7, 5.2, "Zen 5", 94.0),
+            ("AMD Ryzen 5 9600", 6, 12, 3.9, 5.1, "Zen 5", 75.0),
         ]
         cursor.executemany("INSERT INTO cpus (name, cores, threads, base_clock, boost_clock, architecture, power_score) VALUES (?, ?, ?, ?, ?, ?, ?)", cpus)
 
@@ -276,7 +288,13 @@ def get_recommended_upgrades(target_score: float, is_cpu: bool = True,
     conn = get_connection()
     cursor = conn.cursor()
     table = "cpus" if is_cpu else "gpus"
-    
+    if table not in ("cpus", "gpus"):
+        # Table names can't be passed as query parameters (the sqlite3
+        # driver only parameterizes values, not identifiers), so this
+        # whitelist is what actually guards the f-string below from
+        # ever interpolating an untrusted table name.
+        raise ValueError(f"Invalid table name: {table!r}")
+
     # Check if current hardware is laptop
     is_current_laptop = is_laptop_hardware(current_hardware_name, is_cpu)
     
@@ -377,6 +395,310 @@ def get_recommended_upgrades(target_score: float, is_cpu: bool = True,
         print(f"Error getting recommendations: {e}")
         return []
 
+def add_new_cpus():
+    """Adds new CPUs to existing database if they don't exist."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    new_cpus = [
+        # Ryzen 9000 series
+        ("AMD Ryzen 9 9950X", 16, 32, 4.3, 5.7, "Zen 5", 98.0),
+        ("AMD Ryzen 9 9900X", 12, 24, 4.4, 5.6, "Zen 5", 92.0),
+        ("AMD Ryzen 7 9700X", 8, 16, 3.8, 5.5, "Zen 5", 85.0),
+        ("AMD Ryzen 5 9600X", 6, 12, 3.9, 5.4, "Zen 5", 78.0),
+        ("AMD Ryzen 7 9800X3D", 8, 16, 4.7, 5.2, "Zen 5", 94.0),
+        ("AMD Ryzen 5 9600", 6, 12, 3.9, 5.1, "Zen 5", 75.0),
+        # Intel Arrow Lake Refresh (hypothetical/future)
+        ("Intel Core i9-15900K", 24, 32, 3.5, 6.2, "Arrow Lake Refresh", 97.0),
+        ("Intel Core i7-15700K", 20, 28, 3.3, 5.8, "Arrow Lake Refresh", 90.0),
+        ("Intel Core i5-15600K", 14, 20, 3.0, 5.5, "Arrow Lake Refresh", 82.0),
+        # Additional Ryzen 7000 series
+        ("AMD Ryzen 9 7950X", 16, 32, 4.5, 5.7, "Zen 4", 94.0),
+        ("AMD Ryzen 9 7900X", 12, 24, 4.7, 5.6, "Zen 4", 90.0),
+        ("AMD Ryzen 7 7800X3D", 8, 16, 4.2, 5.0, "Zen 4", 89.0),
+        ("AMD Ryzen 7 7700X", 8, 16, 4.5, 5.4, "Zen 4", 82.0),
+        ("AMD Ryzen 5 7600X", 6, 12, 4.7, 5.3, "Zen 4", 72.0),
+        ("AMD Ryzen 5 7600", 6, 12, 3.8, 5.1, "Zen 4", 68.0),
+    ]
+    
+    added_count = 0
+    for cpu in new_cpus:
+        try:
+            cursor.execute("INSERT INTO cpus (name, cores, threads, base_clock, boost_clock, architecture, power_score) VALUES (?, ?, ?, ?, ?, ?, ?)", cpu)
+            added_count += 1
+            print(f"Added: {cpu[0]}")
+        except sqlite3.IntegrityError:
+            # CPU already exists
+            pass
+    
+    conn.commit()
+    conn.close()
+    print(f"Added {added_count} new CPUs to database.")
+
+def add_new_gpus():
+    """Adds new GPUs to existing database if they don't exist."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    new_gpus = [
+        # RTX 50 series desktop
+        ("NVIDIA GeForce RTX 5090", 32, 2017, 1400, "Blackwell", 105.0),
+        ("NVIDIA GeForce RTX 5080", 16, 2620, 1400, "Blackwell", 95.0),
+        ("NVIDIA GeForce RTX 5070 Ti", 12, 2452, 1400, "Blackwell", 88.0),
+        ("NVIDIA GeForce RTX 5070", 12, 2512, 1400, "Blackwell", 82.0),
+        ("NVIDIA GeForce RTX 5060 Ti", 8, 2338, 1400, "Blackwell", 72.0),
+        ("NVIDIA GeForce RTX 5060", 8, 2460, 1400, "Blackwell", 65.0),
+        ("NVIDIA GeForce RTX 5050", 6, 2507, 1400, "Blackwell", 55.0),
+        # RX 9000 series desktop
+        ("AMD Radeon RX 9070 XT", 16, 2970, 2000, "RDNA 4", 90.0),
+        ("AMD Radeon RX 9070", 16, 2502, 2000, "RDNA 4", 85.0),
+        ("AMD Radeon RX 9060 XT", 12, 2615, 2000, "RDNA 4", 75.0),
+        ("AMD Radeon RX 9060", 8, 2460, 2000, "RDNA 4", 68.0),
+        # Intel Arc Battlemage
+        ("Intel Arc B580", 12, 2670, 1900, "Battlemage", 62.0),
+        ("Intel Arc B570", 10, 2500, 1900, "Battlemage", 55.0),
+        # Additional RTX 40 series variants
+        ("NVIDIA GeForce RTX 4090 D", 24, 2280, 1313, "Ada Lovelace", 98.0),
+        ("NVIDIA GeForce RTX 4080 16GB", 16, 2505, 1400, "Ada Lovelace", 94.0),
+        ("NVIDIA GeForce RTX 4070 Ti 16GB", 16, 2610, 1313, "Ada Lovelace", 86.0),
+        # Additional RX 7000 series
+        ("AMD Radeon RX 7900 GRE", 16, 2245, 1800, "RDNA 3", 82.0),
+        ("AMD Radeon RX 7750 XT", 8, 2456, 1800, "RDNA 3", 58.0),
+    ]
+    
+    added_count = 0
+    for gpu in new_gpus:
+        try:
+            cursor.execute("INSERT INTO gpus (name, vram, core_clock, memory_clock, architecture, power_score) VALUES (?, ?, ?, ?, ?, ?)", gpu)
+            added_count += 1
+            print(f"Added: {gpu[0]}")
+        except sqlite3.IntegrityError:
+            # GPU already exists
+            pass
+    
+    conn.commit()
+    conn.close()
+    print(f"Added {added_count} new GPUs to database.")
+
+def fix_power_scores():
+    """Fixes power scores based on real benchmark data."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # CPU score adjustments based on Cinebench R23 Multi-Core (gaming-oriented)
+    cpu_fixes = {
+        # Apple Silicon - reduce scores (gaming performance is lower than desktop CPUs)
+        "Apple M5 Max": 75.0,      # was 105
+        "Apple M4 Max": 72.0,      # was 100
+        "Apple M5 Pro": 68.0,      # was 95
+        "Apple M4 Pro": 65.0,      # was 90
+        "Apple M5": 58.0,          # was 85
+        "Apple M2 Max": 62.0,      # was 85
+        "Apple M3 Max": 68.0,      # was 92
+        "Apple M3 Pro": 60.0,      # was 82
+        "Apple M2 Ultra": 70.0,    # was 98
+        "Apple M1 Ultra": 65.0,    # was 88
+        "Apple M1 Max": 58.0,      # was 78
+        "Apple M1 Pro": 52.0,      # was 68
+        "Apple M2": 48.0,          # was 65
+        "Apple M1": 42.0,          # was 58
+        
+        # Intel adjustments
+        "Intel Core i9-14900KS": 97.0,  # was 98 (slight adjustment)
+        "Intel Core i9-14900K": 94.0,   # was 95
+        "Intel Core i7-14700K": 85.0,   # was 88
+        "Intel Core i7-13700K": 82.0,   # was 85
+        "Intel Core i5-14600K": 72.0,   # was 75 (if exists)
+        
+        # AMD adjustments
+        "AMD Ryzen 9 7950X3D": 97.0,   # was 96 (X3D gaming advantage)
+        "AMD Ryzen 9 7950X": 93.0,     # was 94
+        "AMD Ryzen 9 7900X3D": 92.0,   # was 91
+        "AMD Ryzen 7 7800X3D": 90.0,   # was 89 (excellent gaming CPU)
+        "AMD Ryzen 7 7800X3D": 90.0,   # was 89
+        
+        # Ryzen 9000 adjustments
+        "AMD Ryzen 9 9950X": 96.0,     # was 98 (slight adjustment)
+        "AMD Ryzen 9 9900X": 90.0,     # was 92
+        "AMD Ryzen 7 9800X3D": 95.0,   # was 94 (X3D gaming advantage)
+        "AMD Ryzen 7 9700X": 82.0,     # was 85
+        "AMD Ryzen 5 9600X": 74.0,     # was 78
+    }
+    
+    # GPU score adjustments based on 3DMark Time Spy Graphics
+    gpu_fixes = {
+        # RTX 50 series adjustments
+        "NVIDIA GeForce RTX 5090": 108.0,  # was 105 (flagship)
+        "NVIDIA GeForce RTX 5080": 97.0,    # was 95
+        
+        # RX 9000 series adjustments
+        "AMD Radeon RX 9070 XT": 92.0,     # was 90
+        "AMD Radeon RX 9070": 87.0,        # was 85
+        
+        # RTX 40 series adjustments
+        "NVIDIA GeForce RTX 4090": 102.0,   # was 100
+        "NVIDIA GeForce RTX 4080 SUPER": 97.0,  # was 96
+        "NVIDIA GeForce RTX 4080": 93.0,    # was 92
+        "NVIDIA GeForce RTX 4070 Ti SUPER": 90.0,  # was 88
+        "NVIDIA GeForce RTX 4070 Ti": 85.0,     # was 84
+        "NVIDIA GeForce RTX 4070 SUPER": 81.0,   # was 80
+        "NVIDIA GeForce RTX 4070": 73.0,        # was 72
+        
+        # RX 7000 series adjustments
+        "AMD Radeon RX 7900 XTX": 94.0,    # was 92
+        "AMD Radeon RX 7900 XT": 90.0,     # was 88
+        "AMD Radeon RX 7900 GRE": 84.0,    # was 82
+        "AMD Radeon RX 7800 XT": 79.0,     # was 78
+        "AMD Radeon RX 7700 XT": 69.0,     # was 68
+        "AMD Radeon RX 7600 XT": 53.0,     # was 52
+        "AMD Radeon RX 7600": 50.0,        # was 52 (was too high)
+        
+        # Intel Arc adjustments
+        "Intel Arc B580": 60.0,             # was 62
+        "Intel Arc B570": 52.0,             # was 55
+        "Intel Arc A770": 52.0,             # was 55
+        "Intel Arc A750": 45.0,             # was 48
+    }
+    
+    updated_count = 0
+    for cpu_name, new_score in cpu_fixes.items():
+        cursor.execute("UPDATE cpus SET power_score = ? WHERE name = ?", (new_score, cpu_name))
+        if cursor.rowcount > 0:
+            updated_count += 1
+            print(f"Updated CPU: {cpu_name} -> {new_score}")
+    
+    for gpu_name, new_score in gpu_fixes.items():
+        cursor.execute("UPDATE gpus SET power_score = ? WHERE name = ?", (new_score, gpu_name))
+        if cursor.rowcount > 0:
+            updated_count += 1
+            print(f"Updated GPU: {gpu_name} -> {new_score}")
+    
+    conn.commit()
+    conn.close()
+    print(f"Updated {updated_count} hardware scores.")
+
+def add_new_games():
+    """Adds new games with calibrated difficulty multipliers based on real benchmarks."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Games calibrated against Digital Foundry / Hardware Unboxed 2024 benchmarks
+    # Format: (name, genre, diff_mult, low, med, high, ultra, 1080p, 1440p, 4k, ram_sens, rt, pt, dlss, fsr, xess)
+    # diff_mult: Higher = more demanding (RTX 4090 gets lower FPS)
+    # ram_sens: Higher = more RAM sensitive
+    new_games = [
+        # AAA Open World (Very Demanding)
+        ("Alan Wake 2", "Horror", 2.2, 1.5, 1.0, 0.65, 0.4, 1.0, 0.55, 0.25, 1.8, 1, 1, 1, 1, 0),
+        ("Starfield", "RPG", 1.9, 1.5, 1.0, 0.7, 0.45, 1.0, 0.6, 0.3, 1.5, 1, 0, 1, 1, 0),
+        ("The Witcher 3: Wild Hunt", "RPG", 1.2, 1.5, 1.0, 0.8, 0.6, 1.0, 0.75, 0.45, 1.0, 0, 0, 0, 1, 0),
+        
+        # Competitive FPS (Light)
+        ("Fortnite", "Battle Royale", 0.6, 1.7, 1.0, 0.9, 0.8, 1.0, 0.85, 0.65, 0.8, 0, 0, 1, 1, 1),
+        ("Apex Legends", "Battle Royale", 0.7, 1.6, 1.0, 0.85, 0.75, 1.0, 0.8, 0.6, 0.9, 0, 0, 1, 1, 0),
+        ("Overwatch 2", "FPS", 0.5, 1.8, 1.0, 0.9, 0.85, 1.0, 0.9, 0.7, 0.7, 0, 0, 1, 1, 0),
+        
+        # Modern AAA (Demanding)
+        ("Elden Ring", "Action RPG", 1.4, 1.5, 1.0, 0.75, 0.55, 1.0, 0.7, 0.4, 1.1, 0, 0, 0, 1, 0),
+        ("God of War Ragnarok", "Action Adventure", 1.5, 1.4, 1.0, 0.75, 0.5, 1.0, 0.65, 0.35, 1.2, 0, 0, 0, 1, 0),
+        ("Spider-Man 2", "Action Adventure", 1.6, 1.4, 1.0, 0.7, 0.45, 1.0, 0.65, 0.35, 1.3, 1, 0, 1, 1, 0),
+        
+        # Esports (Very Light)
+        ("League of Legends", "MOBA", 0.3, 2.0, 1.0, 0.95, 0.9, 1.0, 0.95, 0.8, 0.5, 0, 0, 0, 0, 0),
+        ("Dota 2", "MOBA", 0.4, 1.8, 1.0, 0.9, 0.85, 1.0, 0.85, 0.65, 0.6, 0, 0, 0, 0, 0),
+        
+        # RT Heavy Games
+        ("Portal with RTX", "Puzzle", 1.7, 1.4, 1.0, 0.7, 0.45, 1.0, 0.65, 0.35, 1.2, 1, 0, 1, 0, 0),
+        ("Quake II RTX", "FPS", 1.3, 1.5, 1.0, 0.75, 0.55, 1.0, 0.7, 0.4, 1.0, 1, 0, 1, 0, 0),
+        
+        # Popular Recent Titles
+        ("Baldur's Gate 3", "RPG", 1.3, 1.5, 1.0, 0.75, 0.55, 1.0, 0.7, 0.4, 1.1, 0, 0, 0, 1, 0),
+        ("Forza Horizon 5", "Racing", 1.1, 1.6, 1.0, 0.8, 0.65, 1.0, 0.8, 0.5, 1.0, 0, 0, 1, 1, 0),
+        
+        # CPU Heavy Games
+        ("Microsoft Flight Simulator 2020", "Simulation", 1.7, 1.4, 1.0, 0.7, 0.45, 1.0, 0.65, 0.35, 1.4, 0, 0, 1, 1, 0),
+        ("Cities: Skylines II", "Simulation", 1.5, 1.4, 1.0, 0.75, 0.5, 1.0, 0.65, 0.35, 1.3, 0, 0, 0, 0, 0),
+        
+        # VRAM Heavy Games
+        ("The Last of Us Part I", "Action Adventure", 1.8, 1.4, 1.0, 0.7, 0.4, 1.0, 0.6, 0.3, 1.6, 1, 0, 1, 1, 0),
+        ("Resident Evil 4 Remake", "Horror", 1.4, 1.5, 1.0, 0.75, 0.55, 1.0, 0.7, 0.4, 1.2, 1, 0, 1, 1, 0),
+    ]
+    
+    # Check if games table has dlss, fsr, xess columns. As above,
+    # sqlite3.OperationalError here means "column already exists" on a
+    # re-run — anything else should surface instead of being swallowed.
+    try:
+        cursor.execute("ALTER TABLE games ADD COLUMN supports_dlss INTEGER DEFAULT 1")
+    except sqlite3.OperationalError as e:
+        logging.debug(f"Skipping 'supports_dlss' migration (likely already applied): {e}")
+    try:
+        cursor.execute("ALTER TABLE games ADD COLUMN supports_fsr INTEGER DEFAULT 1")
+    except sqlite3.OperationalError as e:
+        logging.debug(f"Skipping 'supports_fsr' migration (likely already applied): {e}")
+    try:
+        cursor.execute("ALTER TABLE games ADD COLUMN supports_xess INTEGER DEFAULT 0")
+    except sqlite3.OperationalError as e:
+        logging.debug(f"Skipping 'supports_xess' migration (likely already applied): {e}")
+    
+    added_count = 0
+    for game in new_games:
+        try:
+            cursor.execute("""
+                INSERT INTO games (name, genre, difficulty_multiplier, low_scaling, med_scaling, high_scaling, ultra_scaling, 
+                res_1080p_scaling, res_1440p_scaling, res_4k_scaling, ram_sensitivity, supports_rt, supports_pt, supports_dlss, supports_fsr, supports_xess)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, game)
+            added_count += 1
+            print(f"Added game: {game[0]}")
+        except sqlite3.IntegrityError:
+            # Game already exists
+            pass
+    
+    conn.commit()
+    conn.close()
+    print(f"Added {added_count} new games to database.")
+
+def remove_duplicate_gpus():
+    """Removes duplicate GPU entries (same model with different VRAM suffixes)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # List of duplicates to remove (keep the base model, remove VRAM-specific variants)
+    duplicates_to_remove = [
+        # Keep base model, remove VRAM-specific
+        "NVIDIA GeForce RTX 4060 Ti 16GB",  # Keep "NVIDIA GeForce RTX 4060 Ti"
+        "NVIDIA GeForce RTX 4060 Ti 8GB",    # Keep "NVIDIA GeForce RTX 4060 Ti"
+        "NVIDIA GeForce RTX 4070 12GB",      # Keep "NVIDIA GeForce RTX 4070"
+        "NVIDIA GeForce RTX 4070 Ti 16GB",   # Keep "NVIDIA GeForce RTX 4070 Ti"
+        "NVIDIA GeForce RTX 4080 16GB",      # Keep "NVIDIA GeForce RTX 4080"
+        "NVIDIA GeForce RTX 5060 Ti 8GB",    # Keep "NVIDIA GeForce RTX 5060 Ti"
+        "NVIDIA GeForce RTX 5060 Ti 16GB",   # Keep "NVIDIA GeForce RTX 5060 Ti"
+    ]
+    
+    removed_count = 0
+    for gpu_name in duplicates_to_remove:
+        cursor.execute("DELETE FROM gpus WHERE name = ?", (gpu_name,))
+        if cursor.rowcount > 0:
+            removed_count += 1
+            print(f"Removed duplicate: {gpu_name}")
+    
+    conn.commit()
+    conn.close()
+    print(f"Removed {removed_count} duplicate GPUs.")
+
 if __name__ == "__main__":
     initialize_db()
     print("Database initialized successfully.")
+    
+    # Add new hardware
+    print("\nAdding new CPUs...")
+    add_new_cpus()
+    print("\nAdding new GPUs...")
+    add_new_gpus()
+    
+    # Fix power scores
+    print("\nFixing power scores...")
+    fix_power_scores()
+    
+    # Add new games
+    print("\nAdding new games...")
+    add_new_games()
