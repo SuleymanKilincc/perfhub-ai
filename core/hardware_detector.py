@@ -1,13 +1,14 @@
 import psutil
-import GPUtil
 import os
 
-# wmi/pythoncom wrap Windows-only COM APIs (no Linux wheel exists at all) and
-# are imported lazily inside each function below instead of at module load
-# time. This module is imported unconditionally by backend/main.py, which
-# also needs to run on Linux hosting (Render/Railway) for the web demo —
-# those endpoints never call the WMI-dependent functions, so the module
-# itself must stay importable even where wmi/pythoncom can't be installed.
+# wmi/pythoncom wrap Windows-only COM APIs (no Linux wheel exists at all),
+# and GPUtil pulls in the stdlib `distutils` module (removed in Python 3.12+,
+# and GPUtil itself is unmaintained since ~2020) — both are imported lazily
+# inside each function below instead of at module load time. This module is
+# imported unconditionally by backend/main.py, which also needs to run on
+# Linux hosting (Render/Railway) for the web demo — those endpoints never
+# call these hardware-detection functions, so the module itself must stay
+# importable even where wmi/pythoncom/GPUtil can't be installed or used.
 
 # ---- RAM Type mapping (SMBIOS spec) ----
 SMBIOS_MEM_TYPE = {
@@ -65,6 +66,7 @@ def detect_cpu():
 def detect_gpu():
     """Detects the exact GPU model name."""
     try:
+        import GPUtil
         gpus = GPUtil.getGPUs()
         if gpus:
             return gpus[0].name
