@@ -1,8 +1,13 @@
-import wmi
 import psutil
 import GPUtil
 import os
-import pythoncom
+
+# wmi/pythoncom wrap Windows-only COM APIs (no Linux wheel exists at all) and
+# are imported lazily inside each function below instead of at module load
+# time. This module is imported unconditionally by backend/main.py, which
+# also needs to run on Linux hosting (Render/Railway) for the web demo —
+# those endpoints never call the WMI-dependent functions, so the module
+# itself must stay importable even where wmi/pythoncom can't be installed.
 
 # ---- RAM Type mapping (SMBIOS spec) ----
 SMBIOS_MEM_TYPE = {
@@ -43,6 +48,7 @@ MEDIA_TYPE = {
 def detect_cpu():
     """Detects the exact CPU model name using WMI."""
     try:
+        import pythoncom, wmi
         pythoncom.CoInitialize()
         w = wmi.WMI()
         for processor in w.Win32_Processor():
@@ -62,6 +68,7 @@ def detect_gpu():
         gpus = GPUtil.getGPUs()
         if gpus:
             return gpus[0].name
+        import pythoncom, wmi
         pythoncom.CoInitialize()
         w = wmi.WMI()
         for vc in w.Win32_VideoController():
@@ -86,6 +93,7 @@ def detect_ram_details():
       - capacity_gb, speed_mhz, configured_mhz, mem_type, manufacturer, part_number
     """
     try:
+        import pythoncom, wmi
         pythoncom.CoInitialize()
         w = wmi.WMI()
         sticks = []
@@ -127,6 +135,7 @@ def detect_storage():
     """
     drives = []
     try:
+        import pythoncom, wmi
         pythoncom.CoInitialize()
         w = wmi.WMI(namespace='root/microsoft/windows/storage')
         for d in w.MSFT_PhysicalDisk():
@@ -146,6 +155,7 @@ def detect_storage():
     except Exception as e:
         # Fallback to Win32_DiskDrive
         try:
+            import wmi
             w2 = wmi.WMI()
             for disk in w2.Win32_DiskDrive():
                 try:
@@ -188,6 +198,7 @@ def detect_cpu_temperature():
         system.
     """
     try:
+        import pythoncom, wmi
         pythoncom.CoInitialize()
         w = wmi.WMI(namespace="root/wmi")
         zones = w.MSAcpi_ThermalZoneTemperature()

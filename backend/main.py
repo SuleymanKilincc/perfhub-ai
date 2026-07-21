@@ -86,6 +86,8 @@ class FPSRequest(BaseModel):
     gpu_score: float
     res: str = "1080p"
     preset: str = "High"
+    vram: int = 8
+    ram_gb: int = 16
 
 class UpgradeRequest(BaseModel):
     cpu_score: float
@@ -113,7 +115,9 @@ def get_system_info():
         score = scoring_engine.calculate_system_score(
             cpu_data["power_score"], 
             gpu_data["power_score"], 
-            raw_hw["ram"]
+            raw_hw["ram"],
+            raw_hw.get("ram_details", []),
+            raw_hw.get("storage", [])
         )
         
         bottleneck = scoring_engine.analyze_bottleneck(
@@ -132,6 +136,23 @@ def get_system_info():
         raise HTTPException(status_code=500, detail=f"Sistem tarama hatası: {str(e)}")
 
 
+@app.get("/api/hardware-lists")
+def get_hardware_lists():
+    """
+    Returns the full CPU/GPU catalog for manual hardware selection (e.g. the
+    web demo's "System Builder", which has no local WMI access to auto-detect
+    a visitor's hardware).
+    """
+    try:
+        db_manager.initialize_db()
+        return {
+            "cpus": db_manager.get_all_cpus(),
+            "gpus": db_manager.get_all_gpus(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Hardware list error: {str(e)}")
+
+
 @app.post("/api/games/fps")
 def get_games_fps(req: FPSRequest):
     """Returns FPS estimates for all games."""
@@ -143,11 +164,11 @@ def get_games_fps(req: FPSRequest):
         for game in games:
             fps = scoring_engine.estimate_fps(
                 {"power_score": req.cpu_score},
-                {"power_score": req.gpu_score, "vram": 8},
+                {"power_score": req.gpu_score, "vram": req.vram},
                 game,
                 resolution=req.res,
                 settings=req.preset,
-                ram_gb=16  # Default RAM for API
+                ram_gb=req.ram_gb
             )
             results.append({
                 "id": game["id"],

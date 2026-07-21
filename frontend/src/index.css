@@ -1,6 +1,16 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-dark-900: #0B0C10;
+  --color-dark-800: #1F2833;
+  --color-neon-blue: #66FCF1;
+  --color-neon-teal: #45A29E;
+  --color-neon-purple: #B026FF;
+  --color-neon-green: #39FF14;
+  --color-neon-brand: #FF4655;
+  --font-sans: Inter, sans-serif;
+  --font-mono: "Fira Code", monospace;
+}
 
 @layer base {
   body {

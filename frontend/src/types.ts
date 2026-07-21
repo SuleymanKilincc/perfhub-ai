@@ -57,6 +57,13 @@ export interface FPSParams {
   preset: string
 }
 
+// Manual hardware catalog for the web demo's System Builder (no local WMI
+// access, so hardware can't be auto-detected — the user picks from this list).
+export interface HardwareLists {
+  cpus: CPUData[]
+  gpus: GPUData[]
+}
+
 export interface APIError {
   detail?: string
   error?: string
