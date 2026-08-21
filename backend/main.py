@@ -88,6 +88,12 @@ class FPSRequest(BaseModel):
     preset: str = "High"
     vram: int = 8
     ram_gb: int = 16
+    # The engine keys some behaviour off the part name rather than the score:
+    # AMD's 3D V-Cache gaming uplift and Apple's unified memory both need it.
+    # Without these the web demo silently lost those adjustments, so a
+    # 7800X3D scored the same as a 7700X in games.
+    cpu_name: str = ""
+    gpu_name: str = ""
 
 class UpgradeRequest(BaseModel):
     cpu_score: float
@@ -160,12 +166,13 @@ def get_games_fps(req: FPSRequest):
         db_manager.initialize_db()
         games = db_manager.get_all_games()
         
+        cpu = {"power_score": req.cpu_score, "name": req.cpu_name}
+        gpu = {"power_score": req.gpu_score, "vram": req.vram, "name": req.gpu_name}
+
         results = []
         for game in games:
-            fps = scoring_engine.estimate_fps(
-                {"power_score": req.cpu_score},
-                {"power_score": req.gpu_score, "vram": req.vram},
-                game,
+            estimate = scoring_engine.estimate_fps_detailed(
+                cpu, gpu, game,
                 resolution=req.res,
                 settings=req.preset,
                 ram_gb=req.ram_gb
@@ -174,7 +181,14 @@ def get_games_fps(req: FPSRequest):
                 "id": game["id"],
                 "name": game["name"],
                 "genre": game["genre"],
-                "fps": fps
+                "fps": estimate["fps"],
+                # Surfaced so the UI can explain a bad number instead of just
+                # showing it: VRAM overflow, RAM shortage, which part is the
+                # limit, and how much memory the game actually wants.
+                "status": estimate["status"],
+                "bottleneck": estimate["bottleneck"],
+                "vram_needed_gb": estimate["vram_needed_gb"],
+                "warnings": estimate["warnings"],
             })
         
         return {"games": results}

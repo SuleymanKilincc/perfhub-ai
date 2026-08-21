@@ -52,6 +52,11 @@ function App() {
                 body: JSON.stringify({
                     cpu_score: selectedCpu.power_score,
                     gpu_score: selectedGpu.power_score,
+                    // Names matter to the engine, not just the scores: the
+                    // 3D V-Cache gaming uplift and Apple's unified memory
+                    // handling are both keyed off the part name.
+                    cpu_name: selectedCpu.name,
+                    gpu_name: selectedGpu.name,
                     vram: selectedGpu.vram ?? 8,
                     ram_gb: ramGb,
                     res: fpsParams.res,
@@ -186,7 +191,24 @@ function App() {
                                                     <div className="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center text-2xl">🎮</div>
                                                     <div>
                                                         <h4 className="text-xl font-bold">{game.name}</h4>
-                                                        <p className="text-gray-500 text-sm font-mono">{game.genre}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-gray-500 text-sm font-mono">{game.genre}</p>
+                                                            {game.status && game.status !== 'ok' && (
+                                                                <span
+                                                                    title={game.warnings?.join('\n')}
+                                                                    className={`text-xs font-bold px-2 py-0.5 rounded cursor-help ${
+                                                                        game.status === 'unplayable'
+                                                                            ? 'bg-neon-brand/20 text-neon-brand border border-neon-brand/40'
+                                                                            : game.status === 'vram_spill'
+                                                                            ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40'
+                                                                            : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/30'
+                                                                    }`}
+                                                                >
+                                                                    {game.status === 'unplayable' ? '🚫' : game.status === 'vram_spill' ? '⚠️' : '⚡'}
+                                                                    {game.vram_needed_gb ? ` ${game.vram_needed_gb} GB VRAM` : ''}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="text-right">

@@ -44,11 +44,23 @@ export interface SystemData {
   bottleneck: BottleneckData
 }
 
+/** Why a result is what it is — see scoring_engine._memory_pressure. */
+export type FPSStatus =
+  | 'ok'
+  | 'ram_short'
+  | 'vram_tight'
+  | 'vram_spill'
+  | 'unplayable'
+
 export interface GameData {
   id: number
   name: string
   genre: string
   fps: number
+  status?: FPSStatus
+  bottleneck?: 'CPU' | 'GPU'
+  vram_needed_gb?: number
+  warnings?: string[]
   difficulty_multiplier?: number
 }
 
