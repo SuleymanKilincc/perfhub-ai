@@ -1,19 +1,37 @@
 """
-Scoring Engine - v4.0
-Handles system scoring, bottleneck analysis, and accurate FPS estimation.
+Scoring Engine - v5.0
+
+System scoring, bottleneck analysis, and FPS estimation.
+
+The FPS model works in frame time rather than fps. Each frame costs the CPU
+some milliseconds and the GPU some milliseconds, and those two costs are
+affected by completely different things:
+
+    resolution      -> GPU only
+    quality preset  -> GPU heavily, CPU lightly
+    ray tracing     -> GPU heavily, CPU slightly (BVH work)
+    upscaling       -> GPU only (renders fewer pixels)
+    frame gen       -> multiplies output frames, needs no CPU simulation
+
+Combining them at the end (rather than multiplying one blended number by a
+chain of fudge factors) is what makes the interesting behaviour appear on its
+own: CPU-limited games stop scaling with a bigger GPU, 4K shifts the limit
+back to the GPU, and frame generation helps most exactly when the CPU is the
+wall — because that is what the arithmetic says, not because a special case
+was written for it.
+
+Memory is modelled as a separate stage. VRAM demand is compared against the
+card's capacity; anything that does not fit spills across PCIe into system
+RAM, which is slow, and if system RAM cannot absorb the spill either the game
+is reported as unplayable rather than given an optimistic number.
 """
 from core import balance_config as bc
 
 # ─── GPU tier lookup: rough "raw render budget" per power_score unit ──────────
-# In practice: (gpu_score * GPU_WEIGHT + cpu_score * CPU_WEIGHT) → raw frames
-#
-# Gaming is ~70-75 % GPU-bound at medium-high resolution.
-# CPU matters more for 1080p / CPU-heavy games; GPU dominates 1440p/4K.
-# 
-# UPDATED: Increased weights for more realistic FPS values
-# RTX 5070 Ti (88 score) should get ~60-80 FPS in 4K Ultra demanding games
-GPU_WEIGHT  = 3.8   # scales the GPU power_score to "raw frame equivalents"
-CPU_WEIGHT  = 1.2   # CPU contributes significantly at low res, but less at 4K
+# Kept for callers that still reference them; the FPS model no longer uses
+# these weights, since CPU/GPU balance now comes out of the frame-time blend.
+GPU_WEIGHT = 3.8
+CPU_WEIGHT = 1.2
 
 
 def calculate_system_score(cpu_score, gpu_score, ram_gb, ram_details=None, storage=None):
@@ -30,21 +48,21 @@ def calculate_system_score(cpu_score, gpu_score, ram_gb, ram_details=None, stora
         mem_type = s0.get('mem_type', 'DDR4')
         configured = s0.get('configured_mhz', 0) or s0.get('speed_mhz', 0)
         total_cap = sum(s.get('capacity_gb', 0) for s in ram_details)
-        
+
         # Base score from capacity
         if total_cap >= 64:   cap_score = 100
         elif total_cap >= 32: cap_score = 90
         elif total_cap >= 16: cap_score = 75
         elif total_cap >= 8:  cap_score = 50
         else:                 cap_score = 25
-        
+
         # Speed bonus (DDR5 gets higher base)
         is_ddr5 = "DDR5" in mem_type.upper() or "LPDDR5" in mem_type.upper()
         speed_score = min(10, (configured / 600.0) * 10) if configured > 0 else 5
-        
+
         # Type bonus
         type_bonus = 15 if is_ddr5 else 0
-        
+
         ram_score = min(100, cap_score + speed_score + type_bonus)
     else:
         # Fallback to simple capacity-based scoring
@@ -59,10 +77,10 @@ def calculate_system_score(cpu_score, gpu_score, ram_gb, ram_details=None, stora
         for d in storage:
             drv_bus = d.get('bus_type', '')
             drv_type = d.get('media_type', '')
-            
+
             is_nvme = "NVME" in drv_bus.upper() or drv_bus in ("NVMe", "17", "9")
             is_ssd = drv_type == "SSD" or is_nvme
-            
+
             if is_nvme:
                 storage_score = max(storage_score, 100)  # NVMe is best
             elif is_ssd:
@@ -134,6 +152,7 @@ FG_SUPPORT = {
 
     # AMD RX 7000/8000/9000 – FSR 3 Frame Gen
     "RX 9070": ["2x"],
+    "RX 9060": ["2x"],
     "RX 8900": ["2x"],
     "RX 8800": ["2x"],
     "RX 8700": ["2x"],
@@ -147,7 +166,8 @@ FG_SUPPORT = {
     "Arc B570": ["2x"],
 }
 
-def get_fg_options(gpu_name: str) -> list[str]:
+
+def get_fg_options(gpu_name: str) -> list:
     """
     Returns a list of Frame Generation dropdown options for the given GPU.
     Always starts with 'Kapalı'. If the GPU has no FG support, returns only ['Kapalı'].
@@ -161,323 +181,304 @@ def get_fg_options(gpu_name: str) -> list[str]:
     return options
 
 
-def _calculate_base_fps(cpu_data, gpu_data, game, resolution, settings):
-    """
-    Extracts hardware scores and computes the raw FPS budget from
-    CPU/GPU power scores, the game's difficulty_multiplier, and its
-    resolution/quality scaling factors — before any VRAM, upscaling,
-    frame-gen, or RAM modifiers are applied.
+# ─────────────────────────────────────────────────────────────────────────────
+#  FPS ESTIMATION
+# ─────────────────────────────────────────────────────────────────────────────
 
-    Returns (fps, vram): vram is returned alongside fps because it's
-    extracted here (including the Apple unified-memory override) but is
-    needed by the VRAM-penalty and frame-generation steps that follow.
-    """
+def _perf(score, exponent):
+    """Turn a 0-110 power_score into a throughput multiplier (1.0 at REF_SCORE)."""
+    return max(0.05, (max(score, 1.0) / bc.REF_SCORE) ** exponent)
+
+
+def _extract_hardware(cpu_data, gpu_data):
+    """Accepts either a full DB row dict or a bare power_score number."""
     if isinstance(cpu_data, dict):
         cpu_score = cpu_data.get("power_score", 50.0)
-        cpu_name  = cpu_data.get("name", "")
+        cpu_name = cpu_data.get("name", "") or ""
     else:
-        cpu_score = float(cpu_data)
-        cpu_name  = ""
+        cpu_score, cpu_name = float(cpu_data), ""
 
     if isinstance(gpu_data, dict):
         gpu_score = gpu_data.get("power_score", 50.0)
-        gpu_name  = gpu_data.get("name", "")
-        vram      = gpu_data.get("vram", 8) or 8
+        gpu_name = gpu_data.get("name", "") or ""
+        vram = gpu_data.get("vram", 8) or 8
     else:
-        gpu_score = float(gpu_data)
-        gpu_name  = ""
-        vram      = 8
+        gpu_score, gpu_name, vram = float(gpu_data), "", 8
 
-    # Apple unified memory = unlimited VRAM for our purposes
+    # Apple unified memory: the GPU can address system RAM, so VRAM pressure
+    # is not a meaningful constraint here.
     if "apple" in gpu_name.lower():
         vram = 64
 
-    diff_mult = game.get("difficulty_multiplier", 1.0)
-
-    # AMD X3D gaming buff (~18 % more due to 3D V-Cache)
+    # AMD's 3D V-Cache is a gaming-specific win that power_score doesn't carry.
     if "X3D" in cpu_name.upper():
-        cpu_score *= bc.X3D_CACHE_FPS_BUFF
+        cpu_score *= 1.18
 
-    # Resolution shifts CPU/GPU relevance:
-    #   1080p → CPU matters more  (bottleneck often CPU)
-    #   4K    → ~90 % GPU-limited
-    if resolution == "1080p":
-        g_w, c_w = bc.GPU_WEIGHT_1080P, bc.CPU_WEIGHT_1080P
-    elif resolution == "1440p":
-        g_w, c_w = bc.GPU_WEIGHT_1440P, bc.CPU_WEIGHT_1440P
-    else:  # 4k
-        g_w, c_w = bc.GPU_WEIGHT_4K, bc.CPU_WEIGHT_4K
+    return cpu_score, cpu_name, gpu_score, gpu_name, vram
 
-    base_raw = (gpu_score * g_w) + (cpu_score * c_w)
-    fps_base = base_raw / diff_mult
 
-    # Resolution scaling (each game has individual values)
-    res_key   = f"res_{resolution}_scaling"
-    res_scale = game.get(res_key, 1.0)
+def _game_profile(game):
+    """
+    Read the per-game cost profile, falling back to a derivation from the
+    legacy columns when a row predates scripts/migrate_game_profiles.py (for
+    example a database freshly seeded by _populate_initial_data).
+    """
+    gpu_cost = game.get("gpu_cost")
+    cpu_cost = game.get("cpu_cost")
+    vram_base = game.get("vram_base_gb")
+    ram_base = game.get("ram_base_gb")
 
-    # Quality settings scaling
-    setting_key_map = {
-        "Low":    "low_scaling",
-        "Medium": "med_scaling",
-        "High":   "high_scaling",
-        "Ultra":  "ultra_scaling",
+    if not gpu_cost or not cpu_cost:
+        # Legacy fallback: split the old single difficulty number evenly-ish.
+        total = (game.get("difficulty_multiplier") or 1.0) / (game.get("res_1080p_scaling") or 1.0)
+        blend = (1.0 ** bc.BOTTLENECK_BLEND_K + 1.0) ** (1.0 / bc.BOTTLENECK_BLEND_K)
+        gpu_cost = total / blend
+        cpu_cost = gpu_cost
+    if not vram_base:
+        vram_base = max(1.5, min(11.0, 2.2 + 0.85 * (gpu_cost + cpu_cost)))
+    if not ram_base:
+        ram_base = max(4.0, min(20.0, 5.5 * (game.get("ram_sensitivity") or 1.0)))
+
+    return float(gpu_cost), float(cpu_cost), float(vram_base), float(ram_base)
+
+
+def _resolve_quality(settings, game):
+    """Clamp the requested preset to the range the game actually offers."""
+    tier = settings if settings in bc.QUALITY_TIERS else bc.DEFAULT_QUALITY_TIER
+    tier_min = game.get("tier_min") or "Low"
+    tier_max = game.get("tier_max") or "Ultra"
+    order = bc.QUALITY_ORDER
+    try:
+        i, lo, hi = order.index(tier), order.index(tier_min), order.index(tier_max)
+    except ValueError:
+        return tier
+    return order[max(lo, min(hi, i))]
+
+
+def _upscaling_profile(upscaling, game):
+    """
+    Returns (render_scale, pass_cost_ms, active).
+
+    `active` is False when the game doesn't support the requested technology,
+    in which case it renders natively — the old engine's behaviour of bailing
+    out of the whole calculation at that point (skipping frame generation and
+    RAM effects entirely) was a bug, not a feature.
+    """
+    up = (upscaling or "native").lower()
+
+    supports = {
+        "dlss": game.get("supports_dlss", 1),
+        "fsr": game.get("supports_fsr", 1),
+        "xess": game.get("supports_xess", 0),
     }
-    qual_key   = setting_key_map.get(settings, "high_scaling")
-    qual_scale = game.get(qual_key, 1.0)
+    tech = next((t for t in ("dlss", "fsr", "xess") if t in up), None)
+    if tech and not supports[tech]:
+        return 1.0, 0.0, False
 
-    # Apply scalings multiplicatively (they're already tuned per-game in DB)
-    fps = fps_base * res_scale * qual_scale
-    return fps, vram
+    scale = 1.0
+    for keyword, value in bc.UPSCALING_RENDER_SCALE.items():
+        if keyword in up:
+            scale = value
+            break
+
+    if scale >= 1.0 and "dlaa" not in up:
+        return 1.0, 0.0, True          # native, no upscaler running
+
+    cost_key = "dlaa" if "dlaa" in up else (tech or "dlss")
+    pass_cost = bc.UPSCALING_PASS_COST_MS.get(cost_key, bc.DEFAULT_UPSCALING_PASS_COST_MS)
+    return scale, pass_cost, True
 
 
-def _apply_vram_penalty(fps, vram, resolution, settings, game):
+def _frame_times(gpu_cost, cpu_cost, gpu_score, cpu_score, resolution, quality,
+                 ray_tracing, path_tracing, render_scale, upscale_pass_ms,
+                 frame_gen_mode):
+    """Per-frame GPU and CPU cost in milliseconds, before memory effects."""
+    q_gpu, q_cpu, _ = bc.quality_multipliers(quality)
+
+    # GPU: pixels × quality × ray tracing, divided by throughput.
+    pixels = bc.RESOLUTION_PIXELS.get(resolution, 1.0) ** bc.RES_PIXEL_EXPONENT
+    # Upscaling shrinks the rendered pixel count, but part of the frame is
+    # always done at output resolution.
+    if render_scale < 1.0:
+        pixel_work = render_scale ** 2
+        pixels *= (pixel_work * (1 - bc.UPSCALING_UNSCALED_FRACTION)
+                   + bc.UPSCALING_UNSCALED_FRACTION)
+
+    rt_gpu = bc.PT_GPU_COST_MULT if path_tracing else (bc.RT_GPU_COST_MULT if ray_tracing else 1.0)
+    rt_cpu = bc.PT_CPU_COST_MULT if path_tracing else (bc.RT_CPU_COST_MULT if ray_tracing else 1.0)
+
+    ft_gpu = bc.GPU_MS_CONST * gpu_cost * pixels * q_gpu * rt_gpu / _perf(gpu_score, bc.GPU_PERF_EXPONENT)
+    ft_gpu += upscale_pass_ms
+
+    # Generating extra frames is GPU work on top of the rendered frame.
+    if frame_gen_mode in bc.FG_GPU_OVERHEAD:
+        ft_gpu *= (1.0 + bc.FG_GPU_OVERHEAD[frame_gen_mode])
+
+    # CPU: independent of resolution, lightly affected by quality.
+    ft_cpu = bc.CPU_MS_CONST * cpu_cost * q_cpu * rt_cpu / _perf(cpu_score, bc.CPU_PERF_EXPONENT)
+
+    return ft_gpu, ft_cpu
+
+
+def _blend_frame_time(ft_gpu, ft_cpu):
+    """Soft-max of the two limits — whichever is slower dominates."""
+    k = bc.BOTTLENECK_BLEND_K
+    return (ft_cpu ** k + ft_gpu ** k) ** (1.0 / k)
+
+
+def _vram_demand(vram_base, quality, resolution, render_scale,
+                 ray_tracing, path_tracing, frame_gen_mode):
+    """How much VRAM the game wants, in GB."""
+    _, _, q_vram = bc.quality_multipliers(quality)
+    demand = vram_base * q_vram * bc.RES_VRAM_FACTOR.get(resolution, 1.0)
+
+    # Rendering at a lower internal resolution shrinks the framebuffers, but
+    # not the textures, so only part of the demand comes down.
+    if render_scale < 1.0:
+        demand *= (0.72 + 0.28 * render_scale ** 2)
+
+    if path_tracing:
+        demand += bc.PT_VRAM_ADD_GB
+    elif ray_tracing:
+        demand += bc.RT_VRAM_ADD_GB
+
+    demand += bc.FG_VRAM_ADD_GB.get(frame_gen_mode, 0.0)
+    return demand
+
+
+def _memory_pressure(vram_needed, vram_available, ram_gb, ram_base_gb):
     """
-    Applies the VRAM-shortage penalty.
+    Model what happens when the working set does not fit in VRAM.
 
-    KEY INSIGHT: VRAM penalty depends heavily on the GAME.
-    Heavy games (Cyberpunk, Alan Wake 2) use 12-18 GB at 4K Ultra → full penalty.
-    Light games (CS2, Valorant, LoL, Fortnite) use < 6 GB at 4K → NO penalty on 8GB.
-    Medium games (GTA V, CoD, RDR2) use 7-10 GB at 4K Ultra → scaled penalty.
+    Returns (multiplier, status, warnings).
 
-    We use difficulty_multiplier as a VRAM demand proxy:
-      diff < 1.6   = very light (Valorant, CS2, LoL, OW2)     → NO VRAM PENALTY at 8GB
-      diff 1.6-3.0 = moderate (GTA V, CoD, Apex, Fortnite)    → vram_demand ≈ 0.40-0.65
-      diff 3.0-5.0 = demanding (Elden Ring, RDR2, Hogwarts)   → vram_demand ≈ 0.70-0.90
-      diff > 5.0   = extreme VRAM (Cyberpunk, Alan Wake)      → vram_demand = 1.00
-
-    Returns (fps, vram_ok, vram_sufficient, vram_penalty_applied):
-      vram_ok               - False if a penalty was applied this call
-      vram_sufficient       - False if VRAM is below the "recommended"
-                               tier for this resolution (read later by
-                               the frame-generation step)
-      vram_penalty_applied  - the multiplier that was applied, so the
-                               upscaling step can undo it when the GPU
-                               ends up rendering at a lower internal res
+    Status is one of:
+        ok           — everything fits
+        vram_tight   — fits, but with almost no headroom
+        vram_spill   — overflowing into system RAM; slow but playable
+        unplayable   — overflowing with nowhere to spill to
     """
-    diff_mult = game.get("difficulty_multiplier", 1.0)
-    raw_demand = min(diff_mult / bc.VRAM_DEMAND_DIFFICULTY_DIVISOR, 1.0)   # 0.0 – 1.0
-    vram_demand = max(bc.VRAM_DEMAND_FLOOR, raw_demand)                   # floor keeps math clean
+    warnings = []
+    ram_free = ram_gb - ram_base_gb - bc.OS_RAM_RESERVE_GB
+    overflow = vram_needed - vram_available
 
-    # THRESHOLD: If vram_demand is below this (diff < ~1.6), the game
-    # doesn't load VRAM heavily enough to cause overflow — skip penalty entirely.
-    apply_vram_penalty = (vram_demand >= bc.VRAM_PENALTY_DEMAND_THRESHOLD)
-
-    vram_ok = True
-    vram_sufficient = True
-    vram_penalty_applied = 1.0  # track exact penalty for the undo step
-
-    if resolution == "4k":
-        if settings in ("Ultra", "High") and apply_vram_penalty:
-            if vram < 8:
-                pen = bc.VRAM_PENALTY_4K_ULTRA_UNDER_8GB
-                base_pen = pen + (1.0 - pen) * (1.0 - vram_demand)  # heavy=pen, light→1.0
-                fps *= base_pen
-                vram_penalty_applied = base_pen
-                vram_ok = False
-            elif vram < 10:
-                pen = bc.VRAM_PENALTY_4K_ULTRA_UNDER_10GB
-                base_pen = pen + (1.0 - pen) * (1.0 - vram_demand)
-                fps *= base_pen
-                vram_penalty_applied = base_pen
-                vram_ok = False
-            elif vram < 12:
-                pen = bc.VRAM_PENALTY_4K_ULTRA_UNDER_12GB
-                base_pen = pen + (1.0 - pen) * (1.0 - vram_demand)
-                fps *= base_pen
-                vram_penalty_applied = base_pen
-                vram_ok = False
-            elif vram < 16:
-                pen = bc.VRAM_PENALTY_4K_ULTRA_UNDER_16GB
-                base_pen = pen + (1.0 - pen) * (1.0 - vram_demand)
-                fps *= base_pen
-                vram_penalty_applied = base_pen
-                vram_ok = False
-        elif vram < 8 and apply_vram_penalty:  # non-Ultra at 4K
-            fps *= bc.VRAM_PENALTY_4K_NON_ULTRA_UNDER_8GB
-            vram_penalty_applied = bc.VRAM_PENALTY_4K_NON_ULTRA_UNDER_8GB
-            vram_ok = False
-        if vram < bc.VRAM_SUFFICIENT_4K_GB:
-            vram_sufficient = False
-
-    elif resolution == "1440p":
-        if vram < 6:
-            pen = bc.VRAM_PENALTY_1440P_UNDER_6GB
-            base_pen = pen + (1.0 - pen) * (1.0 - vram_demand)
-            fps *= base_pen
-            vram_penalty_applied = base_pen
-            vram_ok = False
-        elif settings == "Ultra" and vram < 8:
-            pen = bc.VRAM_PENALTY_1440P_ULTRA_UNDER_8GB
-            base_pen = pen + (1.0 - pen) * (1.0 - vram_demand)
-            fps *= base_pen
-            vram_penalty_applied = base_pen
-            vram_ok = False
-        if vram < bc.VRAM_SUFFICIENT_1440P_GB:
-            vram_sufficient = False
-
-    else:  # 1080p — VRAM rarely matters
-        if vram < 4:
-            fps *= bc.VRAM_PENALTY_1080P_UNDER_4GB
-            vram_penalty_applied = bc.VRAM_PENALTY_1080P_UNDER_4GB
-            vram_ok = False
-        elif vram < 6:
-            fps *= bc.VRAM_PENALTY_1080P_UNDER_6GB
-            vram_penalty_applied = bc.VRAM_PENALTY_1080P_UNDER_6GB
-            vram_ok = False
-        if vram < bc.VRAM_SUFFICIENT_1080P_GB:
-            vram_sufficient = False
-
-    return fps, vram_ok, vram_sufficient, vram_penalty_applied
-
-
-def _apply_upscaling(fps, upscaling, resolution, vram_ok, vram_penalty_applied, game):
-    """
-    Applies the DLSS/FSR/XeSS upscaling multiplier and undoes (fully or
-    partially) the VRAM penalty, since upscaling renders at a lower
-    internal resolution and relieves VRAM pressure.
-
-    Returns (fps, upscaling_supported). If the game doesn't support the
-    requested tech, upscaling_supported is False and fps is returned
-    unmodified (native). The caller must stop and return immediately in
-    that case — matching the original function's behavior of skipping
-    frame generation and RAM impact entirely when upscaling falls back
-    to native.
-    """
-    up = upscaling.lower()
-
-    # Gate: check if the game actually supports the selected upscaling tech.
-    # If not, treat as Native (no boost). Defaults to 1 (supported) for
-    # backwards compatibility if the column doesn't exist.
-    game_dlss = game.get("supports_dlss", 1)
-    game_fsr  = game.get("supports_fsr",  1)
-    game_xess = game.get("supports_xess", 0)
-
-    upscaling_supported = True
-    if "dlss" in up and not game_dlss:
-        upscaling_supported = False      # e.g. Elden Ring + DLSS -> Native
-    elif "fsr" in up and not game_fsr:
-        upscaling_supported = False      # e.g. Quake II RTX + FSR -> Native
-    elif "xess" in up and not game_xess:
-        upscaling_supported = False      # XeSS not supported
-
-    if not upscaling_supported:
-        return fps, False
-
-    # Technology efficiency delta vs DLSS reference
-    if "fsr" in up:
-        tech_scale = bc.UPSCALING_TECH_SCALE_FSR
-    elif "xess" in up:
-        tech_scale = bc.UPSCALING_TECH_SCALE_XESS
-    else:
-        tech_scale = bc.UPSCALING_TECH_SCALE_DLSS
-
-    if "dlaa" in up or ("native" in up and "aa" in up):
-        up_mult = bc.UPSCALING_MULT_DLAA
-
-    elif "ultra performance" in up:
-        # 4K->1080p / 1440p->720p render -- extreme load reduction
-        up_mult = bc.UPSCALING_MULT_ULTRA_PERFORMANCE.get(resolution, 2.05)
-
-    elif "performance" in up:
-        # 4K->~1080p / 1440p->~960p render
-        up_mult = bc.UPSCALING_MULT_PERFORMANCE.get(resolution, 1.72)
-
-    elif "balanced" in up:
-        # 4K->~1200p / 1440p->~1080p render
-        up_mult = bc.UPSCALING_MULT_BALANCED.get(resolution, 1.50)
-
-    elif "quality" in up:
-        # 4K->~1440p / 1440p->~1080p render
-        up_mult = bc.UPSCALING_MULT_QUALITY.get(resolution, 1.38)
-
-    else:
-        up_mult = bc.UPSCALING_MULT_NATIVE
-
-    # Apply technology efficiency delta (only for non-native modes)
-    if up_mult > 1.0:
-        up_mult = (up_mult - 1.0) * tech_scale + 1.0
-
-    # VRAM UNDO: GPU renders at lower res -> VRAM pressure drops.
-    # Performance / Ultra Perf  -> full VRAM relief (renders at 720-1080p)
-    # Balanced / Quality        -> partial relief (renders at 60-70% output res)
-    if not vram_ok and up_mult > bc.UPSCALING_VRAM_UNDO_MIN_MULT:
-        if "ultra performance" in up or "performance" in up:
-            fps /= vram_penalty_applied          # fully restore pre-penalty FPS
-        elif "balanced" in up or "quality" in up:
-            undo_ratio = bc.UPSCALING_BALANCED_QUALITY_UNDO_RATIO
-            partial_undo = 1.0 + (1.0 / vram_penalty_applied - 1.0) * undo_ratio
-            fps *= partial_undo                  # undo part of the VRAM penalty
-
-    fps *= up_mult
-    return fps, True
-
-
-def _apply_frame_generation(fps, frame_gen_mode, vram, resolution, vram_sufficient):
-    """
-    Applies Frame Generation. FG creates AI-generated frames BETWEEN
-    rendered frames — the net effect multiplies the final (post-upscaling)
-    FPS by net_mult. It requires extra VRAM for frame buffers: if VRAM is
-    insufficient, FG causes stuttering and LOWERS fps instead.
-    """
-    if frame_gen_mode and frame_gen_mode != "Kapalı":
-        net_mult = bc.FG_NET_MULT.get(frame_gen_mode, 1.0)
-
-        vram_min_fg = bc.FG_MIN_VRAM_GB.get(resolution, 6)
-
-        if vram < vram_min_fg or not vram_sufficient:
-            # VRAM insufficient - Frame Gen HURTS performance
-            # The GPU has to swap frame buffers to system RAM = massive slowdown
-            fps *= bc.FG_INSUFFICIENT_VRAM_PENALTY
-        else:
-            # VRAM sufficient - Frame Gen works as intended
-            fps *= net_mult
-
-    return fps
-
-
-def _apply_ram_impact(fps, ram_gb, game, resolution, settings):
-    """
-    Applies the RAM-capacity impact multiplier. RAM sensitivity is
-    game-specific — some games (Cities Skylines 2, MSFS) need much more
-    RAM than others before stuttering/paging sets in.
-    """
-    game_ram_sensitivity = game.get("ram_sensitivity", 1.0)  # 1.0=normal, 1.5=high, 0.7=low
-
+    # System RAM alone can be the problem even when VRAM is fine.
     ram_mult = 1.0
-    if ram_gb < 8:
-        # Severe bottleneck - constant paging
-        ram_mult = bc.RAM_PENALTY_UNDER_8GB * (
-            bc.RAM_SENSITIVITY_EXPONENT_UNDER_8GB ** (game_ram_sensitivity - 1.0)
-        )  # More penalty for RAM-hungry games
-    elif ram_gb < 16:
-        if resolution == "4k" or settings == "Ultra":
-            # Modern games need 16GB+ for high settings
-            ram_mult = bc.RAM_PENALTY_UNDER_16GB_DEMANDING * (
-                bc.RAM_SENSITIVITY_EXPONENT_UNDER_16GB_DEMANDING ** (game_ram_sensitivity - 1.0)
-            )
-        else:
-            # Acceptable for 1080p medium/high
-            ram_mult = bc.RAM_PENALTY_UNDER_16GB_LIGHT * (
-                bc.RAM_SENSITIVITY_EXPONENT_UNDER_16GB_LIGHT ** (game_ram_sensitivity - 1.0)
-            )
-    elif ram_gb < 32:
-        # Sweet spot for most games, but RAM-hungry games still benefit from 32GB
-        if game_ram_sensitivity >= bc.RAM_SENSITIVITY_HIGH_THRESHOLD:
-            ram_mult = bc.RAM_BONUS_32GB_HUNGRY_GAME
-        else:
-            ram_mult = bc.RAM_BONUS_32GB_NORMAL_GAME
-    else:
-        # 32GB+ - excellent for all games
-        if game_ram_sensitivity >= bc.RAM_SENSITIVITY_HIGH_THRESHOLD:
-            ram_mult = bc.RAM_BONUS_64GB_HUNGRY_GAME
-        else:
-            ram_mult = bc.RAM_BONUS_64GB_NORMAL_GAME
+    if ram_free < 0:
+        ram_mult = bc.RAM_SHORTFALL_PENALTY
+        warnings.append(
+            f"Sistem RAM'i yetersiz: oyun ~{ram_base_gb:.0f} GB istiyor, "
+            f"{ram_gb} GB RAM ile takas (paging) başlıyor."
+        )
+    elif ram_free > 8:
+        ram_mult = bc.RAM_ABUNDANCE_BONUS
 
-    return fps * ram_mult
+    if overflow <= 0:
+        headroom = -overflow
+        if headroom < bc.VRAM_TIGHT_HEADROOM_GB:
+            return (bc.VRAM_TIGHT_PENALTY * ram_mult, "vram_tight", warnings + [
+                f"VRAM sınırda: ~{vram_needed:.1f} GB ihtiyaç, {vram_available} GB kart. "
+                f"Ani sahne geçişlerinde takılma olabilir."
+            ])
+        return ram_mult, ("ok" if not warnings else "ram_short"), warnings
+
+    # Overflowing. The spilled data has to live in system RAM.
+    warnings.append(
+        f"VRAM yetersiz: ~{vram_needed:.1f} GB ihtiyaç, {vram_available} GB kart "
+        f"(~{overflow:.1f} GB taşıyor)."
+    )
+
+    if ram_free < overflow:
+        # Nothing left to spill into: this is the 8 GB card + 16 GB RAM case.
+        warnings.append(
+            f"Taşan {overflow:.1f} GB'ı karşılayacak sistem RAM'i de yok "
+            f"({ram_gb} GB). Oyun çökebilir veya oynanamaz hale gelir — "
+            f"{int(ram_gb * 2)} GB RAM bu senaryoyu kurtarır."
+        )
+        return (bc.VRAM_SPILL_FLOOR * 0.5, "unplayable", warnings)
+
+    # Spilling, but system RAM can absorb it. Streaming over PCIe is slow and
+    # gets worse the further over the limit you are.
+    severity = overflow / max(vram_available, 1.0)
+    mult = 1.0 / (1.0 + bc.VRAM_SPILL_SEVERITY * severity)
+
+    # How comfortably RAM can host the spill matters too. Barely fitting means
+    # the OS is constantly evicting and re-fetching; lots of headroom lets it
+    # keep a stable cache. This is what separates "16 GB, technically survives"
+    # from "32 GB, actually playable" in the same overflow scenario.
+    comfort = min(1.0, ram_free / max(overflow * bc.RAM_SPILL_COMFORT_RATIO, 0.1))
+    mult *= bc.RAM_SPILL_CRAMPED_PENALTY + (1.0 - bc.RAM_SPILL_CRAMPED_PENALTY) * comfort
+    if comfort < 0.6:
+        warnings.append(
+            f"Sistem RAM'i taşmayı ancak zar zor karşılıyor; daha fazla RAM "
+            f"({int(ram_gb * 2)} GB) bu senaryoda gözle görülür fark yaratır."
+        )
+
+    mult = max(bc.VRAM_SPILL_FLOOR, mult)
+    return (mult * ram_mult, "vram_spill", warnings)
+
+
+def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
+                          settings="High", upscaling="Native",
+                          frame_gen_mode="Kapalı", ram_gb=16,
+                          ray_tracing=False, path_tracing=False):
+    """
+    Full estimate with diagnostics.
+
+    Returns a dict:
+        fps              final estimated frames per second
+        rendered_fps     before frame generation
+        status           ok | ram_short | vram_tight | vram_spill | unplayable
+        bottleneck       'CPU' or 'GPU'
+        vram_needed_gb   estimated VRAM working set
+        warnings         human-readable notes for the UI
+    """
+    cpu_score, _, gpu_score, _, vram = _extract_hardware(cpu_data, gpu_data)
+    gpu_cost, cpu_cost, vram_base, ram_base = _game_profile(game)
+
+    quality = _resolve_quality(settings, game)
+
+    # Ray tracing only applies where the game supports it.
+    path_tracing = bool(path_tracing) and bool(game.get("supports_pt", 0))
+    ray_tracing = bool(ray_tracing) and bool(game.get("supports_rt", 0))
+
+    render_scale, upscale_pass_ms, upscale_active = _upscaling_profile(upscaling, game)
+    fg_mode = frame_gen_mode if frame_gen_mode in bc.FG_OUTPUT_MULTIPLIER else None
+
+    ft_gpu, ft_cpu = _frame_times(
+        gpu_cost, cpu_cost, gpu_score, cpu_score, resolution, quality,
+        ray_tracing, path_tracing, render_scale, upscale_pass_ms, fg_mode,
+    )
+    rendered_fps = 1000.0 / _blend_frame_time(ft_gpu, ft_cpu)
+
+    vram_needed = _vram_demand(vram_base, quality, resolution, render_scale,
+                               ray_tracing, path_tracing, fg_mode)
+    mem_mult, status, warnings = _memory_pressure(vram_needed, vram, ram_gb, ram_base)
+    rendered_fps *= mem_mult
+
+    # Generated frames need no CPU simulation, which is why frame generation
+    # is most effective exactly when the CPU is the limit.
+    fps = rendered_fps * bc.FG_OUTPUT_MULTIPLIER.get(fg_mode, 1.0) if fg_mode else rendered_fps
+
+    if not upscale_active:
+        warnings.append("Bu oyun seçilen upscaling teknolojisini desteklemiyor; "
+                        "native çözünürlükte hesaplandı.")
+
+    return {
+        "fps": max(int(round(fps)), 0),
+        "rendered_fps": max(int(round(rendered_fps)), 0),
+        "status": status,
+        "bottleneck": "CPU" if ft_cpu > ft_gpu else "GPU",
+        "vram_needed_gb": round(vram_needed, 1),
+        "vram_available_gb": vram,
+        "quality": quality,
+        "warnings": warnings,
+    }
 
 
 def estimate_fps(cpu_data, gpu_data, game, resolution="1080p",
-                 settings="High", upscaling="Native", frame_gen_mode="Kapalı", ram_gb=16):
+                 settings="High", upscaling="Native", frame_gen_mode="Kapalı",
+                 ram_gb=16, ray_tracing=False, path_tracing=False):
     """
     Estimates FPS for a game on specified hardware.
 
@@ -485,28 +486,18 @@ def estimate_fps(cpu_data, gpu_data, game, resolution="1080p",
     ----------
     cpu_data      : dict or float (power_score)
     gpu_data      : dict or float (power_score)
-    game          : dict with difficulty_multiplier and *_scaling fields
+    game          : dict describing the game (see migrate_game_profiles.py)
     resolution    : "1080p" | "1440p" | "4k"
-    settings      : "Low" | "Medium" | "High" | "Ultra"
+    settings      : "Very Low" | "Low" | "Medium" | "High" | "Ultra" | "Extreme"
     upscaling     : upscaling mode label string
-    frame_gen_mode: "Kapalı" | "2x" | "3x" | "4x" | "8x"
+    frame_gen_mode: "Kapalı" | "2x" | "3x" | "4x"
     ram_gb        : RAM amount in GB (default: 16)
+    ray_tracing   : enable ray tracing where the game supports it
+    path_tracing  : enable path tracing where the game supports it
+
+    Use estimate_fps_detailed() when the caller can surface VRAM/RAM warnings.
     """
-    fps, vram = _calculate_base_fps(cpu_data, gpu_data, game, resolution, settings)
-
-    fps, vram_ok, vram_sufficient, vram_penalty_applied = _apply_vram_penalty(
-        fps, vram, resolution, settings, game
-    )
-
-    fps, upscaling_supported = _apply_upscaling(
-        fps, upscaling, resolution, vram_ok, vram_penalty_applied, game
-    )
-    if not upscaling_supported:
-        # Fall back to native — no upscaling boost, and (matching the
-        # original behavior) frame generation / RAM impact are skipped.
-        return max(1, round(fps))
-
-    fps = _apply_frame_generation(fps, frame_gen_mode, vram, resolution, vram_sufficient)
-    fps = _apply_ram_impact(fps, ram_gb, game, resolution, settings)
-
-    return max(int(fps), 0)
+    return estimate_fps_detailed(
+        cpu_data, gpu_data, game, resolution, settings, upscaling,
+        frame_gen_mode, ram_gb, ray_tracing, path_tracing,
+    )["fps"]
