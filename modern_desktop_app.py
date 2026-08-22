@@ -111,7 +111,13 @@ class ScannerThread(QThread):
             gpu_unrecognized = True
             gpu = {"name": raw_hw["gpu"], "power_score": 0.0}
             
-        sys_score = scoring_engine.calculate_system_score(cpu["power_score"], gpu["power_score"], raw_hw["ram"])
+        sys_score = scoring_engine.calculate_system_score(
+            cpu["power_score"], 
+            gpu["power_score"], 
+            raw_hw["ram"],
+            raw_hw.get("ram_details", []),
+            raw_hw.get("storage", [])
+        )
         if gpu_unrecognized:
             sys_score = 0
 
@@ -205,6 +211,37 @@ STRINGS = {
         "lbl_vram":"VRAM",
         "lbl_core_mhz":"Çekirdek MHz",
         "lbl_mem_mhz":"Bellek MHz",
+        # HW Analysis card titles
+        "card_title_scores":"📊  KULLANIM PUANLARI",
+        "card_title_specs":"⚙️  TEKNİK ÖZELLİKLER",
+        "card_title_market":"💵  PAZAR KONUMU & FİYAT",
+        "card_title_fps":"🎮  OYUN PERFORMANS TAHMİNİ",
+        "card_title_review":"📝  KRİTİK YORUM & RAKİP",
+        "btn_ai_analyze":"🤖 AI ile Analiz Et",
+        # RAM/Storage card titles
+        "card_title_ram":"💾  RAM BELLEK",
+        "card_title_storage":"💿  DEPOLAMA BİRİMLERİ",
+        # RAM/Storage labels
+        "label_overall_score":"Genel Puan",
+        "label_gaming_perf":"Oyun Performansı",
+        "label_multitasking":"Çok Görev",
+        "label_capacity":"Kapasite",
+        "label_memory_type":"Bellek Tipi",
+        "label_speed":"Çalışma Hızı",
+        "label_oc_potential":"OC Potansiyel",
+        "label_manufacturer":"Üretici",
+        "label_part_no":"Part No",
+        "label_ddr5_advantage":"DDR5 Avantajı",
+        "label_modules":"modül",
+        "label_total":"Toplam",
+        "label_no_details":"detay alınamadı",
+        "label_model":"Model",
+        "label_interface":"Arayüz",
+        "label_speed_class":"Hız Sınıfı",
+        "label_unknown":"Bilinmiyor",
+        # Warnings
+        "warn_ram_low":"⚠️  16 GB altı RAM modern AAA oyunlarda yetersiz kalabilir!",
+        "warn_hdd_detected":"🔴 HDD tespit edildi — SSD'ye geçiş sistem hızını ciddi oranda artırır!",
         # Settings page
         "settings_lang_head":"🌍  Dil / Language",
         "settings_lang_desc":"Uygulama arayüzü ve AI Asistan'ın kullandığı dili seçin.",
@@ -253,6 +290,37 @@ STRINGS = {
         "lbl_vram":"VRAM",
         "lbl_core_mhz":"Core MHz",
         "lbl_mem_mhz":"Memory MHz",
+        # HW Analysis card titles
+        "card_title_scores":"📊  USE-CASE SCORES",
+        "card_title_specs":"⚙️  SPECIFICATIONS",
+        "card_title_market":"💵  MARKET POSITION & PRICE",
+        "card_title_fps":"🎮  GAMING PERFORMANCE EST.",
+        "card_title_review":"📝  REVIEW & RIVAL",
+        "btn_ai_analyze":"🤖 Analyze with AI (Expert)",
+        # RAM/Storage card titles
+        "card_title_ram":"💾  RAM MEMORY",
+        "card_title_storage":"💿  STORAGE UNITS",
+        # RAM/Storage labels
+        "label_overall_score":"Overall Score",
+        "label_gaming_perf":"Gaming Performance",
+        "label_multitasking":"Multitasking",
+        "label_capacity":"Capacity",
+        "label_memory_type":"Memory Type",
+        "label_speed":"Speed",
+        "label_oc_potential":"OC Potential",
+        "label_manufacturer":"Manufacturer",
+        "label_part_no":"Part No",
+        "label_ddr5_advantage":"DDR5 Advantage",
+        "label_modules":"modules",
+        "label_total":"Total",
+        "label_no_details":"no details available",
+        "label_model":"Model",
+        "label_interface":"Interface",
+        "label_speed_class":"Speed Class",
+        "label_unknown":"Unknown",
+        # Warnings
+        "warn_ram_low":"⚠️  Below 16 GB RAM may be insufficient for modern AAA games!",
+        "warn_hdd_detected":"🔴 HDD detected — Upgrading to SSD will significantly improve system speed!",
         # Settings page
         "settings_lang_head":"🌍  Language / Dil",
         "settings_lang_desc":"Select the language for the app interface and AI Assistant.",
@@ -1347,7 +1415,7 @@ Do you want to continue?
         self.hw_result_layout.addWidget(h_lbl)
 
         # ── AI Analysis Button ──
-        self.ai_analyze_btn = QPushButton(STRINGS[self.lang].get("btn_ai_analyze","🤖 AI ile Analiz Et") if self.lang=="TR" else "🤖 Analyze with AI (Expert)")
+        self.ai_analyze_btn = QPushButton(STRINGS[self.lang].get("btn_ai_analyze","🤖 AI ile Analiz Et"))
         self.ai_analyze_btn.setStyleSheet("background-color:#F59E0B;color:#0B0C10;font-weight:900;padding:8px;border-radius:4px;font-size:13px;")
         self.ai_analyze_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.ai_analyze_btn.clicked.connect(lambda: self._on_ai_analyze_clicked(name, is_cpu))
@@ -1360,7 +1428,7 @@ Do you want to continue?
         self.hw_result_layout.addWidget(self.ai_result_container)
 
         # 1. Use-case score bars
-        c1, l1 = self._hw_card(STRINGS[self.lang].get("card_title_scores","📊  KULLANIM PUANLARI") if self.lang=="TR" else "📊  USE-CASE SCORES")
+        c1, l1 = self._hw_card(STRINGS[self.lang].get("card_title_scores","📊  KULLANIM PUANLARI"))
         S = STRINGS[self.lang]
         l1.addLayout(self._score_bar(S["lbl_gaming"],         gaming_s, "#9D00FF"))
         l1.addLayout(self._score_bar(S["lbl_render"],         render_s, "#3B82F6"))
@@ -1369,7 +1437,7 @@ Do you want to continue?
         self.hw_result_layout.addWidget(c1)
 
         # 2. Tech specs
-        c2, l2 = self._hw_card(STRINGS[self.lang].get("card_title_specs","⚙️  TEKNİK ÖZELLİKLER") if self.lang=="TR" else "⚙️  SPECIFICATIONS")
+        c2, l2 = self._hw_card(STRINGS[self.lang].get("card_title_specs","⚙️  TEKNİK ÖZELLİKLER"))
         if is_cpu:
             _S = STRINGS[self.lang]
             specs = {
@@ -1399,7 +1467,7 @@ Do you want to continue?
         self.hw_result_layout.addWidget(c2)
 
         # 3. Market & price
-        c3, l3 = self._hw_card(STRINGS[self.lang].get("card_title_market","💵  PAZAR KONUMU & FİYAT") if self.lang=="TR" else "💵  MARKET POSITION & PRICE")
+        c3, l3 = self._hw_card(STRINGS[self.lang].get("card_title_market","💵  PAZAR KONUMU & FİYAT"))
         seg, usd = self._market_info(ps, is_cpu); try_price = int(usd * 38.5)
         mrows = {"Segment": seg, "Tahmini Fiyat": f"~${usd} USD  /  ~{try_price:,} TRY", "Fiyat/Performans": self._fp_verdict(ps, usd)}
         for k, v in mrows.items():
@@ -1410,14 +1478,14 @@ Do you want to continue?
         self.hw_result_layout.addWidget(c3)
 
         # 4. Gaming performance
-        c4, l4 = self._hw_card(STRINGS[self.lang].get("card_title_fps","🎮  OYUN PERFORMANS TAHMİNİ") if self.lang=="TR" else "🎮  GAMING PERFORMANCE EST.")
+        c4, l4 = self._hw_card(STRINGS[self.lang].get("card_title_fps","🎮  OYUN PERFORMANS TAHMİNİ"))
         lines = self._gpu_perf_text(ps, hw.get("vram",8) or 8) if not is_cpu else self._cpu_perf_text(name, ps)
         for line in lines:
             lb = QLabel(line); lb.setStyleSheet("color:#C5C6C7;font-size:12px;"); lb.setWordWrap(True); l4.addWidget(lb)
         self.hw_result_layout.addWidget(c4)
 
         # 5. Kritik yorum + rakip
-        c5, l5 = self._hw_card(STRINGS[self.lang].get("card_title_review","📝  KRİTİK YORUM & RAKİP") if self.lang=="TR" else "📝  REVIEW & RIVAL")
+        c5, l5 = self._hw_card(STRINGS[self.lang].get("card_title_review","📝  KRİTİK YORUM & RAKİP"))
         pros, cons = self._pros_cons(name, ps, is_cpu, gaming_s, render_s)
         rival = self._find_rival(name, ps, is_cpu)
         for line in [f"✅ Artı:  {pros}", f"❌ Eksi:  {cons}", f"⚔️  Rakip: {rival}"]:
@@ -2049,7 +2117,8 @@ Do you want to continue?
         cpu_lay.addWidget(tip)
 
         # Dashboard CPU affiliate links — respect store checkbox preferences
-        if not is_apple:
+        # Only show links for desktop CPUs (not laptop, not Apple)
+        if not is_apple and not is_laptop and not is_u_series:
             import urllib.parse
             from core import db_manager
             cpu_upgrades = db_manager.get_recommended_upgrades(cpu_ps + 5, is_cpu=True, current_hardware_name=hw.get('cpu', ''), count=1)
@@ -2115,7 +2184,10 @@ Do you want to continue?
         gpu_lay.addWidget(psu_lbl)
         
         # GPU affiliate links
-        if not is_apple:
+        # Only show links for desktop GPUs (not laptop, not Apple)
+        gpu_name_up = gpu_name.upper()
+        is_laptop_gpu = 'LAPTOP' in gpu_name_up or 'MOBILE' in gpu_name_up
+        if not is_apple and not is_laptop_gpu:
             import urllib.parse
             from core import db_manager
             # GPU target upgrade depends on cpu_ps to avoid bottleneck
@@ -2140,7 +2212,7 @@ Do you want to continue?
         self.dash_detail_layout.addLayout(top_row)
 
         # ── RAM CARD ─────────────────────────────────────────────────────
-        ram_card, ram_lay = self._hw_card("💾  RAM BELLEK")
+        ram_card, ram_lay = self._hw_card(STRINGS[self.lang].get("card_title_ram", "💾  RAM BELLEK"))
         ram_row = QHBoxLayout(); ram_row.setSpacing(14)
         total_gb = hw.get('ram', 0)
 
@@ -2153,20 +2225,30 @@ Do you want to continue?
             stick_count = len(ram_details)
             total_cap   = sum(s.get('capacity_gb', 0) for s in ram_details)
 
-            # Performance score for RAM
+            # Calculate overall RAM score (0-100)
             is_ddr5 = "DDR5" in mem_type.upper() or "LPDDR5" in mem_type.upper()
-            ram_perf = round(min(10, (configured / 600.0) * 0.6 + (total_cap / 4.0) * 0.4), 1)
-            ram_lay.addLayout(self._score_bar("Oyun Performansı", ram_perf, "#9D00FF"))
-            ram_lay.addLayout(self._score_bar("Çok Görev",        min(10, total_cap / 3.2), "#3B82F6"))
+            if total_cap >= 64:   cap_score = 100
+            elif total_cap >= 32: cap_score = 90
+            elif total_cap >= 16: cap_score = 75
+            elif total_cap >= 8:  cap_score = 50
+            else:                 cap_score = 25
+            
+            speed_score = min(10, (configured / 600.0) * 10) if configured > 0 else 5
+            type_bonus = 15 if is_ddr5 else 0
+            ram_overall_score = min(100, cap_score + speed_score + type_bonus)
+            
+            ram_lay.addLayout(self._score_bar(STRINGS[self.lang].get("label_overall_score", "Genel Puan"), ram_overall_score, "#9D00FF"))
+            ram_lay.addLayout(self._score_bar(STRINGS[self.lang].get("label_gaming_perf", "Oyun Performansı"), round(min(10, (configured / 600.0) * 0.6 + (total_cap / 4.0) * 0.4), 1), "#3B82F6"))
+            ram_lay.addLayout(self._score_bar(STRINGS[self.lang].get("label_multitasking", "Çok Görev"), min(10, total_cap / 3.2), "#10B981"))
 
             for k, v in {
-                "Kapasite":      f"{total_cap} GB ({stick_count} modül)",
-                "Bellek Tipi":   mem_type,
-                "Çalışma Hızı":  f"{configured} MHz",
-                "OC Potansiyel": f"{s0.get('speed_mhz', configured)} MHz (rated)",
-                "Üretici":       mfr,
-                "Part No":       part,
-                "DDR5 Avantajı": "✅ Evet — yüksek bant genişliği" if is_ddr5 else "❌ Hayır — DDR4",
+                STRINGS[self.lang].get("label_capacity", "Kapasite"): f"{total_cap} GB ({stick_count} {STRINGS[self.lang].get('label_modules', 'modül')})",
+                STRINGS[self.lang].get("label_memory_type", "Bellek Tipi"): mem_type,
+                STRINGS[self.lang].get("label_speed", "Çalışma Hızı"): f"{configured} MHz",
+                STRINGS[self.lang].get("label_oc_potential", "OC Potansiyel"): f"{s0.get('speed_mhz', configured)} MHz (rated)",
+                STRINGS[self.lang].get("label_manufacturer", "Üretici"): mfr,
+                STRINGS[self.lang].get("label_part_no", "Part No"): part,
+                STRINGS[self.lang].get("label_ddr5_advantage", "DDR5 Avantajı"): "✅ Evet — yüksek bant genişliği" if is_ddr5 else "❌ Hayır — DDR4",
             }.items():
                 r = QHBoxLayout(); kl = QLabel(f"{k}:"); kl.setFixedWidth(155)
                 kl.setStyleSheet("color:#45A29E;font-size:12px;font-weight:bold;")
@@ -2174,19 +2256,37 @@ Do you want to continue?
                 r.addWidget(kl); r.addWidget(vl, 1); ram_lay.addLayout(r)
 
             if total_gb < 16:
-                ram_warn = QLabel("⚠️  16 GB altı RAM modern AAA oyunlarda yetersiz kalabilir!")
+                ram_warn = QLabel(STRINGS[self.lang].get("warn_ram_low", "⚠️  16 GB altı RAM modern AAA oyunlarda yetersiz kalabilir!"))
                 ram_warn.setStyleSheet("color:#FF4655;font-size:12px;font-weight:bold;")
                 ram_lay.addWidget(ram_warn)
         else:
-            ram_lay.addWidget(QLabel(f"Toplam: {total_gb} GB (detay alınamadı)"))
+            ram_lay.addWidget(QLabel(f"{STRINGS[self.lang].get('label_total', 'Toplam')}: {total_gb} GB ({STRINGS[self.lang].get('label_no_details', 'detay alınamadı')})"))
 
         self.dash_detail_layout.addWidget(ram_card)
 
         # ── STORAGE CARD ─────────────────────────────────────────────────
         if storage:
-            ssd_card, ssd_lay = self._hw_card("💿  DEPOLAMA BİRİMLERİ")
+            ssd_card, ssd_lay = self._hw_card(STRINGS[self.lang].get("card_title_storage", "💿  DEPOLAMA BİRİMLERİ"))
+            
+            # Calculate overall storage score (0-100)
+            storage_overall_score = 0
             for d in storage:
-                drv_name  = d.get('name', 'Bilinmiyor')
+                drv_bus = d.get('bus_type', '')
+                drv_type = d.get('media_type', '')
+                is_nvme = "NVME" in drv_bus.upper() or drv_bus in ("NVMe", "17", "9")
+                is_ssd = drv_type == "SSD" or is_nvme
+                
+                if is_nvme:
+                    storage_overall_score = max(storage_overall_score, 100)
+                elif is_ssd:
+                    storage_overall_score = max(storage_overall_score, 70)
+                else:
+                    storage_overall_score = max(storage_overall_score, 30)
+            
+            ssd_lay.addLayout(self._score_bar(STRINGS[self.lang].get("label_overall_score", "Genel Puan"), storage_overall_score, "#66FCF1"))
+            
+            for d in storage:
+                drv_name  = d.get('name', STRINGS[self.lang].get("label_unknown", "Bilinmiyor"))
                 drv_size  = d.get('size_gb', 0)
                 drv_type  = d.get('media_type', '?')
                 drv_bus   = d.get('bus_type', '?')
@@ -2201,10 +2301,10 @@ Do you want to continue?
                 ssd_lay.addLayout(self._score_bar(f"{icon} {drv_type}", perf_s, "#66FCF1" if is_nvme else ("#10B981" if is_ssd else "#FF4655")))
 
                 for k, v in {
-                    "Model":    drv_name[:35],
-                    "Kapasite": f"{drv_size} GB",
-                    "Arayüz":   drv_bus,
-                    "Hız Sınıfı": speed_tag,
+                    STRINGS[self.lang].get("label_model", "Model"): drv_name[:35],
+                    STRINGS[self.lang].get("label_capacity", "Kapasite"): f"{drv_size} GB",
+                    STRINGS[self.lang].get("label_interface", "Arayüz"): drv_bus,
+                    STRINGS[self.lang].get("label_speed_class", "Hız Sınıfı"): speed_tag,
                 }.items():
                     r = QHBoxLayout(); kl = QLabel(f"{k}:"); kl.setFixedWidth(155)
                     kl.setStyleSheet("color:#45A29E;font-size:12px;font-weight:bold;")
@@ -2212,7 +2312,7 @@ Do you want to continue?
                     r.addWidget(kl); r.addWidget(vl, 1); ssd_lay.addLayout(r)
 
                 if not is_ssd:
-                    warn = QLabel("🔴 HDD tespit edildi — SSD'ye geçiş sistem hızını ciddi oranda artırır!")
+                    warn = QLabel(STRINGS[self.lang].get("warn_hdd_detected", "🔴 HDD detected — Upgrading to SSD will significantly improve system speed!"))
                     warn.setStyleSheet("color:#FF4655;font-size:12px;font-weight:bold;"); warn.setWordWrap(True)
                     ssd_lay.addWidget(warn)
 
@@ -2292,20 +2392,16 @@ Do you want to continue?
         pt_enabled = self.chk_pt.isChecked() and supports_pt == 1 and gpu_supports_rt
         
         for preset, bar in self.fps_bars.items():
-            fps = scoring_engine.estimate_fps(cpu_data, gpu_data, game_data, res, preset, upscaling, frame_gen_mode, ram_gb)
-            
-            # Apply RT/PT penalty (calibrated against Digital Foundry / HardwareUnboxed 2024)
-            # RT in demanding games (Cyberpunk, AW2) typically cuts FPS by 40-50%.
-            # Lighter RT implementations (GTA V RT reflections) cut by ~15-25%.
-            # We use the game's supports_rt level as a proxy for RT intensity.
-            if pt_enabled:
-                # Path Tracing (Cyberpunk full PT): ~55% FPS loss
-                fps = int(fps * 0.45)
-            elif rt_enabled:
-                # Ray Tracing: ~40% FPS loss for heavy RT games (Cyberpunk, AW2, MFR)
-                fps = int(fps * 0.60)
+            # Ray/path tracing is applied inside the engine, where it can hit
+            # GPU frame time and VRAM demand separately, instead of being a
+            # flat multiplier on the finished number.
+            fps = scoring_engine.estimate_fps(
+                cpu_data, gpu_data, game_data, res, preset, upscaling,
+                frame_gen_mode, ram_gb,
+                ray_tracing=rt_enabled, path_tracing=pt_enabled,
+            )
 
-            
+
             bar.setRange(0, max(fps * 2, 360))
             bar.setValue(fps)
             
@@ -2394,45 +2490,63 @@ Do you want to continue?
         btn_text = "Önerilen Parçalara"
         show_links = False
         
-        if "PERFECT" in bn_data['status']:
-            self.lbl_b_bn.setStyleSheet("color: #10B981; font-size: 16px; font-weight: bold; text-align: center;")
-            self.b_affiliate_lbl.hide()
+        # Check if selected hardware is laptop - don't show affiliate links for laptop parts
+        cpu_name_up = cpu_data.get('name', '').upper()
+        gpu_name_up = gpu_data.get('name', '').upper()
+        is_laptop_cpu = any(s in cpu_name_up for s in ['HX', 'HS', 'HK']) or cpu_name_up.endswith(' H') or cpu_name_up.endswith('-H') or ' H ' in cpu_name_up or ' H)' in cpu_name_up or ' U ' in cpu_name_up or 'MOBILE' in cpu_name_up or cpu_name_up.endswith(' U') or cpu_name_up.endswith('U)')
+        is_laptop_gpu = 'LAPTOP' in gpu_name_up or 'MOBILE' in gpu_name_up
+        is_apple = "APPLE" in cpu_name_up or any(f"M{i}" in cpu_name_up for i in range(1,6))
+        
+        # Only show links for desktop hardware (not laptop, not Apple)
+        if not is_laptop_cpu and not is_laptop_gpu and not is_apple:
+            if "PERFECT" in bn_data['status']:
+                self.lbl_b_bn.setStyleSheet("color: #10B981; font-size: 16px; font-weight: bold; text-align: center;")
+                self.b_affiliate_lbl.hide()
+            else:
+                show_links = True
+                if "CRITICAL" in bn_data['status']:
+                    self.lbl_b_bn.setStyleSheet("color: #FF4655; font-size: 16px; font-weight: bold; text-align: center;")
+                else:
+                    self.lbl_b_bn.setStyleSheet("color: #F59E0B; font-size: 16px; font-weight: bold; text-align: center;")
+                    
+                import urllib.parse
+                from core import db_manager
+                
+                msg_up = bn_data['msg'].upper()
+                stat_up = bn_data['status'].upper()
+                
+                target_model = ""
+                if "CPU DARBOĞAZI" in stat_up or "İŞLEMCİ" in msg_up or "CPU" in msg_up:
+                    cpu_upgrades = db_manager.get_recommended_upgrades(gpu_data['power_score'], is_cpu=True, current_hardware_name=cpu_data.get('name', ''), count=1)
+                    target_model = cpu_upgrades[0] if cpu_upgrades else ""
+                    search_kw = urllib.parse.quote(target_model) if target_model else "kutu+islemci"
+                    btn_text = target_model if target_model else "İşlemcilere"
+                elif "GPU DARBOĞAZI" in stat_up or "EKRAN KARTI" in msg_up or "GPU" in msg_up:
+                    gpu_upgrades = db_manager.get_recommended_upgrades(cpu_data['power_score'], is_cpu=False, current_hardware_name=gpu_data.get('name', ''), count=1)
+                    target_model = gpu_upgrades[0] if gpu_upgrades else ""
+                    search_kw = urllib.parse.quote(target_model) if target_model else "oyuncu+ekran+karti"
+                    btn_text = target_model if target_model else "Ekran Kartlarına"
+                    
+            if show_links:
+                # Color Palettes (Amazon: Dark Blue/Black, Trendyol: Orange, HB: Red/Orange)
+                html = f"""
+                <div style='margin-top:15px; margin-bottom:5px; text-align:center;'>
+                   <a href='https://www.hepsiburada.com/ara?q={search_kw}' style='background-color:#FF6000; color:white; padding:8px 18px; text-decoration:none; font-weight:bold; border-radius:6px; font-size:13px; margin-right:12px;'>🛒 HB'da {btn_text}</a>
+                   <a href='https://www.trendyol.com/sr?q={search_kw}&pi=2' style='background-color:#F27A1A; color:white; padding:8px 18px; text-decoration:none; font-weight:bold; border-radius:6px; font-size:13px; margin-right:12px;'>🛒 Trendyol'da {btn_text}</a>
+                   <a href='https://www.amazon.com.tr/s?k={search_kw}&tag=perfhub-21' style='background-color:#232F3E; color:#FF9900; padding:8px 18px; text-decoration:none; font-weight:bold; border-radius:6px; font-size:13px;'>🛒 Amazon'da {btn_text}</a>
+                </div>
+                """
+                self.b_affiliate_lbl.setText(html)
+                self.b_affiliate_lbl.show()
         else:
-            show_links = True
-            if "CRITICAL" in bn_data['status']:
+            # Hide affiliate label for laptop/Apple hardware
+            self.b_affiliate_lbl.hide()
+            if "PERFECT" in bn_data['status']:
+                self.lbl_b_bn.setStyleSheet("color: #10B981; font-size: 16px; font-weight: bold; text-align: center;")
+            elif "CRITICAL" in bn_data['status']:
                 self.lbl_b_bn.setStyleSheet("color: #FF4655; font-size: 16px; font-weight: bold; text-align: center;")
             else:
                 self.lbl_b_bn.setStyleSheet("color: #F59E0B; font-size: 16px; font-weight: bold; text-align: center;")
-                
-            import urllib.parse
-            from core import db_manager
-            
-            msg_up = bn_data['msg'].upper()
-            stat_up = bn_data['status'].upper()
-            
-            target_model = ""
-            if "CPU DARBOĞAZI" in stat_up or "İŞLEMCİ" in msg_up or "CPU" in msg_up:
-                cpu_upgrades = db_manager.get_recommended_upgrades(gpu_data['power_score'], is_cpu=True, current_hardware_name=cpu_data.get('name', ''), count=1)
-                target_model = cpu_upgrades[0] if cpu_upgrades else ""
-                search_kw = urllib.parse.quote(target_model) if target_model else "kutu+islemci"
-                btn_text = target_model if target_model else "İşlemcilere"
-            elif "GPU DARBOĞAZI" in stat_up or "EKRAN KARTI" in msg_up or "GPU" in msg_up:
-                gpu_upgrades = db_manager.get_recommended_upgrades(cpu_data['power_score'], is_cpu=False, current_hardware_name=gpu_data.get('name', ''), count=1)
-                target_model = gpu_upgrades[0] if gpu_upgrades else ""
-                search_kw = urllib.parse.quote(target_model) if target_model else "oyuncu+ekran+karti"
-                btn_text = target_model if target_model else "Ekran Kartlarına"
-                
-        if show_links:
-            # Color Palettes (Amazon: Dark Blue/Black, Trendyol: Orange, HB: Red/Orange)
-            html = f"""
-            <div style='margin-top:15px; margin-bottom:5px; text-align:center;'>
-               <a href='https://www.hepsiburada.com/ara?q={search_kw}' style='background-color:#FF6000; color:white; padding:8px 18px; text-decoration:none; font-weight:bold; border-radius:6px; font-size:13px; margin-right:12px;'>🛒 HB'da {btn_text}</a>
-               <a href='https://www.trendyol.com/sr?q={search_kw}&pi=2' style='background-color:#F27A1A; color:white; padding:8px 18px; text-decoration:none; font-weight:bold; border-radius:6px; font-size:13px; margin-right:12px;'>🛒 Trendyol'da {btn_text}</a>
-               <a href='https://www.amazon.com.tr/s?k={search_kw}&tag=perfhub-21' style='background-color:#232F3E; color:#FF9900; padding:8px 18px; text-decoration:none; font-weight:bold; border-radius:6px; font-size:13px;'>🛒 Amazon'da {btn_text}</a>
-            </div>
-            """
-            self.b_affiliate_lbl.setText(html)
-            self.b_affiliate_lbl.show()
             
         # --- FPS CALCULATIONS FOR BUILDER ---
         b_res = self.b_cmb_res.currentText()
@@ -2507,16 +2621,15 @@ Do you want to continue?
             b_pt_enabled = self.b_chk_pt.isChecked() and supports_pt == 1 and gpu_supports_rt_builder
             
             for preset, bar in self.b_fps_bars.items():
-                fps = scoring_engine.estimate_fps(cpu_data, gpu_data, b_game, b_res, preset, b_upscaling, b_frame_gen_mode, b_ram_gb)
-                
-                # Apply RT/PT penalty (calibrated against Digital Foundry / HardwareUnboxed 2024)
-                if b_pt_enabled:
-                    # Path Tracing (Cyberpunk full PT): ~55% FPS loss
-                    fps = int(fps * 0.45)
-                elif b_rt_enabled:
-                    # Ray Tracing: ~40% FPS loss for heavy RT games
-                    fps = int(fps * 0.60)
-                
+                # See the note on the main FPS page: RT/PT belongs in the
+                # engine, not as a post-hoc multiplier here.
+                fps = scoring_engine.estimate_fps(
+                    cpu_data, gpu_data, b_game, b_res, preset, b_upscaling,
+                    b_frame_gen_mode, b_ram_gb,
+                    ray_tracing=b_rt_enabled, path_tracing=b_pt_enabled,
+                )
+
+
                 bar.setRange(0, max(fps * 2, 360))
                 bar.setValue(fps)
                 if fps >= 120: color = "#9D00FF"
@@ -3001,6 +3114,13 @@ Do you want to continue?
             ("_lbl_scanning",      "scanning"),
         ]:
             self._safe_set_text(attr, S[key])
+
+        # ── Repopulate dashboard detail section with correct language ──
+        try:
+            if self.system_data is not None:
+                self.populate_dash_detail(self.system_data)
+        except Exception:
+            pass
 
         # ── Repopulate games if scan is already done ──────────────
         try:
