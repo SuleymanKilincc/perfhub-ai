@@ -32,6 +32,17 @@ env/
 # Environment Variables
 .env
 .env.local
+.env.*
+!.env.example
+
+# Secrets — a real Gemini key once sat in data/ai_key.txt and stayed in this
+# public repository for months. API keys belong in the host's environment
+# variables (Render already provides GEMINI_API_KEY that way), never in a file.
+*_key.txt
+*_secret*
+*.pem
+*.key
+credentials.json
 
 # IDE
 .vscode/

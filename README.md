@@ -1,194 +1,189 @@
 # 🚀 PerfHub AI
 
-AI-powered hardware analysis and FPS prediction tool for PC gaming enthusiasts.
+Hardware analysis and FPS prediction for PC gaming — pick a CPU, GPU and RAM
+configuration and see what frame rates to expect across 177 games.
 
-![Version](https://img.shields.io/badge/version-5.0.0-blue)
-![Python](https://img.shields.io/badge/python-3.8+-green)
+[![Live Demo](https://img.shields.io/badge/live%20demo-perfhub.suleymankilinc.com-66FCF1)](https://perfhub.suleymankilinc.com)
+![Version](https://img.shields.io/badge/version-5.1.0-blue)
+![Python](https://img.shields.io/badge/python-3.11-green)
 ![License](https://img.shields.io/badge/license-MIT-yellow)
-![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+
+## 🌐 Try it now
+
+**[perfhub.suleymankilinc.com](https://perfhub.suleymankilinc.com)** — no install,
+no download. Choose your parts and get FPS estimates for every game in the
+database, along with warnings when a build is going to run into trouble.
+
+> The demo runs on a free tier, so the first request after a period of
+> inactivity can take up to a minute while the backend wakes up.
+
+A Windows desktop build is also available with automatic hardware detection —
+see [Desktop application](#-desktop-application).
+
+## ⚙️ How the FPS engine works
+
+Most estimators multiply one "difficulty" number by a chain of correction
+factors. PerfHub models frame time instead: a game costs the CPU some
+milliseconds per frame and the GPU some milliseconds per frame, and the slower
+of the two is what you actually get.
+
+```
+ft = (ft_cpu^k + ft_gpu^k)^(1/k)        fps = 1000 / ft
+```
+
+Working this way means the interesting behaviour is a consequence of the model
+rather than a special case bolted on:
+
+| Behaviour | Why it happens |
+|---|---|
+| CPU-limited games stop scaling with a bigger GPU | the CPU term stops shrinking |
+| Higher resolutions shift the limit back to the GPU | only the GPU term grows with pixel count |
+| Frame generation helps most when the CPU is the wall | generated frames need no CPU simulation |
+| Upscaling gains shrink once the CPU becomes the limit | it only reduces rendered pixels |
+
+**Memory is modelled explicitly.** VRAM demand is estimated per game, preset and
+resolution, then compared against the card. Anything that does not fit spills
+across PCIe into system RAM, and if system RAM cannot absorb the spill either,
+the result is reported as unplayable instead of being given an optimistic
+number. An 8 GB card running a heavy title at 1440p Ultra will warn about a
+crash risk on 16 GB of RAM, and report a playable-but-badly-degraded result on
+32 GB — which is the difference a buyer actually needs to know about.
+
+Calibration against published figures, RTX 4090 + Ryzen 7 7800X3D in
+Cyberpunk 2077 at High with no ray tracing or upscaling:
+
+| Resolution | Predicted | Measured |
+|---|---|---|
+| 1080p | 163 fps | ~170 fps |
+| 1440p | 117 fps | ~115 fps |
+| 4K | 64 fps | ~67 fps |
+
+Accuracy is tracked, not asserted — `scripts/validate_engine.py` compares the
+engine against recorded benchmarks and reports mean error, so tuning changes
+can be judged rather than argued about.
 
 ## ✨ Features
 
-### 🎮 Gaming & Performance
-- 🔍 **Automatic Hardware Detection** - Detects CPU, GPU, RAM, and storage automatically with precise WMI cleaning for laptops
-- 📊 **Performance Scoring** - Calculates system performance score (0-100)
-- ⚠️ **Bottleneck Analysis** - Identifies CPU/GPU imbalances with recommendations
-- 🎯 **Massive FPS Prediction Database** - Estimates FPS for **160+ popular games** across all presets
-- 🌟 **Intelligent Upscaling Engine** - Accurately predicts DLSS, FSR, and XeSS performance. Warns if a game doesn't support the selected technology
-- 💡 **Ray Tracing / Path Tracing** - Toggle RT/PT for supported games with realistic, calibrated performance impacts (-40% for RT, -55% for PT)
-- 💾 **RAM Impact Analysis** - Game-specific RAM sensitivity with accurate FPS penalties
+### Gaming & performance
+- **FPS prediction** across 177 games, from Very Low to Extreme presets
+  (clamped per game — a title only offers the tiers it really ships)
+- **Upscaling** — DLSS, FSR and XeSS, applied to rendered pixels, with a
+  warning when the selected game does not support the chosen technology
+- **Frame generation** — 2x/3x/4x, including the VRAM cost and the GPU
+  overhead of producing the extra frames
+- **Ray tracing / path tracing** — modelled against GPU frame time and VRAM
+  separately, for the games that support each
+- **VRAM and system RAM pressure** — spill, thrashing and crash conditions
+- **Bottleneck analysis** — reports whether the CPU or the GPU binds first
 
-### 🤖 AI-Powered Features
-- 🧠 **AI Assistant** - Powered by Groq Cloud (Llama 3.3 70B Versatile) for lightning-fast hardware consulting
-- 🔬 **Hardware Analysis** - Detailed component analysis with AI-generated insights
-- 💡 **Smart Recommendations** - AI suggests optimal hardware upgrades (filters out workstation/server components for gamers)
-- 🌐 **Multi-Language** - Turkish & English support with AI responses in your language
+### Hardware database
+- **220 CPUs** — Intel Core / Core Ultra / Xeon, AMD Ryzen & Threadripper,
+  Apple Silicon
+- **164 GPUs** — NVIDIA GTX 700 through RTX 50, AMD Polaris through RDNA 4,
+  Intel Arc, plus integrated graphics
+- **177 games** — per-title CPU and GPU cost, VRAM and RAM working sets,
+  RT/PT and DLSS/FSR/XeSS support flags
+- Laptop and desktop parts are distinguished, and workstation chips are scored
+  for gaming rather than all-core throughput
 
-### 🛠️ PC Building Tools
-- 🖥️ **PC Builder & Compare Tool** - Build and test theoretical PC configurations and compare FPS across 160+ games
-- 📈 **Upgrade Simulator** - Compare current vs. target system performance
-- 🔌 **PSU Calculator** - Automatic power supply recommendations
-- 🛒 **Dynamic Store Integration** - Compare prices instantly on Amazon, Trendyol, and Hepsiburada
-
-### 🖥️ Hardware Support
-- **170+ CPUs** - Intel, AMD, Apple Silicon (M1-M5)
-- **144+ GPUs** - NVIDIA, AMD, Intel ARC + integrated graphics
-- **Intel iGPU Support** - Proper detection and scoring for integrated graphics
-- **Laptop Detection** - Accurate laptop vs desktop hardware differentiation
-
-## 📦 Download
-
-Download the latest version from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases)
-
-**Latest:** [PerfHub AI v5.0.0](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v5.0.0) (64.50 MB)
-
-## 🖥️ System Requirements
-
-- **OS**: Windows 10/11 (64-bit)
-- **RAM**: 4 GB minimum
-- **Storage**: 150 MB free disk space
-- **Internet**: Required for AI features
-
-## 🚀 Quick Start
-
-### Installation
-1. Download `PerfHub_AI_v5.0.0.zip` from [Releases](https://github.com/SuleymanKilincc/perfhub-ai/releases/tag/v5.1.0)
-2. Extract the ZIP file to any folder
-3. Run `PerfHub_AI_WebApp.exe`
-4. First launch may take 5-10 seconds (normal)
-5. **No API key required** - AI works out of the box!
-
-### Windows Security Warning
-On first run, Windows may show an "Unknown publisher" warning:
-1. Click **"More info"**
-2. Click **"Run anyway"**
-
-**Security Note**: This app is safe and open-source.  
-🔒 **VirusTotal Scan**: Clean (Lütfen yayınladıktan sonra linki güncelleyin)
-
-## 🎮 Supported Games (160+)
-
-### Games with Ray Tracing + Path Tracing
-- Cyberpunk 2077
-- Alan Wake 2
-- Portal RTX
-- Minecraft RTX
-- Quake II RTX
-- Pragmata
-
-### Games with Ray Tracing Only
-- Spider-Man Remastered
-- Hogwarts Legacy
-- Forza Horizon 5
-- F1 25 & F1 2024
-- Resident Evil 4 Remake
-- Control
-- Metro Exodus Enhanced Edition
-- Dying Light 2
-- Watch Dogs Legion
-- ...and dozens more!
-
-### E-Sports & Competitive (Native Rendering)
-- Valorant
-- CS2 (Counter-Strike 2)
-- Apex Legends
-- Fortnite
-- League of Legends
-- Dota 2
-- Overwatch 2
-
-## 🛠️ Development
-
-### Prerequisites
-
-- Python 3.8+
-- PyQt6
-- Required packages (see `backend/requirements.txt`)
-
-### Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/SuleymanKilincc/perfhub-ai.git
-cd perfhub-ai
-
-# Install dependencies
-pip install -r backend/requirements.txt
-pip install PyQt6 wmi psutil GPUtil openai python-dotenv
-
-# Run the application
-python modern_desktop_app.py
-```
-
-### Building EXE
-
-```bash
-# Install PyInstaller
-pip install pyinstaller
-
-# Build the executable
-python -m PyInstaller PerfHub_AI_WebApp.spec --noconfirm
-
-# Output: dist/PerfHub_AI_WebApp.exe
-```
-
-### Creating Release ZIP
-
-```bash
-# Build EXE first, then create release ZIP
-python create_release_zip.py
-
-# Output: PerfHub_AI_v5.1.0.zip
-```
-
-## 📊 Database
-
-- **170+ CPUs** - Intel (Core 5-14 Gen, Xeon), AMD (Ryzen 1000-9000, Threadripper), Apple Silicon (M1-M5)
-- **144+ GPUs** - NVIDIA (GTX 700-RTX 5000), AMD (Polaris-RDNA 4), Intel ARC + iGPUs
-- **160+ Games** - Complete RT/PT support data, DLSS/FSR/XeSS flags, and RAM sensitivity profiles
-- **Accurate Scoring** - Real-world benchmarks and performance data
-
-Database location: `data/hardware_db.sqlite`
+### AI assistance
+- Hardware consulting and upgrade suggestions in Turkish or English
+- Web backend uses Google Gemini; the desktop app uses a Groq-hosted Llama
+  model
 
 ## 🏗️ Architecture
 
 ```
 perfhub-ai/
-├── modern_desktop_app.py    # Main PyQt6 application
-├── PerfHub_AI_WebApp.spec   # PyInstaller spec file
-├── create_release_zip.py    # ZIP builder script
-├── backend/                 # FastAPI backend (Web Version)
-├── core/                    # Core modules
-│   ├── hardware_detector.py # Hardware detection
-│   ├── db_manager.py        # Database operations
-│   ├── scoring_engine.py    # Performance scoring
-│   └── ai_assistant.py      # AI integration
-├── data/                    # Database
-│   └── hardware_db.sqlite
-├── frontend/                # React web interface (Web Version)
-└── scripts/                 # Utility scripts
+├── core/                      # Shared engine — used by both frontends
+│   ├── scoring_engine.py      # Frame-time FPS model
+│   ├── balance_config.py      # Tuning constants (calibration lives here)
+│   ├── db_manager.py          # SQLite access
+│   ├── hardware_detector.py   # WMI hardware detection (Windows only)
+│   └── ai_assistant.py        # AI integration
+├── backend/                   # FastAPI service for the web version
+├── frontend/                  # React + Vite web interface
+├── data/hardware_db.sqlite    # CPU / GPU / game database
+├── scripts/
+│   ├── migrate_game_profiles.py  # Derive per-game cost profiles
+│   ├── fix_hardware_db.py        # Catalog cleanup pass
+│   └── validate_engine.py        # Benchmark accuracy harness
+└── modern_desktop_app.py      # PyQt6 desktop application
 ```
+
+The engine in `core/` is the single source of truth. The web backend and the
+desktop app are both thin layers over it, so a change to the model reaches
+both.
+
+## 🚀 Running locally
+
+### Backend + web frontend
+
+```bash
+git clone https://github.com/SuleymanKilincc/perfhub-ai.git
+cd perfhub-ai
+
+# Backend (http://localhost:8000)
+pip install -r backend/requirements.txt
+uvicorn backend.main:app --reload
+
+# Frontend (http://localhost:3000), in a second terminal
+cd frontend
+npm install
+npm run dev
+```
+
+Set `VITE_API_URL` in `frontend/.env` to point the interface at a different
+backend — see `frontend/.env.example`.
+
+AI features need a `GEMINI_API_KEY` environment variable. Never commit keys to
+the repository; the `.gitignore` blocks the usual filenames.
+
+### Desktop application
+
+Requires Windows — hardware detection uses WMI.
+
+```bash
+pip install -r backend/requirements.txt
+pip install PyQt6 wmi pywin32
+python modern_desktop_app.py     # or: start_desktop.bat
+```
+
+Prebuilt releases are on the
+[Releases page](https://github.com/SuleymanKilincc/perfhub-ai/releases).
+Windows will show an "Unknown publisher" warning for unsigned builds —
+choose **More info → Run anyway**.
+
+## 🔬 Improving accuracy
+
+The engine's per-game cost profiles were derived from the previous model's data
+and blended with genre priors. They are reasonable starting points, not
+measurements. To improve them:
+
+```bash
+python scripts/validate_engine.py --seed   # create the benchmarks table
+python scripts/validate_engine.py --add    # record a real measurement
+python scripts/validate_engine.py          # report mean error
+```
+
+The most valuable single measurement is one game on one system across all
+three resolutions — that is what separates a game's CPU cost from its GPU
+cost, which is currently the weakest part of the model.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. Benchmark measurements are as useful as code —
+every verified anchor makes the model measurably better.
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
-## 👨💻 Author
+## 👨‍💻 Author
 
 **Süleyman Kılınç**
 - Website: [suleymankilinc.com](https://suleymankilinc.com)
 - GitHub: [@SuleymanKilincc](https://github.com/SuleymanKilincc)
-
-## 🙏 Acknowledgments
-
-- Hardware data sourced from various benchmarking databases
-- AI powered by Groq Cloud (Llama 3.3)
-- Built with PyQt6, FastAPI, and React
-- RT/PT support data from game documentation
 
 ## 📸 Screenshots
 
