@@ -49,18 +49,28 @@ number. An 8 GB card running a heavy title at 1440p Ultra will warn about a
 crash risk on 16 GB of RAM, and report a playable-but-badly-degraded result on
 32 GB — which is the difference a buyer actually needs to know about.
 
-Calibration against published figures, RTX 4090 + Ryzen 7 7800X3D in
-Cyberpunk 2077 at High with no ray tracing or upscaling:
+Accuracy is measured, not asserted. The engine is fitted against 55 recorded
+benchmark results covering resolution sweeps, GPU and CPU ladders, preset
+ladders, ray tracing, upscaling, frame generation and 8GB-vs-16GB VRAM pairs
+of the same GPU. Current standing against that set:
+
+| Metric | Value |
+|---|---|
+| Mean absolute error | **13.9%** |
+| Systematic bias | +1.9% |
+| Within 20% of measured | 76% |
+
+RTX 4090 + Ryzen 7 7800X3D in Cyberpunk 2077 at Ultra, native, no ray tracing:
 
 | Resolution | Predicted | Measured |
 |---|---|---|
-| 1080p | 163 fps | ~170 fps |
-| 1440p | 117 fps | ~115 fps |
-| 4K | 64 fps | ~67 fps |
+| 1080p | 157 fps | 140 fps |
+| 1440p | 114 fps | 125 fps |
+| 4K | 61 fps | 60 fps |
 
-Accuracy is tracked, not asserted — `scripts/validate_engine.py` compares the
-engine against recorded benchmarks and reports mean error, so tuning changes
-can be judged rather than argued about.
+`scripts/validate_engine.py` reports that error on demand and
+`scripts/calibrate_engine.py` refits the constants, so a tuning change can be
+judged rather than argued about.
 
 ## ✨ Features
 

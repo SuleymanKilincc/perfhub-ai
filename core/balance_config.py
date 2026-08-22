@@ -26,14 +26,14 @@ BOTTLENECK_BLEND_K = 4.0
 # RTX 4090 + 7800X3D lands near 160 fps in Cyberpunk 2077 at 1080p/High with
 # no ray tracing and no upscaling.
 GPU_MS_CONST = 2.65
-CPU_MS_CONST = 2.65
+CPU_MS_CONST = 2.25
 
 # power_score is not linear in real throughput. An RTX 4090 (102) is roughly
 # 2.6x an RTX 4060 (54) once the CPU is out of the way, which needs an
 # exponent well above 1. Gaming CPU performance is far more compressed, so
 # its curve stays near linear.
-GPU_PERF_EXPONENT = 1.40
-CPU_PERF_EXPONENT = 1.00
+GPU_PERF_EXPONENT = 1.54
+CPU_PERF_EXPONENT = 0.60
 REF_SCORE = 100.0          # score that maps to 1.0x performance
 
 # ─── Resolution ─────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ RESOLUTION_PIXELS = {
 # GPU cost grows slower than raw pixel count — part of a frame (culling, some
 # post, driver overhead) is resolution-independent. Without this, 4K comes out
 # roughly 40% too slow.
-RES_PIXEL_EXPONENT = 0.78
+RES_PIXEL_EXPONENT = 0.82
 
 # VRAM does not follow pixel count either; textures dominate and they are
 # resolution-independent. Only buffers scale.
@@ -131,8 +131,13 @@ FG_VRAM_ADD_GB = {
 # Once the working set no longer fits, textures stream across PCIe from system
 # RAM. That is dramatically slower than local VRAM, so the loss is steep and
 # non-linear in how far over the limit you are.
-VRAM_SPILL_SEVERITY = 2.6      # higher = harsher penalty per unit of overflow
-VRAM_SPILL_FLOOR = 0.22        # worst-case multiplier before it counts as unplayable
+# Fitted against measured 8GB-vs-16GB pairs of the same GPU (RTX 4060 Ti),
+# where the only variable is capacity. Measured ratios ranged from 0.38 to
+# 0.95, nothing like the collapse the first guess (severity 2.6, floor 0.22)
+# produced — it predicted Hogwarts Legacy at 0.29 where reality was 0.95.
+# Modern engines drop texture streaming quality instead of falling over.
+VRAM_SPILL_SEVERITY = 0.50     # higher = harsher penalty per unit of overflow
+VRAM_SPILL_FLOOR = 0.80        # worst-case multiplier before it counts as unplayable
 # Below this much free VRAM the allocator is already thrashing even though it
 # technically fits.
 VRAM_TIGHT_HEADROOM_GB = 0.4
@@ -152,6 +157,13 @@ RAM_ABUNDANCE_BONUS = 1.02     # plenty of headroom smooths frame delivery
 # overflow scenario, rather than the two producing identical numbers.
 RAM_SPILL_COMFORT_RATIO = 4.0
 RAM_SPILL_CRAMPED_PENALTY = 0.62   # multiplier when the spill barely fits
+# How far short of the spill system RAM has to fall before the game is called
+# unplayable rather than merely slow. Requiring merely "less free RAM than the
+# overflow" was far too eager: it reported 3 fps for The Last of Us Part II on
+# an 8GB card with 16GB of RAM, which really runs at 65. Windows pages the
+# excess to disk and the engine keeps streaming, so a true failure needs the
+# shortfall to be severe.
+RAM_UNPLAYABLE_SHORTFALL_RATIO = 0.25
 
 
 def quality_multipliers(tier):

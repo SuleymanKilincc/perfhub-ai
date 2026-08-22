@@ -388,14 +388,16 @@ def _memory_pressure(vram_needed, vram_available, ram_gb, ram_base_gb):
         f"(~{overflow:.1f} GB taşıyor)."
     )
 
-    if ram_free < overflow:
-        # Nothing left to spill into: this is the 8 GB card + 16 GB RAM case.
+    if ram_free < overflow * bc.RAM_UNPLAYABLE_SHORTFALL_RATIO:
+        # Nothing meaningful left to spill into. Merely having less free RAM
+        # than the overflow is not enough — Windows pages the rest to disk and
+        # the game stays playable, just slower.
         warnings.append(
             f"Taşan {overflow:.1f} GB'ı karşılayacak sistem RAM'i de yok "
             f"({ram_gb} GB). Oyun çökebilir veya oynanamaz hale gelir — "
             f"{int(ram_gb * 2)} GB RAM bu senaryoyu kurtarır."
         )
-        return (bc.VRAM_SPILL_FLOOR * 0.5, "unplayable", warnings)
+        return (bc.VRAM_SPILL_FLOOR * 0.35, "unplayable", warnings)
 
     # Spilling, but system RAM can absorb it. Streaming over PCIe is slow and
     # gets worse the further over the limit you are.
