@@ -1,5 +1,6 @@
 """
-Balance / tuning constants for the FPS estimation engine (core/scoring_engine.py).
+Balance / tuning constants for Cadence, the FPS prediction engine
+(core/scoring_engine.py).
 
 The engine works in *frame time* (milliseconds), not in fps. A game costs the
 CPU some milliseconds per frame and the GPU some milliseconds per frame; the

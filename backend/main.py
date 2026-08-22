@@ -312,8 +312,9 @@ def get_upgrade_recommendations(req: UpgradeRequest):
 def health_check():
     """Health check endpoint."""
     return {
-        "status": "ok", 
-        "model": PRIMARY_MODEL, 
+        "status": "ok",
+        "engine": f"{scoring_engine.ENGINE_NAME} {scoring_engine.ENGINE_VERSION}",
+        "model": PRIMARY_MODEL,
         "key_set": bool(GEMINI_API_KEY),
         "db_initialized": os.path.exists("data/hardware_db.sqlite")
     }

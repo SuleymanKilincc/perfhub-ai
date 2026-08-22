@@ -1,5 +1,9 @@
 """
-Scoring Engine - v5.0
+Cadence — PerfHub's FPS prediction engine.
+
+Named for frame cadence, since that is what it actually computes: how long a
+frame takes, rather than a frames-per-second figure arrived at by multiplying
+correction factors together.
 
 System scoring, bottleneck analysis, and FPS estimation.
 
@@ -26,6 +30,11 @@ RAM, which is slow, and if system RAM cannot absorb the spill either the game
 is reported as unplayable rather than given an optimistic number.
 """
 from core import balance_config as bc
+
+ENGINE_NAME = "Cadence"
+# Bumped when the model changes in a way that moves predictions. 1.0 is the
+# frame-time rewrite, calibrated against 55 measured benchmarks.
+ENGINE_VERSION = "1.0"
 
 # ─── GPU tier lookup: rough "raw render budget" per power_score unit ──────────
 # Kept for callers that still reference them; the FPS model no longer uses

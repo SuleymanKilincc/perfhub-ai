@@ -20,12 +20,14 @@ database, along with warnings when a build is going to run into trouble.
 A Windows desktop build is also available with automatic hardware detection —
 see [Desktop application](#-desktop-application).
 
-## ⚙️ How the FPS engine works
+## ⚙️ Cadence — the prediction engine
 
 Most estimators multiply one "difficulty" number by a chain of correction
-factors. PerfHub models frame time instead: a game costs the CPU some
+factors. **Cadence** models frame time instead: a game costs the CPU some
 milliseconds per frame and the GPU some milliseconds per frame, and the slower
-of the two is what you actually get.
+of the two is what you actually get. It is named for frame cadence because
+that is literally the quantity it computes — frames per second is the output,
+not the model.
 
 ```
 ft = (ft_cpu^k + ft_gpu^k)^(1/k)        fps = 1000 / ft
