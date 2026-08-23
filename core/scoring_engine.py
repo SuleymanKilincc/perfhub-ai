@@ -355,16 +355,33 @@ def _vram_demand(vram_base, quality, resolution, render_scale,
     return demand
 
 
+def _vram_allocation(working_gb, vram_available):
+    """
+    What the game will actually reserve, as opposed to what a frame needs.
+
+    Engines cache into spare VRAM, so allocation tracks the card as much as the
+    game. This is what an overlay reports, and it is only useful for telling
+    the user whether the card will fill up — not for predicting frame rate.
+    """
+    wanted = working_gb * bc.VRAM_ALLOC_APPETITE + bc.VRAM_ALLOC_HEADROOM_GB
+    return min(wanted, vram_available * bc.VRAM_ALLOC_CAPACITY_LIMIT)
+
+
 def _memory_pressure(vram_needed, vram_available, ram_gb, ram_base_gb):
     """
     Model what happens when the working set does not fit in VRAM.
 
+    `vram_needed` is the *working set* — what a frame genuinely requires.
+    Allocation is handled separately, because a game reserving more than the
+    card holds is normal and mostly harmless: the driver evicts the surplus
+    cache. It costs smoothness, not average frame rate.
+
     Returns (multiplier, status, warnings).
 
     Status is one of:
-        ok           — everything fits
-        vram_tight   — fits, but with almost no headroom
-        vram_spill   — overflowing into system RAM; slow but playable
+        ok           — everything fits, cache included
+        vram_tight   — the frame fits but the cache does not; expect stutter
+        vram_spill   — the frame itself does not fit; slow but playable
         unplayable   — overflowing with nowhere to spill to
     """
     warnings = []
@@ -383,11 +400,15 @@ def _memory_pressure(vram_needed, vram_available, ram_gb, ram_base_gb):
         ram_mult = bc.RAM_ABUNDANCE_BONUS
 
     if overflow <= 0:
-        headroom = -overflow
-        if headroom < bc.VRAM_TIGHT_HEADROOM_GB:
+        # The frame fits. Whether the game's texture cache also fits decides
+        # between "smooth" and "fine on average but stutters when the camera
+        # moves somewhere new".
+        wanted = vram_needed * bc.VRAM_ALLOC_APPETITE + bc.VRAM_ALLOC_HEADROOM_GB
+        if wanted > vram_available:
             return (bc.VRAM_TIGHT_PENALTY * ram_mult, "vram_tight", warnings + [
-                f"VRAM sınırda: ~{vram_needed:.1f} GB ihtiyaç, {vram_available} GB kart. "
-                f"Ani sahne geçişlerinde takılma olabilir."
+                f"VRAM sınırda: kare için ~{vram_needed:.1f} GB yetiyor ama oyun "
+                f"~{wanted:.1f} GB önbellek ayırmak istiyor ({vram_available} GB kart). "
+                f"Ortalama FPS iyi kalır, ancak yeni sahnelere geçerken takılma olabilir."
             ])
         return ram_mult, ("ok" if not warnings else "ram_short"), warnings
 
@@ -475,12 +496,27 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
         warnings.append("Bu oyun seçilen upscaling teknolojisini desteklemiyor; "
                         "native çözünürlükte hesaplandı.")
 
+    # Some games ship with a hard frame rate limit. Reporting only the capped
+    # figure would make every capable GPU look identical, so the uncapped
+    # estimate is kept and the cap is surfaced as a note instead.
+    uncapped_fps = max(int(round(fps)), 0)
+    fps_cap = game.get("fps_cap") or 0
+    if fps_cap and uncapped_fps > fps_cap:
+        warnings.append(
+            f"Bu oyun varsayılan halinde {int(fps_cap)} FPS ile sınırlı. "
+            f"Donanımın {uncapped_fps} FPS'e yetiyor, ancak sınır kaldırılmadan "
+            f"{int(fps_cap)} FPS görürsün."
+        )
+
     return {
-        "fps": max(int(round(fps)), 0),
+        "fps": uncapped_fps,
+        "capped_fps": int(fps_cap) if fps_cap and uncapped_fps > fps_cap else None,
         "rendered_fps": max(int(round(rendered_fps)), 0),
         "status": status,
         "bottleneck": "CPU" if ft_cpu > ft_gpu else "GPU",
+        # What a frame needs, versus what the game will reserve on this card.
         "vram_needed_gb": round(vram_needed, 1),
+        "vram_alloc_gb": round(_vram_allocation(vram_needed, vram), 1),
         "vram_available_gb": vram,
         "quality": quality,
         "warnings": warnings,

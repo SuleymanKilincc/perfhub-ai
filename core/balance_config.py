@@ -43,6 +43,7 @@ RESOLUTION_PIXELS = {
     "1080p": 1.00,
     "1440p": 1.78,
     "4k":    4.00,
+    "8k":   16.00,
 }
 # GPU cost grows slower than raw pixel count — part of a frame (culling, some
 # post, driver overhead) is resolution-independent. Without this, 4K comes out
@@ -51,10 +52,13 @@ RES_PIXEL_EXPONENT = 0.82
 
 # VRAM does not follow pixel count either; textures dominate and they are
 # resolution-independent. Only buffers scale.
+# Confirmed by measurement: The Last of Us Part I moves from 9.4 GB at 1080p
+# to 12.2 GB at 4K — about 30% for four times the pixels.
 RES_VRAM_FACTOR = {
     "1080p": 1.00,
     "1440p": 1.14,
     "4k":    1.38,
+    "8k":    1.85,
 }
 
 # ─── Quality presets ────────────────────────────────────────────────────────
@@ -77,8 +81,8 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # Multipliers on GPU frame-time cost, plus the extra VRAM the BVH and
 # denoisers need. Path tracing is a different order of magnitude, not a
 # heavier RT preset.
-RT_GPU_COST_MULT = 1.80
-PT_GPU_COST_MULT = 3.10
+RT_GPU_COST_MULT = 1.34
+PT_GPU_COST_MULT = 2.62
 RT_VRAM_ADD_GB = 1.10
 PT_VRAM_ADD_GB = 1.90
 # RT also adds BVH build/update work on the CPU.
@@ -118,15 +122,37 @@ FG_OUTPUT_MULTIPLIER = {
 }
 # Fraction of the rendered frame's GPU time spent generating the extra frames.
 FG_GPU_OVERHEAD = {
-    "2x": 0.22,
-    "3x": 0.31,
-    "4x": 0.38,
+    "2x": 0.60,
+    "3x": 0.72,
+    "4x": 0.84,
 }
 FG_VRAM_ADD_GB = {
     "2x": 1.0,
     "3x": 1.4,
     "4x": 1.8,
 }
+
+# ─── VRAM: working set vs allocation ────────────────────────────────────────
+# Overlays report *allocated* memory, not what a frame actually needs. Engines
+# pre-cache assets into any VRAM that happens to be free — a game that needs
+# 5-6 GB will happily reserve 8, and on a 24 GB card it will reserve far more
+# still. Alan Wake 2 reported 28 GB at 8K on a 32 GB card.
+#
+# The distinction matters because the two numbers answer different questions:
+#
+#   working set  ->  "will the frame rate drop?"   (this drives the penalty)
+#   allocation   ->  "will it stutter?"            (this drives the warning)
+#
+# On a smaller card the driver simply evicts the surplus cache and the game
+# keeps running, which is why Hogwarts Legacy loses almost nothing going from
+# 16 GB to 8 GB despite reporting far more than 8 GB in use.
+#
+# Measured allocations sit roughly 1.2-2 GB above the working set on
+# mid-sized cards, which this pair reproduces.
+VRAM_ALLOC_APPETITE = 1.12     # how much more than the working set a game wants
+VRAM_ALLOC_HEADROOM_GB = 0.8   # plus a flat cache reserve
+# A game never reserves the entire card; the driver and desktop need room.
+VRAM_ALLOC_CAPACITY_LIMIT = 0.92
 
 # ─── VRAM pressure ──────────────────────────────────────────────────────────
 # Once the working set no longer fits, textures stream across PCIe from system

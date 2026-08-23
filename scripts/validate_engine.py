@@ -146,7 +146,10 @@ def validate(only_verified=False):
         print("  Degerlendirilebilir kayit yok.")
         return
 
-    results.sort(reverse=True)
+    # Sort on the error alone. Sorting whole tuples breaks as soon as two rows
+    # tie, because the comparison then falls through to the sqlite3.Row
+    # objects, which are not orderable.
+    results.sort(key=lambda r: r[0], reverse=True)
     mean_abs = sum(r[0] for r in results) / len(results)
     bias = sum(r[1] for r in results) / len(results)
     within10 = sum(1 for r in results if r[0] <= 10) / len(results) * 100

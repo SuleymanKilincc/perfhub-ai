@@ -51,23 +51,23 @@ number. An 8 GB card running a heavy title at 1440p Ultra will warn about a
 crash risk on 16 GB of RAM, and report a playable-but-badly-degraded result on
 32 GB — which is the difference a buyer actually needs to know about.
 
-Accuracy is measured, not asserted. The engine is fitted against 55 recorded
+Accuracy is measured, not asserted. The engine is fitted against 104 recorded
 benchmark results covering resolution sweeps, GPU and CPU ladders, preset
 ladders, ray tracing, upscaling, frame generation and 8GB-vs-16GB VRAM pairs
 of the same GPU. Current standing against that set:
 
 | Metric | Value |
 |---|---|
-| Mean absolute error | **13.9%** |
-| Systematic bias | +1.9% |
-| Within 20% of measured | 76% |
+| Mean absolute error | **9.8%** |
+| Systematic bias | −1.3% |
+| Within 20% of measured | 85% |
 
 RTX 4090 + Ryzen 7 7800X3D in Cyberpunk 2077 at Ultra, native, no ray tracing:
 
 | Resolution | Predicted | Measured |
 |---|---|---|
-| 1080p | 157 fps | 140 fps |
-| 1440p | 114 fps | 125 fps |
+| 1080p | 139 fps | 140 fps |
+| 1440p | 110 fps | 125 fps |
 | 4K | 61 fps | 60 fps |
 
 `scripts/validate_engine.py` reports that error on demand and
@@ -168,19 +168,22 @@ choose **More info → Run anyway**.
 
 ## 🔬 Improving accuracy
 
-The engine's per-game cost profiles were derived from the previous model's data
-and blended with genre priors. They are reasonable starting points, not
-measurements. To improve them:
+Twenty of the 177 games have cost profiles fitted to real measurements. The
+rest still carry values derived from the previous model and blended with genre
+priors — reasonable starting points, not measurements — so the accuracy figure
+above describes the measured set rather than the whole catalog.
 
 ```bash
-python scripts/validate_engine.py --seed   # create the benchmarks table
-python scripts/validate_engine.py --add    # record a real measurement
 python scripts/validate_engine.py          # report mean error
+python scripts/validate_engine.py --add    # record a measurement
+python scripts/calibrate_vram.py --apply   # fit VRAM working sets
+python scripts/calibrate_engine.py --apply # fit costs and multipliers
 ```
 
-The most valuable single measurement is one game on one system across all
-three resolutions — that is what separates a game's CPU cost from its GPU
-cost, which is currently the weakest part of the model.
+The most valuable single contribution is one game on one system across all
+three resolutions: that is the only thing that separates a game's CPU cost
+from its GPU cost. See [CALIBRATION.md](CALIBRATION.md) for current standing,
+known gaps and what is worth measuring next.
 
 ## 🤝 Contributing
 
