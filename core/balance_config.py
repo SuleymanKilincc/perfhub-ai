@@ -29,11 +29,16 @@ BOTTLENECK_BLEND_K = 4.0
 GPU_MS_CONST = 2.65
 CPU_MS_CONST = 2.25
 
-# power_score is not linear in real throughput. An RTX 4090 (102) is roughly
-# 2.6x an RTX 4060 (54) once the CPU is out of the way, which needs an
+# power_score is not linear in real throughput. An RTX 4090 (99) is roughly
+# 3.2x an RTX 4060 (54) once the CPU is out of the way, which needs an
 # exponent well above 1. Gaming CPU performance is far more compressed, so
 # its curve stays near linear.
-GPU_PERF_EXPONENT = 1.54
+#
+# Raised from 1.54 after checking the scores against a published 1440p
+# hierarchy: all 48 cards covered were predicted too fast relative to the
+# RTX 5090, so the ladder was compressed rather than individually noisy.
+# See scripts/calibrate_gpu_scores.py.
+GPU_PERF_EXPONENT = 1.85
 CPU_PERF_EXPONENT = 0.60
 REF_SCORE = 100.0          # score that maps to 1.0x performance
 
@@ -81,8 +86,8 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # Multipliers on GPU frame-time cost, plus the extra VRAM the BVH and
 # denoisers need. Path tracing is a different order of magnitude, not a
 # heavier RT preset.
-RT_GPU_COST_MULT = 1.34
-PT_GPU_COST_MULT = 2.62
+RT_GPU_COST_MULT = 1.62
+PT_GPU_COST_MULT = 2.74
 RT_VRAM_ADD_GB = 1.10
 PT_VRAM_ADD_GB = 1.90
 # RT also adds BVH build/update work on the CPU.
@@ -122,9 +127,9 @@ FG_OUTPUT_MULTIPLIER = {
 }
 # Fraction of the rendered frame's GPU time spent generating the extra frames.
 FG_GPU_OVERHEAD = {
-    "2x": 0.60,
-    "3x": 0.72,
-    "4x": 0.84,
+    "2x": 0.35,
+    "3x": 0.53,
+    "4x": 0.71,
 }
 FG_VRAM_ADD_GB = {
     "2x": 1.0,

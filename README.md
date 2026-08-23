@@ -58,17 +58,24 @@ of the same GPU. Current standing against that set:
 
 | Metric | Value |
 |---|---|
-| Mean absolute error | **9.8%** |
-| Systematic bias | −1.3% |
-| Within 20% of measured | 85% |
+| Mean absolute error | **9.0%** |
+| Systematic bias | −1.2% |
+| Within 20% of measured | 84% |
 
 RTX 4090 + Ryzen 7 7800X3D in Cyberpunk 2077 at Ultra, native, no ray tracing:
 
 | Resolution | Predicted | Measured |
 |---|---|---|
-| 1080p | 139 fps | 140 fps |
-| 1440p | 110 fps | 125 fps |
-| 4K | 61 fps | 60 fps |
+| 1080p | 142 fps | 140 fps |
+| 1440p | 117 fps | 125 fps |
+| 4K | 66 fps | 60 fps |
+
+Hardware scores are held to the same standard. Checking the 164 GPUs against a
+published performance hierarchy found the ladder systematically compressed —
+every one of the 48 cards covered was predicted too fast relative to an
+RTX 5090 — and correcting it resolved a measurement contradiction that had
+been logged as unexplained. `scripts/calibrate_gpu_scores.py` re-runs that
+check.
 
 `scripts/validate_engine.py` reports that error on demand and
 `scripts/calibrate_engine.py` refits the constants, so a tuning change can be
