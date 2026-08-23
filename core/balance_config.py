@@ -98,7 +98,7 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # denoisers need. Path tracing is a different order of magnitude, not a
 # heavier RT preset.
 RT_GPU_COST_MULT = 1.62
-PT_GPU_COST_MULT = 2.74
+PT_GPU_COST_MULT = 2.98
 RT_VRAM_ADD_GB = 1.10
 PT_VRAM_ADD_GB = 1.90
 # RT also adds BVH build/update work on the CPU.

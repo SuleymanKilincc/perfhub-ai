@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 104 |
+| Measurements in `benchmarks` table | 106 |
 | Mean absolute error | **9.0%** (44.8% before any calibration) |
-| Systematic bias | −1.1% |
+| Systematic bias | −0.7% |
 | Within 10% of measured | 73% |
 | Within 20% of measured | 84% |
 
@@ -35,7 +35,7 @@ Fitted in `core/balance_config.py` from the batches noted below.
 | `VRAM_SPILL_SEVERITY` | 2.6 | 0.50 | 8GB vs 16GB pairs |
 | `VRAM_SPILL_FLOOR` | 0.22 | 0.80 | 8GB vs 16GB pairs |
 | `RT_GPU_COST_MULT` | 1.80 | 1.62 | games measured RT on and off |
-| `PT_GPU_COST_MULT` | 3.10 | 2.74 | Alan Wake 2 with and without PT |
+| `PT_GPU_COST_MULT` | 3.10 | 2.98 | Alan Wake 2 and Cyberpunk, PT on and off |
 | `FG_GPU_OVERHEAD` | .22/.31/.38 | .35/.53/.71 | GTA V Enhanced 2x/3x/4x ladder |
 
 Three findings worth remembering:
@@ -231,11 +231,13 @@ Visible in the validation output; none of these are hidden.
    above. 195 of the 220 are modelled rather than measured, and the model's own
    error against the reference is 3.4 points, so treat individual CPUs outside
    the reference 25 as estimates.
-9. **One benchmark row looks wrong.** Cyberpunk 2077, 1440p Ultra native on an
-   RTX 4070 is recorded at 52 fps, which puts it below an RX 9060 XT 16GB (67)
-   and only 16% above an RTX 3060 Ti (45); the reference hierarchy puts the
-   4070 above both, at 1.52x the 3060 Ti. It is now the third-worst prediction
-   in the set. Worth re-checking the source before trusting it.
+9. ~~One benchmark row looks wrong.~~ **Resolved.** The Cyberpunk RTX 4070 row
+   was re-measured: 65 fps, not 52. The re-run also produced an RT Ultra and a
+   path-traced figure with VRAM readings for all three, which is where
+   `PT_GPU_COST_MULT` moved from 2.74 to 2.98 and Cyberpunk's VRAM working set
+   from 6.8 to 4.8 GB. The engine still predicts all three of those rows 12-25%
+   high, so the 4070 is not fully settled — but it is no longer inverted
+   against the cards around it.
 
 ## Next measurements needed
 
@@ -244,7 +246,6 @@ it is the only thing that separates a game's CPU cost from its GPU cost.
 
 - **Far Cry 6 without the HD texture pack**, to separate the pack's cost from
   the base game.
-- **Cyberpunk 2077, 1440p Ultra native on an RTX 4070**, to settle gap 9.
 - **A frame generation ladder on a second game**, for gap 7 — the overhead is
   currently fitted from GTA V Enhanced alone.
 - **A CPU ladder at 1080p on a CPU-bound game, reaching the low end** — a
