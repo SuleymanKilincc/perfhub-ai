@@ -219,10 +219,11 @@ def _extract_hardware(cpu_data, gpu_data):
     if "apple" in gpu_name.lower():
         vram = 64
 
-    # AMD's 3D V-Cache is a gaming-specific win that power_score doesn't carry.
-    if "X3D" in cpu_name.upper():
-        cpu_score *= 1.18
-
+    # A 1.18x bonus for 3D V-Cache used to be applied here, because
+    # power_score was a throughput rating and did not carry a gaming-only win.
+    # It does now — the CPU scores are a 1080p gaming index, and the model that
+    # fills in the unmeasured chips has its own fitted 1.23x X3D multiplier, so
+    # applying it again here counted it twice.
     return cpu_score, cpu_name, gpu_score, gpu_name, vram
 
 

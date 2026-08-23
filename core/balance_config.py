@@ -39,7 +39,18 @@ CPU_MS_CONST = 2.25
 # RTX 5090, so the ladder was compressed rather than individually noisy.
 # See scripts/calibrate_gpu_scores.py.
 GPU_PERF_EXPONENT = 1.85
-CPU_PERF_EXPONENT = 0.60
+
+# CPU power_score is now a 1080p gaming index rather than a throughput rating
+# (see scripts/calibrate_cpu_scores.py), so it is already proportional to frame
+# rate and needs no curve: 1.0 is the definition, not a fit.
+#
+# It was 0.60, which existed to flatten scores that ranked all-core throughput
+# — they had a Core Ultra 9 285K above a Ryzen 7 9800X3D. The benchmark set
+# cannot currently argue either way: a nested refit across exponents from 0.45
+# to 1.20 moves the error by half a point, because 74 of the 104 measurements
+# use a 7800X3D or a 9800X3D and nothing below a 5700X was ever measured. A
+# CPU ladder reaching the low end would settle it.
+CPU_PERF_EXPONENT = 1.00
 REF_SCORE = 100.0          # score that maps to 1.0x performance
 
 # ─── Resolution ─────────────────────────────────────────────────────────────

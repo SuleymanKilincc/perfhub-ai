@@ -481,101 +481,19 @@ def add_new_gpus():
     print(f"Added {added_count} new GPUs to database.")
 
 def fix_power_scores():
-    """Fixes power scores based on real benchmark data."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # CPU score adjustments based on Cinebench R23 Multi-Core (gaming-oriented)
-    cpu_fixes = {
-        # Apple Silicon - reduce scores (gaming performance is lower than desktop CPUs)
-        "Apple M5 Max": 75.0,      # was 105
-        "Apple M4 Max": 72.0,      # was 100
-        "Apple M5 Pro": 68.0,      # was 95
-        "Apple M4 Pro": 65.0,      # was 90
-        "Apple M5": 58.0,          # was 85
-        "Apple M2 Max": 62.0,      # was 85
-        "Apple M3 Max": 68.0,      # was 92
-        "Apple M3 Pro": 60.0,      # was 82
-        "Apple M2 Ultra": 70.0,    # was 98
-        "Apple M1 Ultra": 65.0,    # was 88
-        "Apple M1 Max": 58.0,      # was 78
-        "Apple M1 Pro": 52.0,      # was 68
-        "Apple M2": 48.0,          # was 65
-        "Apple M1": 42.0,          # was 58
-        
-        # Intel adjustments
-        "Intel Core i9-14900KS": 97.0,  # was 98 (slight adjustment)
-        "Intel Core i9-14900K": 94.0,   # was 95
-        "Intel Core i7-14700K": 85.0,   # was 88
-        "Intel Core i7-13700K": 82.0,   # was 85
-        "Intel Core i5-14600K": 72.0,   # was 75 (if exists)
-        
-        # AMD adjustments
-        "AMD Ryzen 9 7950X3D": 97.0,   # was 96 (X3D gaming advantage)
-        "AMD Ryzen 9 7950X": 93.0,     # was 94
-        "AMD Ryzen 9 7900X3D": 92.0,   # was 91
-        "AMD Ryzen 7 7800X3D": 90.0,   # was 89 (excellent gaming CPU)
-        "AMD Ryzen 7 7800X3D": 90.0,   # was 89
-        
-        # Ryzen 9000 adjustments
-        "AMD Ryzen 9 9950X": 96.0,     # was 98 (slight adjustment)
-        "AMD Ryzen 9 9900X": 90.0,     # was 92
-        "AMD Ryzen 7 9800X3D": 95.0,   # was 94 (X3D gaming advantage)
-        "AMD Ryzen 7 9700X": 82.0,     # was 85
-        "AMD Ryzen 5 9600X": 74.0,     # was 78
-    }
-    
-    # GPU score adjustments based on 3DMark Time Spy Graphics
-    gpu_fixes = {
-        # RTX 50 series adjustments
-        "NVIDIA GeForce RTX 5090": 108.0,  # was 105 (flagship)
-        "NVIDIA GeForce RTX 5080": 97.0,    # was 95
-        
-        # RX 9000 series adjustments
-        "AMD Radeon RX 9070 XT": 92.0,     # was 90
-        "AMD Radeon RX 9070": 87.0,        # was 85
-        
-        # RTX 40 series adjustments
-        "NVIDIA GeForce RTX 4090": 102.0,   # was 100
-        "NVIDIA GeForce RTX 4080 SUPER": 97.0,  # was 96
-        "NVIDIA GeForce RTX 4080": 93.0,    # was 92
-        "NVIDIA GeForce RTX 4070 Ti SUPER": 90.0,  # was 88
-        "NVIDIA GeForce RTX 4070 Ti": 85.0,     # was 84
-        "NVIDIA GeForce RTX 4070 SUPER": 81.0,   # was 80
-        "NVIDIA GeForce RTX 4070": 73.0,        # was 72
-        
-        # RX 7000 series adjustments
-        "AMD Radeon RX 7900 XTX": 94.0,    # was 92
-        "AMD Radeon RX 7900 XT": 90.0,     # was 88
-        "AMD Radeon RX 7900 GRE": 84.0,    # was 82
-        "AMD Radeon RX 7800 XT": 79.0,     # was 78
-        "AMD Radeon RX 7700 XT": 69.0,     # was 68
-        "AMD Radeon RX 7600 XT": 53.0,     # was 52
-        "AMD Radeon RX 7600": 50.0,        # was 52 (was too high)
-        
-        # Intel Arc adjustments
-        "Intel Arc B580": 60.0,             # was 62
-        "Intel Arc B570": 52.0,             # was 55
-        "Intel Arc A770": 52.0,             # was 55
-        "Intel Arc A750": 45.0,             # was 48
-    }
-    
-    updated_count = 0
-    for cpu_name, new_score in cpu_fixes.items():
-        cursor.execute("UPDATE cpus SET power_score = ? WHERE name = ?", (new_score, cpu_name))
-        if cursor.rowcount > 0:
-            updated_count += 1
-            print(f"Updated CPU: {cpu_name} -> {new_score}")
-    
-    for gpu_name, new_score in gpu_fixes.items():
-        cursor.execute("UPDATE gpus SET power_score = ? WHERE name = ?", (new_score, gpu_name))
-        if cursor.rowcount > 0:
-            updated_count += 1
-            print(f"Updated GPU: {gpu_name} -> {new_score}")
-    
-    conn.commit()
-    conn.close()
-    print(f"Updated {updated_count} hardware scores.")
+    """
+    Removed. This used to overwrite power_score with hand-written values keyed
+    to Cinebench R23 multi-core — the metric that put a Core Ultra 9 285K above
+    a Ryzen 7 9800X3D, when the engine only ever asks these scores about games.
+    Both ladders now come from published gaming hierarchies via
+    scripts/calibrate_cpu_scores.py and scripts/calibrate_gpu_scores.py, so
+    running this would undo them.
+    """
+    raise RuntimeError(
+        "fix_power_scores() kaldirildi. Donanim puanlari icin "
+        "scripts/calibrate_cpu_scores.py ve scripts/calibrate_gpu_scores.py "
+        "kullanin.")
+
 
 def add_new_games():
     """Adds new games with calibrated difficulty multipliers based on real benchmarks."""
@@ -694,10 +612,6 @@ if __name__ == "__main__":
     add_new_cpus()
     print("\nAdding new GPUs...")
     add_new_gpus()
-    
-    # Fix power scores
-    print("\nFixing power scores...")
-    fix_power_scores()
     
     # Add new games
     print("\nAdding new games...")

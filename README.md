@@ -59,7 +59,7 @@ of the same GPU. Current standing against that set:
 | Metric | Value |
 |---|---|
 | Mean absolute error | **9.0%** |
-| Systematic bias | −1.2% |
+| Systematic bias | −1.1% |
 | Within 20% of measured | 84% |
 
 RTX 4090 + Ryzen 7 7800X3D in Cyberpunk 2077 at Ultra, native, no ray tracing:
@@ -73,9 +73,12 @@ RTX 4090 + Ryzen 7 7800X3D in Cyberpunk 2077 at Ultra, native, no ray tracing:
 Hardware scores are held to the same standard. Checking the 164 GPUs against a
 published performance hierarchy found the ladder systematically compressed —
 every one of the 48 cards covered was predicted too fast relative to an
-RTX 5090 — and correcting it resolved a measurement contradiction that had
-been logged as unexplained. `scripts/calibrate_gpu_scores.py` re-runs that
-check.
+RTX 5090 — and correcting it resolved a measurement contradiction that had been
+logged as unexplained. The 220 CPUs were worse: they ranked all-core
+throughput, so a Core Ultra 9 285K outscored a Ryzen 7 9800X3D, which is the
+reverse of how they behave in games. They are now a 1080p gaming index.
+`scripts/calibrate_gpu_scores.py` and `scripts/calibrate_cpu_scores.py` re-run
+both checks.
 
 `scripts/validate_engine.py` reports that error on demand and
 `scripts/calibrate_engine.py` refits the constants, so a tuning change can be
@@ -97,13 +100,13 @@ judged rather than argued about.
 
 ### Hardware database
 - **220 CPUs** — Intel Core / Core Ultra / Xeon, AMD Ryzen & Threadripper,
-  Apple Silicon
+  Apple Silicon, scored on 1080p gaming rather than all-core throughput
 - **164 GPUs** — NVIDIA GTX 700 through RTX 50, AMD Polaris through RDNA 4,
   Intel Arc, plus integrated graphics
 - **177 games** — per-title CPU and GPU cost, VRAM and RAM working sets,
   RT/PT and DLSS/FSR/XeSS support flags
-- Laptop and desktop parts are distinguished, and workstation chips are scored
-  for gaming rather than all-core throughput
+- Laptop and desktop parts are distinguished, and a laptop chip is never
+  allowed to outscore the desktop part it is named after
 
 ### AI assistance
 - Hardware consulting and upgrade suggestions in Turkish or English

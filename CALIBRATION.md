@@ -12,8 +12,8 @@ context.
 | Engine | Cadence 1.0 |
 | Measurements in `benchmarks` table | 104 |
 | Mean absolute error | **9.0%** (44.8% before any calibration) |
-| Systematic bias | −1.2% |
-| Within 10% of measured | 70% |
+| Systematic bias | −1.1% |
+| Within 10% of measured | 73% |
 | Within 20% of measured | 84% |
 
 The set now covers resolution sweeps, GPU and CPU ladders, preset ladders,
@@ -30,7 +30,7 @@ Fitted in `core/balance_config.py` from the batches noted below.
 |---|---|---|---|
 | `RES_PIXEL_EXPONENT` | 0.78 | 0.82 | resolution sweeps |
 | `GPU_PERF_EXPONENT` | 1.40 | 1.85 | published 1440p hierarchy, 46 cards |
-| `CPU_PERF_EXPONENT` | 1.00 | 0.60 | CPU ladder |
+| `CPU_PERF_EXPONENT` | 0.60 | 1.00 | definition, once the scores meant gaming |
 | `CPU_MS_CONST` | 2.65 | 2.25 | CPU ladder |
 | `VRAM_SPILL_SEVERITY` | 2.6 | 0.50 | 8GB vs 16GB pairs |
 | `VRAM_SPILL_FLOOR` | 0.22 | 0.80 | 8GB vs 16GB pairs |
@@ -40,9 +40,9 @@ Fitted in `core/balance_config.py` from the batches noted below.
 
 Three findings worth remembering:
 
-- **Gaming CPU performance is far more compressed than `power_score`
-  suggests.** A 7800X3D and an i5-14600K are ~13% apart in CS2, not the gap
-  their scores imply. Hence the sub-1.0 exponent.
+- **The CPU scores were measuring the wrong thing.** They ranked all-core
+  throughput, and the sub-1.0 exponent existed to flatten the damage. Both are
+  fixed; see the CPU section below.
 - **VRAM overflow does not collapse modern games.** Measured 8GB-vs-16GB
   ratios on the same RTX 4060 Ti ranged 0.38–0.95; the first model predicted
   0.29 where reality was 0.95. Engines drop texture streaming quality instead
@@ -136,6 +136,75 @@ recorded before this work started and the fix came from an unrelated source.
 Overall effect on the benchmark set: 9.8% → 9.0% mean error, and predictions
 within 10% of measured rose from 65% to 70%.
 
+## CPU power_score
+
+The same check applied to the CPUs found a worse problem. Against a published
+1080p gaming hierarchy the mean error was 13.3 points, against the GPUs' 7.2 —
+and unlike the GPUs the errors were not just large but *out of order*. A Core
+Ultra 9 285K scored 96 and a Ryzen 7 9800X3D scored 95, when in games the 285K
+is well behind it. The values ranked all-core throughput, which is not what
+this engine ever asks them for.
+
+Two causes, both measurable in the residuals: score rose with core count
+(+0.68 points per core, 6-core chips +6.2 out, 24-core +20.3) and 3D V-Cache
+was not credited (X3D parts +6.7, everything else +16.9).
+
+An exponent cannot repair an ordering, so `scripts/calibrate_cpu_scores.py`
+rebuilds the scores. Twenty-five come straight from the reference; the other
+195 come from a model fitted to those 25:
+
+```
+index = K x IPC(architecture) x clock x X3D x (min(cores, 8) / 8)^0.25
+```
+
+Clock and the core term are pinned rather than fitted. Every CPU in the
+reference runs between 4.4 and 5.7 GHz, so a free fit cannot see what clock
+does — it lands on an exponent of 0.15, which would then score a 3.5 GHz chip
+from 2016 as if clock were nearly free. Frame time is inversely proportional to
+clock at fixed IPC, so 1.0 is both the physically right answer and the safe one
+to extrapolate with. It costs accuracy in-sample (2.1 → 3.4 points) and buys
+correctness out of it.
+
+That leaves architecture IPC and the X3D multiplier to fit. The fit is
+recognisable rather than arbitrary, which is the reassuring part: the X3D
+multiplier came out at 1.23x against the 15-25% gaming uplift 3D V-Cache is
+known for, and Arrow Lake landed below Raptor Lake on IPC, which is exactly its
+reputation. Six architectures are covered by the reference; the rest are
+chained off the two fitted anchors using published generational IPC steps and
+are marked as estimates in `ARCH_IPC`.
+
+`CPU_PERF_EXPONENT` goes 0.60 → 1.00. The score is now a gaming index, so it is
+already proportional to frame rate and needs no curve — 1.0 is the definition
+rather than a fit. The benchmark set cannot argue either way here: a nested
+refit across exponents from 0.45 to 1.20 moves the total error by half a point,
+because 74 of the 104 measurements use a 7800X3D or a 9800X3D and nothing below
+a 5700X was ever measured.
+
+Two consequences elsewhere, both of which were live bugs the moment the scores
+changed meaning:
+
+- `scoring_engine` multiplied X3D chips by 1.18 "because power_score doesn't
+  carry it". It does now, so that was counting it twice. Removed.
+- `db_manager.fix_power_scores()` overwrote scores with hand-written values
+  keyed to Cinebench R23 multi-core — the very metric that caused this. It ran
+  from the module's `__main__` block, so anyone initialising the database would
+  have silently undone the calibration. Removed.
+
+**This did not improve the benchmark error, and could not have.** It stayed at
+9.0%, because the measurement set has almost no CPU diversity to exercise. The
+change shows up in the catalogue instead. Counter-Strike 2, 1080p Low, RTX 4090:
+
+| CPU | score | before | after |
+|---|---|---|---|
+| Ryzen 7 9800X3D | 95 → 97 | 909 | 954 |
+| Core Ultra 9 285K | 96 → 72 | 837 | 627 |
+| Ryzen 7 5800X3D | 74 → 63 | 794 | 647 |
+| Ryzen 9 5950X | 82 → 56 | 767 | 490 |
+
+The 285K sat 8% behind the 9800X3D and is now 34% behind, which is roughly
+where it actually sits. The 5950X, a 16-core productivity part, is no longer
+presented as near-flagship for gaming.
+
 ## Known gaps
 
 Visible in the validation output; none of these are hidden.
@@ -158,10 +227,10 @@ Visible in the validation output; none of these are hidden.
 7. **Frame generation is the weakest part of the model**, at 21.7% error over
    16 measurements against 9.0% overall. The Cyberpunk 4K DLSS Quality + 2x
    row predicts 174 against 123 measured.
-8. **CPU `power_score` has not been validated.** Same problem the GPU scores
-   had, and `CPU_PERF_EXPONENT` at 0.60 is suspiciously far from linear —
-   part of that is real (gaming CPU performance is compressed) and part may be
-   the exponent absorbing bad scores, exactly as 1.54 was doing for the GPUs.
+8. ~~CPU `power_score` has not been validated.~~ **Resolved**; see the section
+   above. 195 of the 220 are modelled rather than measured, and the model's own
+   error against the reference is 3.4 points, so treat individual CPUs outside
+   the reference 25 as estimates.
 9. **One benchmark row looks wrong.** Cyberpunk 2077, 1440p Ultra native on an
    RTX 4070 is recorded at 52 fps, which puts it below an RX 9060 XT 16GB (67)
    and only 16% above an RTX 3060 Ti (45); the reference hierarchy puts the
@@ -178,8 +247,11 @@ it is the only thing that separates a game's CPU cost from its GPU cost.
 - **Cyberpunk 2077, 1440p Ultra native on an RTX 4070**, to settle gap 9.
 - **A frame generation ladder on a second game**, for gap 7 — the overhead is
   currently fitted from GTA V Enhanced alone.
-- **A CPU ladder at 1080p on a CPU-bound game**, to validate CPU scores the
-  way the hierarchy validated the GPU ones.
+- **A CPU ladder at 1080p on a CPU-bound game, reaching the low end** — a
+  Ryzen 5 5600 or an i5-12400F alongside one of the X3D chips already measured.
+  This is the single most valuable CPU measurement: 74 of the 104 rows use a
+  7800X3D or a 9800X3D, which is why `CPU_PERF_EXPONENT` had to be chosen on
+  principle rather than fitted.
 - **Older cards at a fixed setting** — a GTX 1660 Super, RTX 2060 or RX 580
   against a card in the reference set. The score correction above stops at the
   RTX 3050 because no data reaches below it.
@@ -198,6 +270,8 @@ python scripts/validate_engine.py          # report accuracy against measurement
 python scripts/validate_engine.py --add    # record one measurement interactively
 python scripts/calibrate_gpu_scores.py     # check GPU scores against reference
 python scripts/calibrate_gpu_scores.py --apply
+python scripts/calibrate_cpu_scores.py     # rebuild CPU scores as a gaming index
+python scripts/calibrate_cpu_scores.py --apply
 python scripts/calibrate_vram.py --apply   # fit VRAM working sets
 python scripts/calibrate_engine.py         # fit costs and multipliers (dry run)
 python scripts/calibrate_engine.py --apply
