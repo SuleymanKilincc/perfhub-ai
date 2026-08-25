@@ -43,6 +43,11 @@ export type Game = {
   difficulty_multiplier?: number | null;
   res_1080p_scaling?: number | null;
   ram_sensitivity?: number | null;
+  // Carried on the catalogue row but not used by the model: these describe
+  // what frame rate is *enough*, which is a presentation question, not a
+  // prediction one. See scripts/curate_games.py.
+  competitive?: number | null;
+  target_fps?: number | null;
 };
 
 export type Estimate = {

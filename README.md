@@ -1,7 +1,7 @@
 # 🚀 PerfHub AI
 
 Hardware analysis and FPS prediction for PC gaming — pick a CPU, GPU and RAM
-configuration and see what frame rates to expect across 177 games.
+configuration and see what frame rates to expect across 176 games.
 
 [![Live Demo](https://img.shields.io/badge/live%20demo-perfhub.suleymankilinc.com-66FCF1)](https://perfhub.suleymankilinc.com)
 ![Version](https://img.shields.io/badge/version-5.1.0-blue)
@@ -89,7 +89,7 @@ judged rather than argued about.
 ## ✨ Features
 
 ### Gaming & performance
-- **FPS prediction** across 177 games, from Very Low to Extreme presets
+- **FPS prediction** across 176 games, from Very Low to Extreme presets
   (clamped per game — a title only offers the tiers it really ships)
 - **Upscaling** — DLSS, FSR and XeSS, applied to rendered pixels, with a
   warning when the selected game does not support the chosen technology
@@ -105,7 +105,7 @@ judged rather than argued about.
   Apple Silicon, scored on 1080p gaming rather than all-core throughput
 - **164 GPUs** — NVIDIA GTX 700 through RTX 50, AMD Polaris through RDNA 4,
   Intel Arc, plus integrated graphics
-- **177 games** — per-title CPU and GPU cost, VRAM and RAM working sets,
+- **176 games** — per-title CPU and GPU cost, VRAM and RAM working sets,
   RT/PT and DLSS/FSR/XeSS support flags
 - Laptop and desktop parts are distinguished, and a laptop chip is never
   allowed to outscore the desktop part it is named after
@@ -194,7 +194,7 @@ choose **More info → Run anyway**.
 
 ## 🔬 Improving accuracy
 
-Twenty of the 177 games have cost profiles fitted to real measurements. The
+Twenty-one of the 176 games have cost profiles fitted to real measurements. The
 rest still carry values derived from the previous model and blended with genre
 priors — reasonable starting points, not measurements — so the accuracy figure
 above describes the measured set rather than the whole catalog.

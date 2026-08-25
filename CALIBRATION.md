@@ -54,8 +54,8 @@ Three findings worth remembering:
 
 ## Games with calibrated cost profiles
 
-Twenty of the catalog's 177 games now have `gpu_cost`, `cpu_cost` and
-`vram_base_gb` fitted to measurements. The remaining ~157 still carry values
+Twenty-one of the catalog's 176 games now have `gpu_cost`, `cpu_cost` and
+`vram_base_gb` fitted to measurements. The remaining ~155 still carry values
 derived from the old model's hand-tuned scalings and should be treated as
 rough — the accuracy figure above applies to the measured set, not to the
 whole catalog.
@@ -222,7 +222,7 @@ Visible in the validation output; none of these are hidden.
    ~4 GB spilling to system RAM. The engine predicts 19 fps against 10.
 5. **Ray Reconstruction is not modelled**; the one measurement using it is
    recorded as RT + DLSS Quality.
-6. **~157 games remain uncalibrated.** The plan is to derive genre-level
+6. **~155 games remain uncalibrated.** The plan is to derive genre-level
    corrections from the calibrated twenty rather than measure every title.
 7. **Frame generation is the weakest part of the model**, at 21.7% error over
    16 measurements against 9.0% overall. The Cyberpunk 4K DLSS Quality + 2x
@@ -256,7 +256,7 @@ it is the only thing that separates a game's CPU cost from its GPU cost.
 - **Older cards at a fixed setting** — a GTX 1660 Super, RTX 2060 or RX 580
   against a card in the reference set. The score correction above stops at the
   RTX 3050 because no data reaches below it.
-- More games from the uncalibrated ~157, prioritising ones whose genre is not
+- More games from the uncalibrated ~155, prioritising ones whose genre is not
   yet represented.
 
 Record with every measurement: resolution, preset, ray tracing state,
@@ -279,6 +279,7 @@ python scripts/calibrate_engine.py --apply
 python scripts/load_benchmarks.py          # bulk-load batch 1
 python scripts/load_benchmarks_2.py        # bulk-load batch 2
 
+python scripts/curate_games.py --apply     # catalogue hygiene: junk, genres, targets
 python scripts/export_engine_data.py       # push constants + catalogue to the web build
 python scripts/conformance_test.py         # prove Python and TypeScript agree
 ```

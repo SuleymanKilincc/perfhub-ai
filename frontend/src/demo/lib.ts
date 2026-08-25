@@ -1,72 +1,67 @@
 /**
- * Target frame rates and search for the prototype.
+ * Frame-rate targets and search.
  */
 import { games } from "../engine/catalog";
 
 /**
- * What counts as "enough" frames, per genre.
+ * What "enough frames" means, per game.
  *
- * A single global threshold is the thing that makes frame-rate colour coding
- * lie: 60 fps is a good result in a narrative RPG and a bad one in Counter-
- * Strike. The judgement belongs to the game, so the UI shows the number
- * against this rather than against a constant.
+ * This used to be derived from genre here in the UI, which was wrong twice
+ * over: 73 of the games had no genre at all and silently fell back to 60, and
+ * genre is only a proxy for the thing that decides it — whether the game is
+ * competitive. DOOM and Counter-Strike are both "FPS" and want completely
+ * different frame rates.
  *
- * Two caveats, both real:
- *
- * 1. 73 of the 180 games have no genre at all, and the taxonomy that does
- *    exist overlaps ("FPS", "Shooter" and "Action" are not distinct). Those
- *    fall back to 60. It shows in the UI — League of Legends currently gets 60
- *    when it plainly wants 144.
- * 2. Genre is a proxy for the thing that actually matters, which is whether
- *    the game is competitive multiplayer. Single-player shooters are filed
- *    under "FPS" and get 144 here, which is too strict; Doom at 90 fps is
- *    fine. A `competitive` flag would beat genre outright.
- *
- * Both are data jobs rather than model ones, and unlike power_score these are
- * documented facts rather than measurements, so they are low risk to fill in.
+ * Both are now settled in the database by scripts/curate_games.py, which fills
+ * every genre, flags the 21 games that are actually ranked or esports play, and
+ * writes `target_fps`. So this just reads it.
  */
-const TARGET_BY_GENRE: Record<string, number> = {
-  FPS: 144,
-  Shooter: 144,
-  Fighting: 120,
-  Racing: 120,
-  Metroidvania: 90,
-  Roguelike: 90,
-  Sports: 90,
-  Action: 72,
-  "Action Adventure": 72,
-  Horror: 72,
-  Stealth: 72,
-  Survival: 72,
-  Sandbox: 72,
-  RPG: 60,
-  Simulation: 60,
-  Strategy: 60,
-  Puzzle: 60,
-};
-
 export const DEFAULT_TARGET = 60;
 
-export function targetFps(genre: string | null | undefined): number {
-  return (genre && TARGET_BY_GENRE[genre]) || DEFAULT_TARGET;
+export function targetFps(game: { target_fps?: number | null }): number {
+  return game.target_fps || DEFAULT_TARGET;
 }
 
 /** Below this, nothing is enjoyable regardless of genre. */
 export const PLAYABLE_FLOOR = 25;
 
-export type Verdict = "over" | "at" | "under" | "bad";
+/**
+ * Verdict, and the one place colour is allowed to encode quality.
+ *
+ * The usual objection to green/orange/red on a frame rate is that the
+ * threshold is a lie — 60 fps is a good result in an RPG and a poor one in
+ * Counter-Strike. That objection is answered by measuring against the game's
+ * own target rather than a constant, so the traffic light here is comparing
+ * like with like: green means this game reached what this game needs.
+ */
+export type Verdict = "good" | "close" | "poor" | "bad";
 
 export function verdict(fps: number, target: number, status: string): Verdict {
   if (status === "unplayable" || fps < PLAYABLE_FLOOR) return "bad";
-  if (fps >= target * 1.5) return "over";
-  if (fps >= target * 0.92) return "at";
-  return "under";
+  const ratio = fps / target;
+  if (ratio >= 0.95) return "good";
+  if (ratio >= 0.7) return "close";
+  return "poor";
 }
+
+export const VERDICT_COLOR: Record<Verdict, string> = {
+  good: "var(--green)",
+  close: "var(--orange)",
+  poor: "var(--red)",
+  bad: "var(--red)",
+};
+
+export const VERDICT_LABEL: Record<Verdict, string> = {
+  good: "hedefte",
+  close: "hedefe yakın",
+  poor: "hedefin altında",
+  bad: "oynanamaz",
+};
 
 // ─── Search ──────────────────────────────────────────────────────────────────
 
 /** Turkish letters fold onto their ASCII neighbours so "ı" matches "i". */
-function normalise(s: string): string {
+export function normalise(s: string): string {
   return s
     .toLocaleLowerCase("tr")
     .replace(/ı/g, "i").replace(/ş/g, "s").replace(/ğ/g, "g")

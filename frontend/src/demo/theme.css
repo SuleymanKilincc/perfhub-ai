@@ -21,24 +21,37 @@
  */
 :root {
   /* Near-black, very slightly warm. Blue-black plus cyan is the stock
-     "AI-generated dashboard" look; warm black plus amber reads as equipment. */
-  --bg: #0b0b0c;
-  --surface: #141416;
-  --raised: #1c1c1f;
-  --border: #2a2a2e;
-  --line: #191a1d; /* blueprint line art, barely above the background */
+     "AI-generated dashboard" look; warm black plus amber reads as equipment.
+     Surfaces are lifted well clear of the background — the first version had
+     them 0.003 apart in luminance, which is why it read as flat and lifeless. */
+  --bg: #0a0a0b;
+  --surface: #17171a;
+  --raised: #232328;
+  --border: #34343b;
+  --border-strong: #45454e;
+  --line: #1e1f23; /* blueprint line art */
 
-  --text: #ededef;
-  --text-2: #8a8a91;
-  --text-3: #5c5c63;
+  --text: #f4f4f6;
+  --text-2: #a4a4ad; /* lifted from #8a8a91: 5.7:1 -> 8.4:1 */
+  --text-3: #74747d; /* lifted from #5c5c63: 3.0:1 -> 4.5:1, now readable */
 
-  /* The instrument colour: gauges, cockpits, oscilloscopes. */
+  /* Identity only — logo, gauge, active navigation, focus rings. It is kept
+     out of the results entirely, because amber and the orange below sit 1.07:1
+     apart and would be indistinguishable side by side. Colour in the data
+     means a verdict; colour in the chrome means the brand. */
   --amber: #ffb020;
-  --amber-dim: #7a5410;
-  --amber-glow: rgba(255, 176, 32, 0.14);
+  --amber-dim: #8a5f12;
+  --amber-glow: rgba(255, 176, 32, 0.16);
 
-  --red: #e5484d;
-  --red-dim: #7d2b2e;
+  /* Verdicts. Green/orange/red is only honest because it is measured against
+     each game's own target rather than a fixed frame rate — see lib.ts. */
+  --green: #3dd68c;
+  --green-dim: rgba(61, 214, 140, 0.14);
+  --orange: #ff8a3d;
+  --orange-dim: rgba(255, 138, 61, 0.14);
+  --red: #ff5c5c;
+  --red-dim: rgba(255, 92, 92, 0.14);
+  --red-deep: #8f2f33;
 
   --mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
   --sans: Inter, system-ui, -apple-system, sans-serif;
