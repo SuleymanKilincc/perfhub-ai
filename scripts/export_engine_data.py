@@ -38,7 +38,7 @@ GAME_COLUMNS = [
     "id", "name", "genre", "gpu_cost", "cpu_cost", "vram_base_gb", "ram_base_gb",
     "tier_min", "tier_max", "fps_cap", "supports_rt", "supports_pt",
     "supports_dlss", "supports_fsr", "supports_xess",
-    "competitive", "target_fps", "steam_appid", "flags_verified",
+    "competitive", "target_fps", "cover_url", "flags_verified",
 ]
 CPU_COLUMNS = ["name", "cores", "threads", "boost_clock", "architecture", "power_score"]
 GPU_COLUMNS = ["name", "vram", "architecture", "power_score"]

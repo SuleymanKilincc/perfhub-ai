@@ -43,16 +43,19 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (PerfHub catalogue linker)"}
 # Not on Steam, so there is nothing to look for. Listed explicitly rather than
 # left to fail, so a missing match always means something went wrong.
 NOT_ON_STEAM = {
-    "Valorant", "League of Legends", "Fortnite", "Apex Legends",
-    "Overwatch 2", "Call of Duty: Warzone", "Minecraft RTX",
-    "Forza Horizon 5", "Forza Horizon 6", "Forza Motorsport",
-    "Microsoft Flight Simulator", "Microsoft Flight Simulator 2024",
-    "Diablo IV", "World of Warcraft", "Destiny 2", "Rocket League",
-    "Marvel Rivals", "Delta Force", "Lost Ark", "Warframe",
-    "Genshin Impact", "EA FC 25", "EA Sports FC 26", "Battlefield 2042",
-    "Call of Duty: Black Ops 6", "Call of Duty: Modern Warfare III",
-    "Fall Guys",  # delisted from Steam when it moved to the Epic store
-    "Escape from Tarkov",  # own launcher only
+    # Genuinely absent, each for its own reason. The first version of this list
+    # was far too broad — it assumed anything with a publisher launcher was not
+    # on Steam, which cost cover art for Battlefield 2042, Marvel Rivals, the
+    # Call of Duty titles, Apex Legends, Destiny 2, Diablo IV, Overwatch 2 and
+    # Forza Horizon 5, all of which have been on Steam for years.
+    "Valorant",             # Riot client only
+    "League of Legends",    # Riot client only
+    "Fortnite",             # Epic only
+    "World of Warcraft",    # Battle.net only
+    "Minecraft RTX",        # Minecraft launcher
+    "Rocket League",        # delisted when it moved to Epic
+    "Fall Guys",            # delisted when it moved to Epic
+    "Escape from Tarkov",   # own launcher only
 }
 
 # Where the catalogue name and the Steam name genuinely differ.
@@ -79,6 +82,13 @@ OVERRIDE = {
     "Metro Exodus Enhanced": 1449560,
     "Warhammer 40K: Darktide": 1361210,
     "Warhammer 40K: Space Marine 2": 2183900,
+    # The search hands back the 2018 game for the sequel, and both are in the
+    # catalogue, so they ended up sharing a cover.
+    "God of War Ragnarok": 2322010,
+    "God of War": 1593500,
+    # Two separate simulators, one prefix.
+    "Microsoft Flight Simulator": 1250410,
+    "Microsoft Flight Simulator 2024": 2537590,
 }
 
 
@@ -107,23 +117,48 @@ CDN = ("https://shared.cloudflare.steamstatic.com/store_item_assets/"
        "steam/apps/{}/header.jpg")
 
 
-def has_cover(appid):
-    """
-    Confirm the image actually exists before storing the id.
+DETAILS = "https://store.steampowered.com/api/appdetails?appids={}&l=english"
 
-    Name matching alone is not enough: the search happily returned appid
-    3932890 for Escape from Tarkov, which is not on Steam at all, and that id
-    has no header image. Trusting the match would have shipped a row with a
-    broken image and no fallback, because the fallback only triggers when the
-    id is absent. So every candidate is fetched once, here, where it is cheap
-    to be wrong.
-    """
+
+def head_ok(url):
     try:
-        req = urllib.request.Request(CDN.format(appid), headers=HEADERS, method="HEAD")
+        req = urllib.request.Request(url, headers=HEADERS, method="HEAD")
         with urllib.request.urlopen(req, timeout=15) as r:
             return r.status == 200 and r.headers.get("Content-Type", "").startswith("image/")
     except Exception:
         return False
+
+
+def cover_url(appid):
+    """
+    The image URL for an app, or None if it has none.
+
+    Two reasons this is not just string formatting. Name matching is fallible —
+    the search returned appid 3932890 for Escape from Tarkov, which is not on
+    Steam at all and has no image, and a stored id suppresses the monogram
+    fallback, so the row would have shown a broken image and nothing else.
+
+    And the URL scheme is not uniform: newer entries live under a hashed path,
+    `.../apps/{id}/{hash}/header.jpg`, which cannot be constructed. Death
+    Stranding 2, F1 25, Pragmata and Resident Evil Requiem all resolved to
+    valid ids whose predictable URL 404s. So the guessable URL is tried first
+    because it is one cheap request, and the store API is asked only when that
+    fails.
+    """
+    guess = CDN.format(appid)
+    if head_ok(guess):
+        return guess
+    try:
+        req = urllib.request.Request(DETAILS.format(appid), headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=25) as r:
+            entry = json.loads(r.read().decode("utf-8")).get(str(appid), {})
+        if entry.get("success"):
+            url = entry["data"].get("header_image")
+            if url and head_ok(url):
+                return url
+    except Exception:
+        pass
+    return None
 
 
 def grade(name, candidates):
@@ -143,19 +178,24 @@ def grade(name, candidates):
     return None, "none"
 
 
-def main(apply_changes):
+def main(apply_changes, only_missing=False):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     conn = db_manager.get_connection()
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
     cols = {r[1] for r in cur.execute("PRAGMA table_info(games)")}
-    if "steam_appid" not in cols:
-        print("  yeni sutun: steam_appid" + ("" if apply_changes else "  (kuru calisma)"))
-        if apply_changes:
-            cur.execute("ALTER TABLE games ADD COLUMN steam_appid INTEGER")
+    for col, decl in (("steam_appid", "INTEGER"), ("cover_url", "TEXT")):
+        if col not in cols:
+            print(f"  yeni sutun: {col}" + ("" if apply_changes else "  (kuru calisma)"))
+            if apply_changes:
+                cur.execute(f"ALTER TABLE games ADD COLUMN {col} {decl}")
 
-    rows = [dict(r) for r in cur.execute("SELECT id, name FROM games ORDER BY name")]
+    rows = [dict(r) for r in cur.execute(
+        "SELECT id, name, cover_url FROM games ORDER BY name")]
+    if only_missing:
+        rows = [r for r in rows if not r["cover_url"]]
+        print(f"  yalnizca gorseli olmayan {len(rows)} oyun taranacak")
     results = {"exact": [], "close": [], "weak": [], "none": [], "skip": [],
                "manual": [], "broken": []}
 
@@ -163,29 +203,32 @@ def main(apply_changes):
         name = r["name"]
         if name in OVERRIDE:
             appid = OVERRIDE[name]
-            if not has_cover(appid):
+            url = cover_url(appid)
+            if not url:
                 results["broken"].append((name, appid))
                 continue
             results["manual"].append((name, appid))
             if apply_changes:
-                cur.execute("UPDATE games SET steam_appid=? WHERE id=?", (appid, r["id"]))
+                cur.execute("UPDATE games SET steam_appid=?, cover_url=? WHERE id=?",
+                            (appid, url, r["id"]))
             continue
         if name in NOT_ON_STEAM:
             results["skip"].append((name, None))
             continue
 
         appid, quality = grade(name, search(name))
-        if appid and quality in ("exact", "close") and not has_cover(appid):
-            quality = "broken"
-            results.setdefault("broken", []).append((name, appid))
+        url = cover_url(appid) if appid and quality in ("exact", "close") else None
+        if appid and quality in ("exact", "close") and not url:
+            results["broken"].append((name, appid))
             appid = None
         else:
             results[quality].append((name, appid))
         # Only exact and close matches are trusted enough to store. A weak match
         # is usually a sequel or a soundtrack, and a wrong cover is worse than
         # no cover.
-        if apply_changes and quality in ("exact", "close"):
-            cur.execute("UPDATE games SET steam_appid=? WHERE id=?", (appid, r["id"]))
+        if apply_changes and url:
+            cur.execute("UPDATE games SET steam_appid=?, cover_url=? WHERE id=?",
+                        (appid, url, r["id"]))
         time.sleep(0.25)
         if i % 25 == 0:
             print(f"  … {i}/{len(rows)}")
@@ -222,4 +265,7 @@ def main(apply_changes):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
-    main(ap.parse_args().apply)
+    ap.add_argument("--only-missing", action="store_true",
+                    help="skip games that already have a cover, for cheap re-runs")
+    args = ap.parse_args()
+    main(args.apply, args.only_missing)

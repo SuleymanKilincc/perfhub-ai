@@ -22,25 +22,32 @@ export function targetFps(game: { target_fps?: number | null }): number {
   return game.target_fps || DEFAULT_TARGET;
 }
 
+/**
+ * Sixty frames a second: the line below which a result is a genuine problem
+ * rather than merely short of an ambition.
+ *
+ * This is what red is reserved for, and the reason is about how the page reads
+ * rather than about the model. Judging purely against each game's own target
+ * turned most of a mid-range build's library red, because a competitive
+ * shooter wants 144 and missing that by a third is arithmetically "poor" — but
+ * 100 fps in Marvel Rivals is not a problem, and painting it the same colour
+ * as 22 fps in Cities: Skylines II wastes the only signal the page has. A page
+ * that is mostly red says nothing except that the reader should feel bad.
+ *
+ * So red means "below 60, this will not feel good", orange means "runs fine,
+ * just short of what this genre wants", and green means it got there.
+ */
+export const RED_BELOW = 60;
+
 /** Below this, nothing is enjoyable regardless of genre. */
 export const PLAYABLE_FLOOR = 25;
 
-/**
- * Verdict, and the one place colour is allowed to encode quality.
- *
- * The usual objection to green/orange/red on a frame rate is that the
- * threshold is a lie — 60 fps is a good result in an RPG and a poor one in
- * Counter-Strike. That objection is answered by measuring against the game's
- * own target rather than a constant, so the traffic light here is comparing
- * like with like: green means this game reached what this game needs.
- */
 export type Verdict = "good" | "close" | "poor" | "bad";
 
 export function verdict(fps: number, target: number, status: string): Verdict {
   if (status === "unplayable" || fps < PLAYABLE_FLOOR) return "bad";
-  const ratio = fps / target;
-  if (ratio >= 0.95) return "good";
-  if (ratio >= 0.7) return "close";
+  if (fps >= target * 0.95) return "good";
+  if (fps >= RED_BELOW) return "close";
   return "poor";
 }
 
@@ -53,8 +60,8 @@ export const VERDICT_COLOR: Record<Verdict, string> = {
 
 export const VERDICT_LABEL: Record<Verdict, string> = {
   good: "hedefte",
-  close: "hedefe yakın",
-  poor: "hedefin altında",
+  close: "hedefin altında",
+  poor: "60 fps altı",
   bad: "oynanamaz",
 };
 

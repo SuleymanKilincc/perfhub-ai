@@ -45,6 +45,10 @@ REMOVE = {
         "duplicate of Prince of Persia: The Lost Crown",
     "Portal RTX":
         "duplicate of Portal with RTX, which is the shipped name",
+    "Microsoft Flight Simulator 2020":
+        "duplicate — the 2020 release is titled just Microsoft Flight "
+        "Simulator, which is already in the catalogue with three measurements "
+        "behind it, while this row carried cloned costs and none",
     "Gran Turismo 7":
         "PlayStation exclusive, no PC release — same class of error as Forza "
         "Motorsport 2, found because the Steam linker could not match it",
@@ -153,7 +157,6 @@ GENRE = {
     "Helldivers 2": "Co-op Shooter",                # was Shooter
     "Forza Motorsport": "Racing Sim",
     "Assetto Corsa Competizione": "Racing Sim",
-    "Gran Turismo 7": "Racing Sim",
     "F1 2024": "Racing Sim",
     "Forza Horizon 5": "Arcade Racing",
     "Forza Horizon 6": "Arcade Racing",

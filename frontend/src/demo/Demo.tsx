@@ -643,7 +643,7 @@ function Cover({ game, size = 108, eager }: { game: Game; size?: number; eager?:
   const [failed, setFailed] = useState(false);
   const h = size * 0.47;  // Steam header images are 460x215
 
-  if (game.steam_appid && !failed) {
+  if (game.cover_url && !failed) {
     return (
       <div style={{
         width: size, height: h, borderRadius: 9, flexShrink: 0, overflow: "hidden",
@@ -651,7 +651,11 @@ function Cover({ game, size = 108, eager }: { game: Game; size?: number; eager?:
         boxShadow: "var(--shadow-sm)",
       }}>
         <img
-          src={`https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.steam_appid}/header.jpg`}
+          // The full URL is stored rather than built from the app id: newer
+          // Steam entries live under a hashed path that cannot be constructed,
+          // which is why Death Stranding 2 and F1 25 had valid ids and no
+          // image. See scripts/link_steam_apps.py.
+          src={game.cover_url}
           alt=""
           loading={eager ? "eager" : "lazy"}
           onError={() => setFailed(true)}
