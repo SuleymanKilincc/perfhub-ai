@@ -48,6 +48,8 @@ export type Game = {
   // prediction one. See scripts/curate_games.py.
   competitive?: number | null;
   target_fps?: number | null;
+  steam_appid?: number | null;
+  flags_verified?: number | null;
 };
 
 export type Estimate = {

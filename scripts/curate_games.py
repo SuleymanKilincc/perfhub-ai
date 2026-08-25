@@ -45,6 +45,9 @@ REMOVE = {
         "duplicate of Prince of Persia: The Lost Crown",
     "Portal RTX":
         "duplicate of Portal with RTX, which is the shipped name",
+    "Gran Turismo 7":
+        "PlayStation exclusive, no PC release — same class of error as Forza "
+        "Motorsport 2, found because the Steam linker could not match it",
 }
 
 RENAME = {
@@ -162,6 +165,52 @@ GENRE = {
     "Starfield": "RPG",
 }
 
+# Upscaling, frame generation and ray tracing support, corrected.
+#
+# These are per-game facts and they were wrong in both directions: Portal with
+# RTX, which exists to demonstrate path tracing, was marked as not having it,
+# while Grand Theft Auto V Enhanced was marked as having it when it only has
+# ray tracing. Elden Ring and F1 25 both shipped ray tracing and were marked
+# without.
+#
+# Only entries being changed are listed. Each is a documented feature of a
+# shipped game, not a judgement — but this is a correction pass over the ones
+# that were visibly wrong, not a verified audit of all 176. The rest still
+# carry whatever they were seeded with, and `flags_verified` marks the
+# difference so the interface can be honest about it.
+FLAGS = {
+    #                        rt pt dlss fsr xess
+    "Portal with RTX":       (1, 1, 1, 0, 0),
+    "Quake II RTX":          (1, 1, 0, 0, 0),   # predates DLSS 2 in that build
+    "Minecraft RTX":         (1, 1, 1, 0, 0),
+    "Grand Theft Auto V Enhanced": (1, 0, 1, 1, 0),  # RT yes, path tracing no
+    "Pragmata":              (1, 0, 1, 1, 1),   # unreleased; PT was a guess
+    "Black Myth: Wukong":    (1, 1, 1, 1, 1),   # "Full Ray Tracing" is PT
+    "Cyberpunk 2077":        (1, 1, 1, 1, 1),
+    "Alan Wake 2":           (1, 1, 1, 1, 1),
+    "Indiana Jones and the Great Circle": (1, 1, 1, 1, 0),
+    "Elden Ring":            (1, 0, 0, 0, 0),   # RT added in 1.09, no upscalers
+    "F1 25":                 (1, 0, 1, 1, 1),
+    "F1 2024":               (1, 0, 1, 1, 1),
+    "Red Dead Redemption 2": (0, 0, 1, 1, 0),   # DLSS 2 added, no RT
+    "Counter-Strike 2":      (0, 0, 0, 0, 0),
+    "Valorant":              (0, 0, 0, 0, 0),
+    "Dota 2":                (0, 0, 0, 0, 0),
+    "League of Legends":     (0, 0, 0, 0, 0),
+    "Rocket League":         (0, 0, 0, 0, 0),
+    "Apex Legends":          (0, 0, 0, 0, 0),
+    "Escape from Tarkov":    (0, 0, 1, 0, 0),
+    "The Witcher 3: Wild Hunt": (0, 0, 0, 0, 0),
+    "The Witcher 3 Next-Gen":   (1, 0, 1, 1, 0),
+    "Stardew Valley":        (0, 0, 0, 0, 0),
+    "Terraria":              (0, 0, 0, 0, 0),
+    "Hollow Knight":         (0, 0, 0, 0, 0),
+    "Among Us":              (0, 0, 0, 0, 0),
+    "Vampire Survivors":     (0, 0, 0, 0, 0),
+    "Civilization VI":       (0, 0, 0, 0, 0),
+    "Balatro":               (0, 0, 0, 0, 0),
+}
+
 # What "enough frames" means, by genre, for games that are not competitive.
 # Competitive play overrides all of this at 144.
 TARGET_BY_GENRE = {
@@ -224,7 +273,29 @@ def main(apply_changes):
             if apply_changes:
                 cur.execute("UPDATE games SET name=? WHERE id=?", (new, by_name[old]["id"]))
 
-    print("\n=== 3. TUR VE REKABET BAYRAGI ===")
+    print("\n=== 3. OZELLIK BAYRAKLARI ===")
+    if "flags_verified" not in cols and apply_changes:
+        cur.execute("ALTER TABLE games ADD COLUMN flags_verified INTEGER DEFAULT 0")
+    changed = 0
+    for name, want in FLAGS.items():
+        row = by_name.get(name)
+        if not row or name in REMOVE:
+            continue
+        before = tuple(cur.execute(
+            "SELECT supports_rt, supports_pt, supports_dlss, supports_fsr,"
+            " supports_xess FROM games WHERE id=?", (row["id"],)).fetchone())
+        if before != want:
+            changed += 1
+            print(f"  {name[:34]:34s} {before} -> {want}")
+        if apply_changes:
+            cur.execute(
+                "UPDATE games SET supports_rt=?, supports_pt=?, supports_dlss=?,"
+                " supports_fsr=?, supports_xess=?, flags_verified=1 WHERE id=?",
+                (*want, row["id"]))
+    print(f"  {changed} oyunun bayraklari duzeltildi; {len(FLAGS)} oyun "
+          f"dogrulanmis isaretlendi, kalani seed degerinde")
+
+    print("\n=== 4. TUR VE REKABET BAYRAGI ===")
     filled = fixed = comp = 0
     for r in rows:
         if r["name"] in REMOVE:

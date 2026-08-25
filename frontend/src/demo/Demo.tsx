@@ -8,7 +8,6 @@ import Picker from "./Picker";
 const RESOLUTIONS = ["1080p", "1440p", "4k"];
 const PRESETS = ["Low", "Medium", "High", "Ultra"];
 const RAM = [8, 16, 32, 64];
-const UPSCALING = ["Native", "DLAA", "DLSS Quality", "DLSS Balanced", "DLSS Performance"];
 
 type Phase = "build" | "results";
 
@@ -205,8 +204,11 @@ function Stage({ phase, children }: { phase: Phase; children: React.ReactNode })
       <Blueprint dim={!building} />
       <div style={{
         position: "relative",
-        width: building ? "min(1180px, 92%)" : "100%",
-        height: building ? "min(700px, 84%)" : "100%",
+        width: building ? "min(1340px, 95%)" : "100%",
+        // The stand hangs below the bezel, so its height has to come out of
+        // the budget too — otherwise the monitor fits and the stand pushes
+        // the whole page into a scrollbar, which is what happened at 720p.
+        height: building ? "min(820px, calc(100% - 76px))" : "100%",
         transition: "width 620ms var(--ease), height 620ms var(--ease)",
       }}>
         <div style={{
@@ -229,7 +231,7 @@ function Stage({ phase, children }: { phase: Phase; children: React.ReactNode })
 
         <div style={{
           position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
-          width: 150, height: building ? 54 : 0,
+          width: 150, height: building ? 40 : 0,
           background: "linear-gradient(var(--raised), var(--surface))",
           borderRadius: "0 0 12px 12px",
           opacity: building ? 1 : 0,
@@ -299,29 +301,33 @@ function Builder(p: {
   onPreset: (s: string) => void; onSubmit: () => void;
 }) {
   return (
-    <div style={{ padding: "44px 56px", height: "100%", overflowY: "auto" }}>
+    <div style={{ padding: "26px 48px", height: "100%", overflowY: "auto" }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <div style={{
-          fontSize: 13, letterSpacing: "0.24em", color: "var(--amber)",
-          fontFamily: "var(--mono)", marginBottom: 14,
+          fontSize: 12.5, letterSpacing: "0.24em", color: "var(--amber)",
+          fontFamily: "var(--mono)", marginBottom: 10,
         }}>CADENCE 1.0</div>
         {/* Big. This screen has no data on it to protect, so the restraint that
             keeps the results list readable buys nothing here — it only made the
             product look like a form. */}
+        {/* Two lines, not three: at 1280x720 the taller version pushed the
+            button past the bottom of the monitor and the whole screen had to
+            be scrolled, which is not what a five-field form should ask for. */}
         <h1 style={{
-          fontSize: 52, fontWeight: 600, letterSpacing: "-0.04em",
-          margin: 0, lineHeight: 1.02,
+          fontSize: 34, fontWeight: 600, letterSpacing: "-0.03em",
+          margin: 0, lineHeight: 1.08,
         }}>
-          Donanımını seç,<br />
-          <span style={{ color: "var(--text-2)" }}>{p.total} oyunun kaç kare</span>
-          <br />vereceğini gör.
+          Donanımını seç,{" "}
+          <span style={{ color: "var(--text-2)" }}>
+            {p.total} oyunun kaç kare vereceğini gör.
+          </span>
         </h1>
-        <p style={{ color: "var(--text-2)", margin: "22px 0 38px", fontSize: 16.5, lineHeight: 1.65, maxWidth: 520 }}>
+        <p style={{ color: "var(--text-2)", margin: "12px 0 22px", fontSize: 15, lineHeight: 1.55, maxWidth: 580 }}>
           Çözünürlük ve preset tüm listeyi belirler. Ray tracing, upscaling ve
-          frame generation oyun başına, detay panelinden.
+          frame generation oyun başına.
         </p>
 
-        <div style={{ display: "grid", gap: 20 }}>
+        <div style={{ display: "grid", gap: 13 }}>
           <Field label="İşlemci">
             <Picker
               items={cpus.map((c) => ({ value: c.name, label: c.name, meta: String(c.power_score) }))}
@@ -344,7 +350,7 @@ function Builder(p: {
             />
           </Field>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr", gap: 14 }}>
             <Field label="RAM">
               <Segmented value={String(p.ram)} onChange={(v) => p.onRam(Number(v))}
                 options={RAM.map((r) => ({ value: String(r), label: `${r}` }))} />
@@ -364,7 +370,7 @@ function Builder(p: {
           onClick={p.onSubmit}
           disabled={!p.ready}
           style={{
-            marginTop: 34, width: "100%", padding: "17px 0", borderRadius: 12,
+            marginTop: 22, width: "100%", padding: "15px 0", borderRadius: 12,
             border: "1px solid " + (p.ready ? "var(--amber)" : "var(--border)"),
             background: p.ready ? "var(--amber)" : "transparent",
             color: p.ready ? "#170F02" : "var(--text-3)",
@@ -408,7 +414,7 @@ function Results(p: {
           everywhere — it comes from a lot of room in one place and very little
           in the rest, which is the thing the first pass got wrong. */}
       <header style={{
-        padding: compact ? "18px 36px" : "44px 36px 40px",
+        padding: compact ? "16px 36px" : "30px 36px 28px",
         borderBottom: "1px solid var(--border)",
         background: "var(--lift)", flexShrink: 0, overflow: "hidden",
         transition: "padding 380ms var(--ease)",
@@ -416,7 +422,7 @@ function Results(p: {
         <div style={{ maxWidth: WIDTH, margin: "0 auto" }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 18,
-            marginBottom: compact ? 0 : 26,
+            marginBottom: compact ? 0 : 20,
             transition: "margin-bottom 380ms var(--ease)",
           }}>
             <button onClick={p.onBack} style={{
@@ -441,9 +447,13 @@ function Results(p: {
             </div>
           </div>
 
+          {/* Grid, not a wrapping flex row: at 1280 wide the two blocks were
+              837px against 855px of space and the arc dropped below the
+              headline, making the hero *taller* on the screens that could
+              least afford it. Here the headline gives way instead. */}
           <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            gap: 40, flexWrap: "wrap",
+            display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto",
+            alignItems: "center", gap: 32,
             maxHeight: compact ? 0 : 300,
             opacity: compact ? 0 : 1,
             transition: "max-height 380ms var(--ease), opacity 240ms var(--ease)",
@@ -454,8 +464,8 @@ function Results(p: {
                 fontFamily: "var(--mono)",
               }}>KÜTÜPHANE DURUMU</div>
               <h1 style={{
-                fontSize: 46, fontWeight: 600, letterSpacing: "-0.035em",
-                margin: "10px 0 0", lineHeight: 1.05, maxWidth: 460,
+                fontSize: 36, fontWeight: 600, letterSpacing: "-0.03em",
+                margin: "8px 0 0", lineHeight: 1.08,
               }}>
                 {p.total} oyunun{" "}
                 <span style={{ color: "var(--green)" }}>{p.summary.good}</span>
@@ -553,7 +563,7 @@ function SummaryArc({ summary, total }: {
   const pct = total ? Math.round((summary.good / total) * 100) : 0;
   const sweep = 220;
   const start = 180 + (360 - sweep) / 2;
-  const R = 78;
+  const R = 64;
   const polar = (deg: number, r: number) => {
     const rad = ((deg - 90) * Math.PI) / 180;
     return [110 + r * Math.cos(rad), 110 + r * Math.sin(rad)] as const;
@@ -576,8 +586,8 @@ function SummaryArc({ summary, total }: {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
-      <div style={{ position: "relative", width: 220, height: 150, flexShrink: 0 }}>
-        <svg width="220" height="150" viewBox="0 0 220 150" aria-hidden>
+      <div style={{ position: "relative", width: 190, height: 124, flexShrink: 0 }}>
+        <svg width="190" height="124" viewBox="20 26 180 118" aria-hidden>
           <path d={arc(start, start + sweep, R)} fill="none"
             stroke="var(--raised)" strokeWidth="13" strokeLinecap="round" />
           {segs.map((s, i) => {
@@ -591,15 +601,15 @@ function SummaryArc({ summary, total }: {
           })}
           <text x="110" y="112" textAnchor="middle" style={{
             fill: "var(--text)", fontFamily: "var(--mono)",
-            fontSize: 46, fontWeight: 600, letterSpacing: "-0.03em",
-          }}>{pct}<tspan style={{ fontSize: 20, fill: "var(--text-3)" }}>%</tspan></text>
+            fontSize: 40, fontWeight: 600, letterSpacing: "-0.03em",
+          }}>{pct}<tspan style={{ fontSize: 18, fill: "var(--text-3)" }}>%</tspan></text>
           <text x="110" y="134" textAnchor="middle" style={{
             fill: "var(--text-3)", fontSize: 11.5, letterSpacing: "0.22em",
           }}>HEDEFTE</text>
         </svg>
       </div>
 
-      <div style={{ display: "grid", gap: 14 }}>
+      <div style={{ display: "grid", gap: 11 }}>
         <Legend n={summary.good} label="hedefe ulaşıyor" color="var(--green)" />
         <Legend n={summary.close} label="hedefe yakın" color="var(--orange)" />
         <Legend n={summary.poor + summary.bad} label="hedefin altında" color="var(--red)" />
@@ -610,9 +620,9 @@ function SummaryArc({ summary, total }: {
 
 function Legend({ n, label, color }: { n: number; label: string; color: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+    <div style={{ display: "flex", alignItems: "baseline", gap: 11 }}>
       <span style={{ width: 9, height: 9, borderRadius: 3, background: color, flexShrink: 0 }} />
-      <span style={{ fontFamily: "var(--mono)", fontSize: 30, fontWeight: 600, color, minWidth: 52 }}>
+      <span style={{ fontFamily: "var(--mono)", fontSize: 26, fontWeight: 600, color, minWidth: 46 }}>
         {n}
       </span>
       <span style={{ fontSize: 15, color: "var(--text-2)" }}>{label}</span>
@@ -629,7 +639,33 @@ function Legend({ n, label, color }: { n: number; label: string; color: string }
  * verdict, and a wall of tinted squares would compete with the thing that
  * matters. Rhythm without noise.
  */
-function Monogram({ name }: { name: string }) {
+function Cover({ game, size = 108, eager }: { game: Game; size?: number; eager?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const h = size * 0.47;  // Steam header images are 460x215
+
+  if (game.steam_appid && !failed) {
+    return (
+      <div style={{
+        width: size, height: h, borderRadius: 9, flexShrink: 0, overflow: "hidden",
+        border: "1px solid var(--border)", background: "var(--raised)",
+        boxShadow: "var(--shadow-sm)",
+      }}>
+        <img
+          src={`https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.steam_appid}/header.jpg`}
+          alt=""
+          loading={eager ? "eager" : "lazy"}
+          onError={() => setFailed(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+      </div>
+    );
+  }
+  return <Monogram name={game.name} width={size} height={h} />;
+}
+
+function Monogram({ name, width = 52, height = 52 }: {
+  name: string; width?: number; height?: number;
+}) {
   const initials = name
     .replace(/^(The|A) /, "")
     .split(/[\s:]+/)
@@ -645,7 +681,7 @@ function Monogram({ name }: { name: string }) {
 
   return (
     <div style={{
-      width: 52, height: 52, borderRadius: 11, flexShrink: 0,
+      width, height, borderRadius: 9, flexShrink: 0,
       background: `linear-gradient(${h}deg, var(--raised), var(--surface))`,
       border: "1px solid var(--border)",
       display: "grid", placeItems: "center",
@@ -675,7 +711,7 @@ function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () =
       style={{
         ["--i" as string]: Math.min(index, 18),
         display: "grid", gridTemplateColumns: "1fr 190px 150px", alignItems: "center",
-        gap: 22, width: "100%", textAlign: "left", padding: "16px 18px",
+        gap: 22, width: "100%", textAlign: "left", padding: "13px 18px",
         background: "none", border: "1px solid transparent",
         borderBottom: "1px solid var(--border)", borderRadius: 12,
         transition: "background 160ms, transform 160ms var(--ease), border-color 160ms",
@@ -692,8 +728,8 @@ function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () =
         e.currentTarget.style.transform = "none";
       }}
     >
-      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 16 }}>
-        <Monogram name={row.name} />
+      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 18 }}>
+        <Cover game={row.game} eager={index < 12} />
         <div style={{ minWidth: 0 }}>
         <div style={{
           fontSize: 18, fontWeight: 500,
@@ -766,7 +802,20 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, onClose }: {
   const [rt, setRt] = useState(false);
   const [pt, setPt] = useState(false);
 
-  const fgOptions = getFgOptions(gpu.name);
+  // Only offer what this game actually has. The first version listed every
+  // DLSS mode on every game, so Valorant — which has no upscaler at all —
+  // appeared to support DLSS Performance. The engine handled it correctly and
+  // computed at native, but the interface was lying about the game.
+  const upscalers: string[] = ["Native"];
+  if (game.supports_dlss) upscalers.push("DLAA", "DLSS Quality", "DLSS Balanced", "DLSS Performance");
+  if (game.supports_fsr) upscalers.push("FSR Quality", "FSR Performance");
+  if (game.supports_xess) upscalers.push("XeSS Quality", "XeSS Balanced");
+
+  // Frame generation needs both a card that can do it and a game that ships
+  // it. DLSS 3 and FSR 3 frame generation come with their respective
+  // upscalers, so the game side is keyed off those.
+  const gameHasFg = !!(game.supports_dlss || game.supports_fsr);
+  const fgOptions = gameHasFg ? getFgOptions(gpu.name) : ["Kapalı"];
 
   const r = estimateFpsDetailed(
     { name: cpu.name, power_score: cpu.power_score },
@@ -827,15 +876,27 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, onClose }: {
             <Segmented value={set} onChange={setSet}
               options={PRESETS.map((x) => ({ value: x, label: x }))} />
           </Field>
-          <Field label="Upscaling">
-            <Segmented value={ups} onChange={setUps}
-              options={UPSCALING.map((x) => ({ value: x, label: x.replace("DLSS ", "") }))} />
-          </Field>
-          {fgOptions.length > 1 && (
+          {upscalers.length > 1 ? (
+            <Field label="Upscaling">
+              <Segmented value={ups} onChange={setUps}
+                options={upscalers.map((x) => ({
+                  value: x,
+                  label: x.replace("DLSS ", "").replace("FSR ", "").replace("XeSS ", ""),
+                }))} />
+            </Field>
+          ) : (
+            <Unsupported label="Upscaling" note="Bu oyunda upscaling yok" />
+          )}
+          {fgOptions.length > 1 ? (
             <Field label="Frame generation">
               <Segmented value={fg} onChange={setFg}
                 options={fgOptions.map((x) => ({ value: x, label: x }))} />
             </Field>
+          ) : (
+            <Unsupported
+              label="Frame generation"
+              note={gameHasFg ? "Bu ekran kartı desteklemiyor" : "Bu oyunda frame generation yok"}
+            />
           )}
           <div style={{ display: "flex", gap: 12 }}>
             <Toggle on={rt} disabled={!game.supports_rt} onClick={() => setRt(!rt)} label="Ray tracing" />
@@ -866,11 +927,24 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, onClose }: {
 
 // ─── Primitives ──────────────────────────────────────────────────────────────
 
+/** States plainly that a feature is absent, instead of offering it greyed out
+ *  or — worse — offering it as if it worked. */
+function Unsupported({ label, note }: { label: string; note: string }) {
+  return (
+    <Field label={label}>
+      <div style={{
+        padding: "12px 14px", borderRadius: 10, fontSize: 14,
+        border: "1px dashed var(--border)", color: "var(--text-3)",
+      }}>{note}</div>
+    </Field>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <div style={{
-        fontSize: 12, color: "var(--text-3)", marginBottom: 8,
+        fontSize: 11.5, color: "var(--text-3)", marginBottom: 6,
         textTransform: "uppercase", letterSpacing: "0.11em", fontWeight: 500,
       }}>{label}</div>
       {children}
