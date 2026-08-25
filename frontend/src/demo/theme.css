@@ -1,0 +1,90 @@
+/*
+ * Palette for the design prototype.
+ *
+ * Three layers, and the split is the whole point:
+ *
+ *   neutrals   ~90% of the page, carry no meaning
+ *   amber      identity and measurement only — gauge, focus, active nav
+ *   red        problems only, at two intensities
+ *
+ * Success gets no colour at all. A linter does not paint passing lines green,
+ * and neither should this: when 150 of 180 rows are fine, they stay quiet so
+ * the eye goes straight to the 30 that are not.
+ *
+ * The old theme failed by spending colour on decoration — cyan headings,
+ * purple tabs, green/orange/red frame rates, and a glow on all of it. Nothing
+ * could be read because everything was shouting.
+ *
+ * Contrast against --bg, measured: text 16.8:1, text-2 5.7:1, amber 10.8:1,
+ * red 5.0:1. text-3 is 3.0:1 and is therefore decorative only — unit labels
+ * and separators, never anything that has to be read.
+ */
+:root {
+  /* Near-black, very slightly warm. Blue-black plus cyan is the stock
+     "AI-generated dashboard" look; warm black plus amber reads as equipment. */
+  --bg: #0b0b0c;
+  --surface: #141416;
+  --raised: #1c1c1f;
+  --border: #2a2a2e;
+  --line: #191a1d; /* blueprint line art, barely above the background */
+
+  --text: #ededef;
+  --text-2: #8a8a91;
+  --text-3: #5c5c63;
+
+  /* The instrument colour: gauges, cockpits, oscilloscopes. */
+  --amber: #ffb020;
+  --amber-dim: #7a5410;
+  --amber-glow: rgba(255, 176, 32, 0.14);
+
+  --red: #e5484d;
+  --red-dim: #7d2b2e;
+
+  --mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: Inter, system-ui, -apple-system, sans-serif;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body, #demo-root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The faint technical grid that ties the loader and the app together. */
+.grid-bg {
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+button { font: inherit; color: inherit; cursor: pointer; }
+input, select { font: inherit; color: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover { background: #3a3a40; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
