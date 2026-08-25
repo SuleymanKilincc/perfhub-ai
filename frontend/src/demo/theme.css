@@ -57,6 +57,31 @@
   --sans: Inter, system-ui, -apple-system, sans-serif;
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Depth. The first pass had none of this — no gradient, no glow, no layering
+     — because stripping it was how the old neon theme got fixed. That was the
+     right move for the data and the wrong one everywhere else: with every
+     surface flat and every block the same size, the page read as a
+     spreadsheet. Restraint belongs where it protects something. */
+  --lift: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0));
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 16px 32px -8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 50px 100px -20px rgba(0, 0, 0, 0.85);
+}
+
+/* Staggered entrance for lists. --i is set per row. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.rise {
+  animation: rise 420ms var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 22ms);
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
 }
 
 * { box-sizing: border-box; }

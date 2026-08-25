@@ -301,10 +301,22 @@ function Builder(p: {
   return (
     <div style={{ padding: "44px 56px", height: "100%", overflowY: "auto" }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-0.02em", margin: 0 }}>
-          Sistemini kur
+        <div style={{
+          fontSize: 13, letterSpacing: "0.24em", color: "var(--amber)",
+          fontFamily: "var(--mono)", marginBottom: 14,
+        }}>CADENCE 1.0</div>
+        {/* Big. This screen has no data on it to protect, so the restraint that
+            keeps the results list readable buys nothing here — it only made the
+            product look like a form. */}
+        <h1 style={{
+          fontSize: 52, fontWeight: 600, letterSpacing: "-0.04em",
+          margin: 0, lineHeight: 1.02,
+        }}>
+          Donanımını seç,<br />
+          <span style={{ color: "var(--text-2)" }}>{p.total} oyunun kaç kare</span>
+          <br />vereceğini gör.
         </h1>
-        <p style={{ color: "var(--text-2)", margin: "10px 0 32px", fontSize: 16, lineHeight: 1.6 }}>
+        <p style={{ color: "var(--text-2)", margin: "22px 0 38px", fontSize: 16.5, lineHeight: 1.65, maxWidth: 520 }}>
           Çözünürlük ve preset tüm listeyi belirler. Ray tracing, upscaling ve
           frame generation oyun başına, detay panelinden.
         </p>
@@ -385,27 +397,73 @@ function Results(p: {
   sort: Sort; onSort: (s: Sort) => void;
   onBack: () => void; onOpen: (id: number) => void;
 }) {
+  // The hero is 322px, which is a third of the viewport. That is the right
+  // size to arrive on and the wrong size to read a list through, so it packs
+  // itself away once you start scrolling and comes back when you return.
+  const [compact, setCompact] = useState(false);
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <header style={{ padding: "24px 36px 20px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{
-          maxWidth: WIDTH, margin: "0 auto", display: "flex",
-          alignItems: "center", gap: 26, flexWrap: "wrap",
-        }}>
-          <button onClick={p.onBack} style={{
-            background: "var(--surface)", border: "1px solid var(--border)",
-            borderRadius: 10, padding: "10px 15px", fontSize: 14, color: "var(--text-2)",
-          }}>← Sistemi değiştir</button>
-
-          <div style={{ fontFamily: "var(--mono)", fontSize: 13.5, color: "var(--text-2)" }}>
-            {p.cpu.name} · {p.gpu.name} · {p.ram} GB ·{" "}
-            <span style={{ color: "var(--amber)" }}>{p.resolution} {p.preset}</span>
+      {/* Generous on purpose. "Spacious" does not come from even padding
+          everywhere — it comes from a lot of room in one place and very little
+          in the rest, which is the thing the first pass got wrong. */}
+      <header style={{
+        padding: compact ? "18px 36px" : "44px 36px 40px",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--lift)", flexShrink: 0, overflow: "hidden",
+        transition: "padding 380ms var(--ease)",
+      }}>
+        <div style={{ maxWidth: WIDTH, margin: "0 auto" }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 18,
+            marginBottom: compact ? 0 : 26,
+            transition: "margin-bottom 380ms var(--ease)",
+          }}>
+            <button onClick={p.onBack} style={{
+              background: "var(--surface)", border: "1px solid var(--border)",
+              borderRadius: 10, padding: "10px 15px", fontSize: 14, color: "var(--text-2)",
+            }}>← Sistemi değiştir</button>
+            <div style={{ fontFamily: "var(--mono)", fontSize: 13.5, color: "var(--text-2)" }}>
+              {p.cpu.name} · {p.gpu.name} · {p.ram} GB ·{" "}
+              <span style={{ color: "var(--amber)" }}>{p.resolution} {p.preset}</span>
+            </div>
+            {/* Collapsed, the counts move up here so the summary never leaves. */}
+            <div style={{
+              marginLeft: "auto", display: "flex", gap: 16, fontFamily: "var(--mono)",
+              fontSize: 17, fontWeight: 600,
+              opacity: compact ? 1 : 0,
+              transition: "opacity 240ms var(--ease)",
+              pointerEvents: compact ? "auto" : "none",
+            }}>
+              <span style={{ color: "var(--green)" }}>{p.summary.good}</span>
+              <span style={{ color: "var(--orange)" }}>{p.summary.close}</span>
+              <span style={{ color: "var(--red)" }}>{p.summary.poor + p.summary.bad}</span>
+            </div>
           </div>
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            <Chip n={p.summary.good} label="hedefte" color="var(--green)" />
-            <Chip n={p.summary.close} label="yakın" color="var(--orange)" />
-            <Chip n={p.summary.poor + p.summary.bad} label="sorunlu" color="var(--red)" />
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 40, flexWrap: "wrap",
+            maxHeight: compact ? 0 : 300,
+            opacity: compact ? 0 : 1,
+            transition: "max-height 380ms var(--ease), opacity 240ms var(--ease)",
+          }}>
+            <div>
+              <div style={{
+                fontSize: 13, letterSpacing: "0.24em", color: "var(--text-3)",
+                fontFamily: "var(--mono)",
+              }}>KÜTÜPHANE DURUMU</div>
+              <h1 style={{
+                fontSize: 46, fontWeight: 600, letterSpacing: "-0.035em",
+                margin: "10px 0 0", lineHeight: 1.05, maxWidth: 460,
+              }}>
+                {p.total} oyunun{" "}
+                <span style={{ color: "var(--green)" }}>{p.summary.good}</span>
+                {"'i "}
+                <span style={{ color: "var(--text-2)" }}>bu sistemde hedefinde çalışıyor.</span>
+              </h1>
+            </div>
+            <SummaryArc summary={p.summary} total={p.total} />
           </div>
         </div>
       </header>
@@ -447,7 +505,13 @@ function Results(p: {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div
+        style={{ flex: 1, overflowY: "auto" }}
+        onScroll={(e) => {
+          const y = (e.target as HTMLDivElement).scrollTop;
+          setCompact((c) => (c ? y > 30 : y > 90));  // hysteresis, so it does
+        }}                                            // not flicker at the edge
+      >
         <div style={{ maxWidth: WIDTH, margin: "0 auto", padding: "0 36px" }}>
           {(p.query || p.onlyProblems) && (
             <div style={{
@@ -463,7 +527,9 @@ function Results(p: {
               Eşleşen oyun yok.
             </div>
           ) : (
-            p.rows.map((r) => <GameRow key={r.id} row={r} onOpen={() => p.onOpen(r.id)} />)
+            p.rows.map((r, i) => (
+              <GameRow key={r.id} row={r} index={i} onOpen={() => p.onOpen(r.id)} />
+            ))
           )}
         </div>
       </div>
@@ -471,16 +537,122 @@ function Results(p: {
   );
 }
 
-function Chip({ n, label, color }: { n: number; label: string; color: string }) {
+/**
+ * The hero.
+ *
+ * The first version put this information in three small chips in a corner,
+ * which was accurate and completely forgettable. It is the answer to the
+ * question the user actually asked — can this machine play my games — so it
+ * gets the size that deserves. The arc reuses the loader's instrument
+ * language, which is what makes the two screens feel like one product.
+ */
+function SummaryArc({ summary, total }: {
+  summary: { good: number; close: number; poor: number; bad: number };
+  total: number;
+}) {
+  const pct = total ? Math.round((summary.good / total) * 100) : 0;
+  const sweep = 220;
+  const start = 180 + (360 - sweep) / 2;
+  const R = 78;
+  const polar = (deg: number, r: number) => {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return [110 + r * Math.cos(rad), 110 + r * Math.sin(rad)] as const;
+  };
+  const arc = (a: number, b: number, r: number) => {
+    if (b - a < 0.01) return "";
+    const [sx, sy] = polar(a, r);
+    const [ex, ey] = polar(b, r);
+    return `M ${sx} ${sy} A ${r} ${r} 0 ${b - a > 180 ? 1 : 0} 1 ${ex} ${ey}`;
+  };
+
+  // Each verdict takes the share of the arc it actually holds, so the ring is
+  // the distribution rather than a decoration wrapped around a number.
+  const segs = [
+    { n: summary.good, c: "var(--green)" },
+    { n: summary.close, c: "var(--orange)" },
+    { n: summary.poor + summary.bad, c: "var(--red)" },
+  ];
+  let cursor = start;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
+      <div style={{ position: "relative", width: 220, height: 150, flexShrink: 0 }}>
+        <svg width="220" height="150" viewBox="0 0 220 150" aria-hidden>
+          <path d={arc(start, start + sweep, R)} fill="none"
+            stroke="var(--raised)" strokeWidth="13" strokeLinecap="round" />
+          {segs.map((s, i) => {
+            const span = total ? (s.n / total) * sweep : 0;
+            const a = cursor;
+            cursor += span;
+            return span > 0.5 ? (
+              <path key={i} d={arc(a + 1, cursor - 1, R)} fill="none"
+                stroke={s.c} strokeWidth="13" strokeLinecap="round" />
+            ) : null;
+          })}
+          <text x="110" y="112" textAnchor="middle" style={{
+            fill: "var(--text)", fontFamily: "var(--mono)",
+            fontSize: 46, fontWeight: 600, letterSpacing: "-0.03em",
+          }}>{pct}<tspan style={{ fontSize: 20, fill: "var(--text-3)" }}>%</tspan></text>
+          <text x="110" y="134" textAnchor="middle" style={{
+            fill: "var(--text-3)", fontSize: 11.5, letterSpacing: "0.22em",
+          }}>HEDEFTE</text>
+        </svg>
+      </div>
+
+      <div style={{ display: "grid", gap: 14 }}>
+        <Legend n={summary.good} label="hedefe ulaşıyor" color="var(--green)" />
+        <Legend n={summary.close} label="hedefe yakın" color="var(--orange)" />
+        <Legend n={summary.poor + summary.bad} label="hedefin altında" color="var(--red)" />
+      </div>
+    </div>
+  );
+}
+
+function Legend({ n, label, color }: { n: number; label: string; color: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+      <span style={{ width: 9, height: 9, borderRadius: 3, background: color, flexShrink: 0 }} />
+      <span style={{ fontFamily: "var(--mono)", fontSize: 30, fontWeight: 600, color, minWidth: 52 }}>
+        {n}
+      </span>
+      <span style={{ fontSize: 15, color: "var(--text-2)" }}>{label}</span>
+    </div>
+  );
+}
+
+/**
+ * A tile per game, built from its initials.
+ *
+ * There is no cover art in the database and none to license, but a list of 176
+ * lines of text with nothing to look at is most of why this read as a
+ * spreadsheet. Deliberately monochrome: colour on this page already means a
+ * verdict, and a wall of tinted squares would compete with the thing that
+ * matters. Rhythm without noise.
+ */
+function Monogram({ name }: { name: string }) {
+  const initials = name
+    .replace(/^(The|A) /, "")
+    .split(/[\s:]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toLocaleUpperCase("tr");
+
+  // Deterministic tilt of the gradient so neighbouring tiles differ.
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+
   return (
     <div style={{
-      display: "flex", alignItems: "baseline", gap: 7,
-      background: "var(--surface)", border: "1px solid var(--border)",
-      borderRadius: 10, padding: "8px 13px",
-    }}>
-      <span style={{ fontFamily: "var(--mono)", fontSize: 19, fontWeight: 600, color }}>{n}</span>
-      <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>{label}</span>
-    </div>
+      width: 52, height: 52, borderRadius: 11, flexShrink: 0,
+      background: `linear-gradient(${h}deg, var(--raised), var(--surface))`,
+      border: "1px solid var(--border)",
+      display: "grid", placeItems: "center",
+      fontFamily: "var(--mono)", fontSize: 17, fontWeight: 600,
+      color: "var(--text-3)", letterSpacing: "-0.02em",
+      boxShadow: "var(--shadow-sm)",
+    }}>{initials}</div>
   );
 }
 
@@ -491,7 +663,7 @@ function Chip({ n, label, color }: { n: number; label: string; color: string }) 
  * against this game's own target rather than a fixed number — 60 fps is green
  * in an RPG and red in Counter-Strike, and both are correct.
  */
-function GameRow({ row, onOpen }: { row: Row; onOpen: () => void }) {
+function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () => void }) {
   const color = VERDICT_COLOR[row.v];
   const ratio = Math.min(1, row.fps / row.target);
   const warning = row.status && row.status !== "ok" && row.status !== "ram_short";
@@ -499,21 +671,35 @@ function GameRow({ row, onOpen }: { row: Row; onOpen: () => void }) {
   return (
     <button
       onClick={onOpen}
+      className="rise"
       style={{
-        display: "grid", gridTemplateColumns: "1fr 190px 130px", alignItems: "center",
-        gap: 22, width: "100%", textAlign: "left", padding: "17px 14px",
-        background: "none", border: "none", borderBottom: "1px solid var(--border)",
-        borderRadius: 8,
+        ["--i" as string]: Math.min(index, 18),
+        display: "grid", gridTemplateColumns: "1fr 190px 150px", alignItems: "center",
+        gap: 22, width: "100%", textAlign: "left", padding: "16px 18px",
+        background: "none", border: "1px solid transparent",
+        borderBottom: "1px solid var(--border)", borderRadius: 12,
+        transition: "background 160ms, transform 160ms var(--ease), border-color 160ms",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface)")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "var(--surface)";
+        e.currentTarget.style.borderColor = "var(--border)";
+        e.currentTarget.style.transform = "translateX(4px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "none";
+        e.currentTarget.style.borderColor = "transparent";
+        e.currentTarget.style.borderBottomColor = "var(--border)";
+        e.currentTarget.style.transform = "none";
+      }}
     >
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 16 }}>
+        <Monogram name={row.name} />
+        <div style={{ minWidth: 0 }}>
         <div style={{
-          fontSize: 17, fontWeight: 500,
+          fontSize: 18, fontWeight: 500,
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>{row.name}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 5 }}>
           <span style={{ fontSize: 13, color: "var(--text-3)" }}>{row.genre}</span>
           {row.game.competitive ? (
             <span style={{
@@ -533,26 +719,35 @@ function GameRow({ row, onOpen }: { row: Row; onOpen: () => void }) {
             </span>
           )}
         </div>
+        </div>
       </div>
 
       <div>
-        <div style={{ height: 7, background: "var(--raised)", borderRadius: 4, overflow: "hidden" }}>
-          <div style={{ width: `${ratio * 100}%`, height: "100%", background: color }} />
+        <div style={{
+          height: 8, background: "var(--raised)", borderRadius: 4, overflow: "hidden",
+          boxShadow: "inset 0 1px 2px rgba(0,0,0,0.5)",
+        }}>
+          <div style={{
+            width: `${ratio * 100}%`, height: "100%", background: color,
+            boxShadow: `0 0 12px ${color}`,
+          }} />
         </div>
         <div style={{
-          fontSize: 12, color: "var(--text-3)", marginTop: 7, fontFamily: "var(--mono)",
+          fontSize: 12, color: "var(--text-3)", marginTop: 8, fontFamily: "var(--mono)",
           display: "flex", justifyContent: "space-between",
         }}>
-          <span>{VERDICT_LABEL[row.v]}</span>
+          <span style={{ color }}>{VERDICT_LABEL[row.v]}</span>
           <span>hedef {row.target}</span>
         </div>
       </div>
 
+      {/* The number is the answer. It gets to be the biggest thing on the row. */}
       <div style={{ textAlign: "right" }}>
-        <span style={{ fontFamily: "var(--mono)", fontSize: 27, fontWeight: 600, color }}>
-          {row.fps}
-        </span>
-        <span style={{ fontSize: 12.5, color: "var(--text-3)", marginLeft: 5 }}>fps</span>
+        <span style={{
+          fontFamily: "var(--mono)", fontSize: 38, fontWeight: 600, color,
+          letterSpacing: "-0.035em", lineHeight: 1,
+        }}>{row.fps}</span>
+        <span style={{ fontSize: 13, color: "var(--text-3)", marginLeft: 6 }}>fps</span>
       </div>
     </button>
   );
