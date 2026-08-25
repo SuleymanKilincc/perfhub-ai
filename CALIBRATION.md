@@ -54,10 +54,10 @@ Three findings worth remembering:
 
 ## Games with calibrated cost profiles
 
-Twenty-one of the catalog's 176 games now have `gpu_cost`, `cpu_cost` and
-`vram_base_gb` fitted to measurements. The remaining ~155 still carry values
-derived from the old model's hand-tuned scalings and should be treated as
-rough — the accuracy figure above applies to the measured set, not to the
+Twenty-one of the catalog's 175 games now have `gpu_cost`, `cpu_cost` and
+`vram_base_gb` fitted to measurements. The remaining ~154 still carry values
+derived from the old model's hand-tuned scalings, or in one case an openly
+stated guess, and should be treated as rough — the accuracy figure above applies to the measured set, not to the
 whole catalog.
 
 A Plague Tale: Requiem · Alan Wake 2 · Baldur's Gate 3 · Black Myth: Wukong ·
@@ -246,6 +246,11 @@ it is the only thing that separates a game's CPU cost from its GPU cost.
 
 - **Far Cry 6 without the HD texture pack**, to separate the pack's cost from
   the base game.
+- **Microsoft Flight Simulator 2024**, which is in the catalogue with costs
+  that are openly a guess. They were derived from the calibrated 2020 profile
+  plus an uplift, because 2024 is a separate and much heavier game that was
+  missing entirely — the catalogue instead had the 2020 release listed twice,
+  once under each of its names. One run at three resolutions settles it.
 - **A frame generation ladder on a second game**, for gap 7 — the overhead is
   currently fitted from GTA V Enhanced alone.
 - **A CPU ladder at 1080p on a CPU-bound game, reaching the low end** — a

@@ -58,6 +58,42 @@ RENAME = {
     "Dying Light 1": "Dying Light",
 }
 
+# Games missing from the catalogue entirely.
+#
+# The costs here are ESTIMATES, and the only ones in this file that are not
+# documented facts. They are derived from a calibrated neighbour and an uplift,
+# and they are marked unverified so the interface can say so — see
+# `flags_verified` and CALIBRATION.md. One measurement replaces them.
+#
+# Flight Simulator 2024 is the case that forced this. The catalogue had a row
+# called "Microsoft Flight Simulator 2020" alongside one called "Microsoft
+# Flight Simulator", which are the same game — the 2020 release is titled just
+# Microsoft Flight Simulator — so the duplicate was removed. But 2024 is a
+# genuinely separate and much heavier game, and it was never in the catalogue
+# at all. Removing the duplicate made that gap visible rather than causing it.
+ADD = {
+    "Microsoft Flight Simulator 2024": {
+        "genre": "Simulation",
+        # Base: the calibrated 2020 profile (gpu 1.40, cpu 6.20, vram 8.7,
+        # ram 10.1) fitted to three RTX 4090 measurements. The uplift reflects
+        # that 2024 streams its scenery from the cloud and renders far denser
+        # terrain, so it is heavier on all four — but by how much is a guess
+        # until somebody measures it.
+        "gpu_cost": 1.85,
+        "cpu_cost": 7.10,
+        "vram_base_gb": 10.9,
+        "ram_base_gb": 12.5,
+        "tier_min": "Low", "tier_max": "Ultra",
+        "supports_rt": 0, "supports_pt": 0,
+        "supports_dlss": 1, "supports_fsr": 1, "supports_xess": 0,
+        "competitive": 0, "target_fps": 60,
+        # Legacy column, still NOT NULL on this table. The engine ignores it
+        # whenever gpu_cost and cpu_cost are present, which they are here, so
+        # it only has to be a number the old fallback path would not choke on.
+        "difficulty_multiplier": 2.4,
+    },
+}
+
 # Ranked or esports play, where input latency decides the outcome. This drives
 # the frame-rate target far better than genre does.
 COMPETITIVE = {
@@ -275,6 +311,22 @@ def main(apply_changes):
             print(f"  {old}  ->  {new}")
             if apply_changes:
                 cur.execute("UPDATE games SET name=? WHERE id=?", (new, by_name[old]["id"]))
+
+    print("\n=== 2b. EKLENEN OYUNLAR ===")
+    for name, spec in ADD.items():
+        if name in by_name:
+            print(f"  {name}  (zaten var, atlandi)")
+            continue
+        print(f"  {name}  — maliyetler TAHMIN, olcum bekliyor")
+        if apply_changes:
+            cols_list = ["name"] + list(spec)
+            values = [name] + list(spec.values())
+            placeholders = ", ".join("?" * len(values))
+            cur.execute(
+                f"INSERT INTO games ({', '.join(cols_list)}) VALUES ({placeholders})",
+                values)
+    if not ADD:
+        print("  (yok)")
 
     print("\n=== 3. OZELLIK BAYRAKLARI ===")
     if "flags_verified" not in cols and apply_changes:
