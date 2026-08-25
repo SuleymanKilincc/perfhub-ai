@@ -1,79 +1,34 @@
-import { useState, useEffect } from 'react'
-import type { CPUData, GPUData, GameData, FPSParams, HardwareLists } from './types'
+import { useState } from 'react'
+import type { CPUData, GPUData, GameData, FPSParams } from './types'
 import { getTranslation, type Language } from './i18n'
-import { API_URL } from './config'
+import { cpus, gpus, predictAll } from './engine/catalog'
 import SystemBuilder from './SystemBuilder'
 
 function App() {
     const [activeTab, setActiveTab] = useState<'builder' | 'games'>('builder')
-    const [hardwareLists, setHardwareLists] = useState<HardwareLists | null>(null)
     const [selectedCpu, setSelectedCpu] = useState<CPUData | null>(null)
     const [selectedGpu, setSelectedGpu] = useState<GPUData | null>(null)
     const [ramGb, setRamGb] = useState(16)
     const [fpsParams, setFpsParams] = useState<FPSParams>({ res: '1080p', preset: 'High' })
     const [games, setGames] = useState<GameData[]>([])
-    const [loading, setLoading] = useState(true)
-    const [calculating, setCalculating] = useState(false)
-    const [error, setError] = useState<string | null>(null)
     const [language, setLanguage] = useState<Language>('tr')
 
     const t = getTranslation(language)
 
-    useEffect(() => {
-        fetchHardwareLists()
-    }, [])
-
-    const fetchHardwareLists = async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            const res = await fetch(`${API_URL}/api/hardware-lists`)
-            if (!res.ok) {
-                throw new Error(`Backend hatası: ${res.status}`)
-            }
-            const data: HardwareLists = await res.json()
-            setHardwareLists(data)
-        } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : 'Backend bağlantısı kurulamadı'
-            setError(errorMsg)
-            console.error("API Error: ", err)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const handleCalculate = async () => {
+    // The engine and the catalogue are bundled into the page, so there is no
+    // fetch, no loading state and no backend to be down. The prediction for all
+    // 180 games takes single-digit milliseconds; scoring_engine.py stays the
+    // source of truth and scripts/conformance_test.py proves the two agree.
+    const handleCalculate = () => {
         if (!selectedCpu || !selectedGpu) return
-        setCalculating(true)
-        try {
-            const response = await fetch(`${API_URL}/api/games/fps`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    cpu_score: selectedCpu.power_score,
-                    gpu_score: selectedGpu.power_score,
-                    // Names matter to the engine, not just the scores: the
-                    // 3D V-Cache gaming uplift and Apple's unified memory
-                    // handling are both keyed off the part name.
-                    cpu_name: selectedCpu.name,
-                    gpu_name: selectedGpu.name,
-                    vram: selectedGpu.vram ?? 8,
-                    ram_gb: ramGb,
-                    res: fpsParams.res,
-                    preset: fpsParams.preset,
-                })
-            })
-            if (!response.ok) {
-                throw new Error('FPS verileri alınamadı')
-            }
-            const data = await response.json()
-            setGames(data.games || [])
-            setActiveTab('games')
-        } catch (err) {
-            console.error("FPS fetch error:", err)
-        } finally {
-            setCalculating(false)
-        }
+        setGames(predictAll({
+            cpu: selectedCpu,
+            gpu: selectedGpu,
+            ramGb,
+            resolution: fpsParams.res,
+            preset: fpsParams.preset,
+        }))
+        setActiveTab('games')
     }
 
     return (
@@ -117,34 +72,16 @@ function App() {
 
             {/* Main Content */}
             <div className="flex-1 p-10 overflow-y-auto">
-                {error ? (
-                    <div className="h-full flex flex-col items-center justify-center">
-                        <div className="text-6xl mb-6">⚠️</div>
-                        <h2 className="text-2xl font-bold text-red-400 mb-4">{t.connectionError}</h2>
-                        <p className="text-gray-400 mb-6 text-center max-w-md">{error}</p>
-                        <button
-                            onClick={fetchHardwareLists}
-                            className="bg-neon-blue hover:bg-blue-600 text-dark-900 font-bold py-3 px-8 rounded-lg transition-all">
-                            {t.retryButton}
-                        </button>
-                    </div>
-                ) : loading ? (
-                    <div className="h-full flex flex-col items-center justify-center">
-                        <div className="w-16 h-16 border-4 border-neon-blue border-t-transparent rounded-full animate-spin glow-blue"></div>
-                        <p className="mt-4 text-neon-blue font-mono animate-pulse">{t.loadingHardware}</p>
-                    </div>
-                ) : hardwareLists ? (
                     <div className="max-w-5xl mx-auto animation-fade-in">
 
                         {activeTab === 'builder' && (
                             <SystemBuilder
-                                cpus={hardwareLists.cpus}
-                                gpus={hardwareLists.gpus}
+                                cpus={cpus}
+                                gpus={gpus}
                                 selectedCpu={selectedCpu}
                                 selectedGpu={selectedGpu}
                                 ramGb={ramGb}
                                 fpsParams={fpsParams}
-                                calculating={calculating}
                                 t={t}
                                 onSelectCpu={setSelectedCpu}
                                 onSelectGpu={setSelectedGpu}
@@ -176,11 +113,7 @@ function App() {
                                 )}
 
                                 <div className="grid grid-cols-1 gap-4">
-                                    {calculating ? (
-                                        <div className="text-center py-10 text-gray-500">
-                                            <p>{t.loadingGames}</p>
-                                        </div>
-                                    ) : games.length === 0 ? (
+                                    {games.length === 0 ? (
                                         <div className="text-center py-10 text-gray-500">
                                             <p>{t.noBuildYet}</p>
                                         </div>
@@ -224,7 +157,6 @@ function App() {
                         )}
 
                     </div>
-                ) : null}
             </div>
         </div>
     )

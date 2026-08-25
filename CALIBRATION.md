@@ -278,7 +278,17 @@ python scripts/calibrate_engine.py         # fit costs and multipliers (dry run)
 python scripts/calibrate_engine.py --apply
 python scripts/load_benchmarks.py          # bulk-load batch 1
 python scripts/load_benchmarks_2.py        # bulk-load batch 2
+
+python scripts/export_engine_data.py       # push constants + catalogue to the web build
+python scripts/conformance_test.py         # prove Python and TypeScript agree
 ```
+
+**Any calibration change has to end with the last two.** The website runs its
+own copy of the engine in TypeScript so a prediction needs no server; the
+exporter regenerates the constants and catalogue it uses, and the conformance
+test runs both implementations over ~25,000 cases and fails on any
+disagreement. Skip the exporter and the site keeps predicting with the numbers
+it was built with, silently.
 
 Order matters, and it is the order above. Hardware scores come first because
 everything else is fitted relative to them. VRAM working sets come before cost

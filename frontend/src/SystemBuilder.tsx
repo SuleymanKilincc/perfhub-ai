@@ -10,7 +10,6 @@ interface SystemBuilderProps {
   selectedGpu: GPUData | null
   ramGb: number
   fpsParams: FPSParams
-  calculating: boolean
   t: Translations
   onSelectCpu: (cpu: CPUData | null) => void
   onSelectGpu: (gpu: GPUData | null) => void
@@ -20,10 +19,12 @@ interface SystemBuilderProps {
 }
 
 function SystemBuilder({
-  cpus, gpus, selectedCpu, selectedGpu, ramGb, fpsParams, calculating, t,
+  cpus, gpus, selectedCpu, selectedGpu, ramGb, fpsParams, t,
   onSelectCpu, onSelectGpu, onRamChange, onFpsParamsChange, onCalculate,
 }: SystemBuilderProps) {
-  const canCalculate = !!selectedCpu && !!selectedGpu && !calculating
+  // The prediction is local and instant, so there is no in-flight state to
+  // guard against — only whether a build has been chosen.
+  const canCalculate = !!selectedCpu && !!selectedGpu
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
@@ -119,7 +120,7 @@ function SystemBuilder({
               : 'bg-gray-800 text-gray-600 cursor-not-allowed'
           }`}
         >
-          {calculating ? t.calculating : t.calculateFps}
+          {t.calculateFps}
         </button>
 
         {!selectedCpu || !selectedGpu ? (

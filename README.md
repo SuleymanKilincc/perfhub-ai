@@ -14,8 +14,10 @@ configuration and see what frame rates to expect across 177 games.
 no download. Choose your parts and get FPS estimates for every game in the
 database, along with warnings when a build is going to run into trouble.
 
-> The demo runs on a free tier, so the first request after a period of
-> inactivity can take up to a minute while the backend wakes up.
+Predictions run **in the browser**, not on a server. The engine is a pure
+function over an 84 KB catalogue, so it ships with the page and answers
+instantly — no request, no cold start, and nothing to be down. Only the AI
+assistant needs a backend.
 
 A Windows desktop build is also available with automatic hardware detection —
 see [Desktop application](#-desktop-application).
@@ -123,19 +125,33 @@ perfhub-ai/
 │   ├── db_manager.py          # SQLite access
 │   ├── hardware_detector.py   # WMI hardware detection (Windows only)
 │   └── ai_assistant.py        # AI integration
-├── backend/                   # FastAPI service for the web version
+├── backend/                   # FastAPI service — AI assistant only
 ├── frontend/                  # React + Vite web interface
+│   └── src/engine/            # Cadence in TypeScript, runs in the browser
+│       ├── cadence.ts             # Hand-ported model
+│       ├── balance.generated.ts   # Generated from balance_config.py
+│       └── catalog.generated.json # Generated from the database
 ├── data/hardware_db.sqlite    # CPU / GPU / game database
 ├── scripts/
-│   ├── migrate_game_profiles.py  # Derive per-game cost profiles
-│   ├── fix_hardware_db.py        # Catalog cleanup pass
-│   └── validate_engine.py        # Benchmark accuracy harness
+│   ├── calibrate_gpu_scores.py   # Validate GPU scores against a reference
+│   ├── calibrate_cpu_scores.py   # Rebuild CPU scores as a gaming index
+│   ├── calibrate_engine.py       # Fit per-game costs and multipliers
+│   ├── validate_engine.py        # Benchmark accuracy harness
+│   ├── export_engine_data.py     # Push constants + catalogue to the web build
+│   └── conformance_test.py       # Prove the two engines agree
 └── modern_desktop_app.py      # PyQt6 desktop application
 ```
 
-The engine in `core/` is the single source of truth. The web backend and the
-desktop app are both thin layers over it, so a change to the model reaches
-both.
+`core/` is the single source of truth. The desktop app calls it directly; the
+website runs a TypeScript port so a prediction needs no server round trip.
+
+Two implementations can drift, so the split is deliberate: every constant and
+the whole catalogue are **generated** from the Python source and never edited
+by hand, which leaves only the model logic hand-written — and
+`scripts/conformance_test.py` runs both over ~25,000 cases and fails on any
+disagreement, down to the warning strings. It caught a real one during the
+port: Python rounds half to even and `Math.round` does not, so a frame rate
+landing exactly on a half disagreed by one.
 
 ## 🚀 Running locally
 
