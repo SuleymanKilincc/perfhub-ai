@@ -882,10 +882,17 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, onClose }: {
           </Field>
           {upscalers.length > 1 ? (
             <Field label="Upscaling">
+              {/* The technology has to stay in the label. Stripping it left
+                  three separate buttons all reading "Quality" — one each for
+                  DLSS, FSR and XeSS — which is worse than the overflow it was
+                  meant to fix. Only the quality tier is abbreviated. */}
               <Segmented value={ups} onChange={setUps}
                 options={upscalers.map((x) => ({
                   value: x,
-                  label: x.replace("DLSS ", "").replace("FSR ", "").replace("XeSS ", ""),
+                  label: x
+                    .replace(" Quality", " Q")
+                    .replace(" Balanced", " B")
+                    .replace(" Performance", " P"),
                 }))} />
             </Field>
           ) : (
@@ -956,13 +963,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+/**
+ * A row of choices — or a block of them.
+ *
+ * Once upscaling started being built from what each game actually supports,
+ * a title with DLSS, FSR and XeSS produces nine options. Nine `nowrap` buttons
+ * in a 470px drawer came to 755px and pushed the panel's contents off the
+ * side. Past four options it wraps instead of insisting on one line.
+ */
 function Segmented({ value, onChange, options }: {
   value: string; onChange: (v: string) => void;
   options: { value: string; label: string }[];
 }) {
+  const wrap = options.length > 4;
   return (
     <div style={{
-      display: "flex", background: "var(--surface)", borderRadius: 10,
+      display: "flex", flexWrap: wrap ? "wrap" : "nowrap",
+      background: "var(--surface)", borderRadius: 10,
       border: "1px solid var(--border)", padding: 3, gap: 3,
     }}>
       {options.map((o) => {
@@ -972,11 +989,13 @@ function Segmented({ value, onChange, options }: {
             key={o.value}
             onClick={() => onChange(o.value)}
             style={{
-              flex: 1, padding: "9px 8px", borderRadius: 7, border: "none",
+              flex: wrap ? "1 1 30%" : "1 1 0", minWidth: 0,
+              padding: "9px 8px", borderRadius: 7, border: "none",
               background: on ? "var(--amber)" : "transparent",
               color: on ? "#170F02" : "var(--text-2)",
               fontSize: 14, fontWeight: on ? 600 : 400,
-              fontFamily: "var(--mono)", whiteSpace: "nowrap",
+              fontFamily: "var(--mono)",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}
           >{o.label}</button>
         );
