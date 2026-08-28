@@ -97,8 +97,8 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # Multipliers on GPU frame-time cost, plus the extra VRAM the BVH and
 # denoisers need. Path tracing is a different order of magnitude, not a
 # heavier RT preset.
-RT_GPU_COST_MULT = 1.62
-PT_GPU_COST_MULT = 2.98
+RT_GPU_COST_MULT = 1.70
+PT_GPU_COST_MULT = 3.30
 RT_VRAM_ADD_GB = 1.10
 PT_VRAM_ADD_GB = 1.90
 # RT also adds BVH build/update work on the CPU.
@@ -139,8 +139,8 @@ FG_OUTPUT_MULTIPLIER = {
 # Fraction of the rendered frame's GPU time spent generating the extra frames.
 FG_GPU_OVERHEAD = {
     "2x": 0.35,
-    "3x": 0.53,
-    "4x": 0.71,
+    "3x": 0.55,
+    "4x": 0.75,
 }
 FG_VRAM_ADD_GB = {
     "2x": 1.0,

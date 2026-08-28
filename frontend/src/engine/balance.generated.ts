@@ -10,8 +10,8 @@ export const DEFAULT_QUALITY_TIER = "High" as const;
 export const DEFAULT_UPSCALING_PASS_COST_MS = 0.35 as const;
 export const FG_GPU_OVERHEAD = {
     "2x": 0.35,
-    "3x": 0.53,
-    "4x": 0.71,
+    "3x": 0.55,
+    "4x": 0.75,
   } as const;
 export const FG_OUTPUT_MULTIPLIER = {
     "2x": 2.0,
@@ -27,7 +27,7 @@ export const GPU_MS_CONST = 2.65 as const;
 export const GPU_PERF_EXPONENT = 1.85 as const;
 export const OS_RAM_RESERVE_GB = 3.5 as const;
 export const PT_CPU_COST_MULT = 1.12 as const;
-export const PT_GPU_COST_MULT = 2.98 as const;
+export const PT_GPU_COST_MULT = 3.3 as const;
 export const PT_VRAM_ADD_GB = 1.9 as const;
 export const QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"] as const;
 export const QUALITY_TIERS = {
@@ -58,7 +58,7 @@ export const RES_VRAM_FACTOR = {
     "8k": 1.85,
   } as const;
 export const RT_CPU_COST_MULT = 1.08 as const;
-export const RT_GPU_COST_MULT = 1.62 as const;
+export const RT_GPU_COST_MULT = 1.7 as const;
 export const RT_VRAM_ADD_GB = 1.1 as const;
 export const UPSCALING_PASS_COST_MS = {
     "dlss": 0.35,

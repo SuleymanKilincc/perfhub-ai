@@ -10,11 +10,11 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 106 |
-| Mean absolute error | **9.0%** (44.8% before any calibration) |
-| Systematic bias | −0.7% |
-| Within 10% of measured | 73% |
-| Within 20% of measured | 84% |
+| Measurements in `benchmarks` table | 109 |
+| Mean absolute error | **8.5%** (44.8% before any calibration) |
+| Systematic bias | −1.4% |
+| Within 10% of measured | 71% |
+| Within 20% of measured | 86% |
 
 The set now covers resolution sweeps, GPU and CPU ladders, preset ladders,
 ray tracing and path tracing, a full frame-generation ladder, 8K, and
@@ -34,9 +34,9 @@ Fitted in `core/balance_config.py` from the batches noted below.
 | `CPU_MS_CONST` | 2.65 | 2.25 | CPU ladder |
 | `VRAM_SPILL_SEVERITY` | 2.6 | 0.50 | 8GB vs 16GB pairs |
 | `VRAM_SPILL_FLOOR` | 0.22 | 0.80 | 8GB vs 16GB pairs |
-| `RT_GPU_COST_MULT` | 1.80 | 1.62 | games measured RT on and off |
-| `PT_GPU_COST_MULT` | 3.10 | 2.98 | Alan Wake 2 and Cyberpunk, PT on and off |
-| `FG_GPU_OVERHEAD` | .22/.31/.38 | .35/.53/.71 | GTA V Enhanced 2x/3x/4x ladder |
+| `RT_GPU_COST_MULT` | 1.80 | 1.70 | games measured RT on and off |
+| `PT_GPU_COST_MULT` | 3.10 | 3.30 | Alan Wake 2 and Cyberpunk, PT on and off |
+| `FG_GPU_OVERHEAD` | .22/.31/.38 | .35/.55/.75 | GTA V Enhanced 2x/3x/4x ladder |
 
 Three findings worth remembering:
 
@@ -212,9 +212,14 @@ Visible in the validation output; none of these are hidden.
 1. **Far Cry 6's optional HD texture pack is not modelled.** Published figures
    put it near 11-12 GB at 1440p where the base game sits far lower, and it is
    the single worst prediction in the set. Needs a per-game flag.
-2. ~~Forza Horizon 6 has internally inconsistent measurements.~~ **Resolved**
-   by the GPU score correction above — the 4.38x gap the old scale could not
-   reach now falls inside it.
+2. ~~Forza Horizon 6 has internally inconsistent measurements.~~ **Resolved
+   twice.** The GPU score correction fixed the 4.38x gap the old scale could
+   not reach. The rest was worse than inconsistent: three RTX 5080 rows
+   described the *same* configuration — 4K Ultra, DLAA, no ray tracing — as
+   260, 152 and 89 fps. A second source settled it. An RTX 3080 Ti run scaled
+   by the score ratio (1.45x) predicts 159 / 130 / 87 at 1080p / 1440p / 4K
+   against 175 / 133 / 89 recorded, so the 89 stands and the other two were
+   removed. See scripts/load_benchmarks_3.py.
 3. ~~GPU `power_score` values have never been validated.~~ **Resolved**; see
    the section above. 118 of the 164 cards still carry unvalidated scores, but
    they are no longer subject to the systematic error.
@@ -283,6 +288,7 @@ python scripts/calibrate_engine.py         # fit costs and multipliers (dry run)
 python scripts/calibrate_engine.py --apply
 python scripts/load_benchmarks.py          # bulk-load batch 1
 python scripts/load_benchmarks_2.py        # bulk-load batch 2
+python scripts/load_benchmarks_3.py        # bulk-load batch 3
 
 python scripts/curate_games.py --apply     # catalogue hygiene: junk, genres, targets
 python scripts/export_engine_data.py       # push constants + catalogue to the web build
