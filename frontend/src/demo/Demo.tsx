@@ -33,6 +33,11 @@ export default function Demo() {
 
   const [query, setQuery] = useState("");
   const [onlyProblems, setOnlyProblems] = useState(false);
+  // Measured games predict at 8.9% mean error; the derived costs the rest
+  // carry were 49.2% out against the same benchmarks. Showing both by
+  // default would present a coin flip with the same confidence as a
+  // measurement, so the trustworthy set is what you see first.
+  const [onlyMeasured, setOnlyMeasured] = useState(true);
   const [sort, setSort] = useState<Sort>("struggling");
   const [openId, setOpenId] = useState<number | null>(null);
 
@@ -47,10 +52,12 @@ export default function Demo() {
   }, [cpu, gpu, ram, resolution, preset]);
 
   const problemCount = scored.filter((r) => r.v === "poor" || r.v === "bad").length;
+  const measuredCount = scored.filter((r) => (r.game.measurements ?? 0) > 0).length;
 
   const rows = useMemo(() => {
     const hits = query.trim() ? new Map(searchGames(query).map((h) => [h.id, h.score])) : null;
     let list = [...scored];
+    if (onlyMeasured) list = list.filter((r) => (r.game.measurements ?? 0) > 0);
     if (onlyProblems) list = list.filter((r) => r.v === "poor" || r.v === "bad");
     if (hits) {
       list = list.filter((r) => hits.has(r.id))
@@ -63,7 +70,7 @@ export default function Demo() {
       list.sort((a, b) => a.name.localeCompare(b.name, "tr"));
     }
     return list;
-  }, [scored, query, onlyProblems, sort]);
+  }, [scored, query, onlyProblems, onlyMeasured, sort]);
 
   const summary = useMemo(() => ({
     good: scored.filter((r) => r.v === "good").length,
@@ -99,6 +106,8 @@ export default function Demo() {
                 problemCount={problemCount}
                 query={query} onQuery={setQuery}
                 onlyProblems={onlyProblems} onToggleProblems={setOnlyProblems}
+                onlyMeasured={onlyMeasured} onToggleMeasured={setOnlyMeasured}
+                measuredCount={measuredCount}
                 sort={sort} onSort={setSort}
                 onBack={() => setPhase("build")}
                 onOpen={setOpenId}
@@ -400,6 +409,8 @@ function Results(p: {
   summary: { good: number; close: number; poor: number; bad: number };
   query: string; onQuery: (s: string) => void;
   onlyProblems: boolean; onToggleProblems: (b: boolean) => void;
+  onlyMeasured: boolean; onToggleMeasured: (b: boolean) => void;
+  measuredCount: number;
   sort: Sort; onSort: (s: Sort) => void;
   onBack: () => void; onOpen: (id: number) => void;
 }) {
@@ -500,6 +511,21 @@ function Results(p: {
           {/* The count lives in the label because with "struggling" sorting the
               top of the list is already the problems — toggling the filter used
               to change nothing visible and read as a broken button. */}
+          <button
+            onClick={() => p.onToggleMeasured(!p.onlyMeasured)}
+            title={p.onlyMeasured
+              ? "Tahmini oyunları da göster — bunlar ölçüme dayanmıyor"
+              : "Sadece ölçüme dayanan oyunlar"}
+            style={{
+              border: `1px solid ${p.onlyMeasured ? "var(--green)" : "var(--border)"}`,
+              background: p.onlyMeasured ? "var(--green-dim)" : "var(--surface)",
+              borderRadius: 10, padding: "12px 16px", fontSize: 14.5, whiteSpace: "nowrap",
+              color: p.onlyMeasured ? "var(--green)" : "var(--text-2)",
+              fontWeight: p.onlyMeasured ? 600 : 400,
+            }}
+          >
+            {p.onlyMeasured ? "✓ " : ""}Ölçülmüş · {p.measuredCount}
+          </button>
           <button
             onClick={() => p.onToggleProblems(!p.onlyProblems)}
             style={{
@@ -741,6 +767,20 @@ function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () =
         }}>{row.name}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 5 }}>
           <span style={{ fontSize: 13, color: "var(--text-3)" }}>{row.genre}</span>
+          {(row.game.measurements ?? 0) > 0 ? (
+            <span title={`${row.game.measurements} gerçek benchmark ölçümüne dayanıyor`}
+              style={{
+                fontSize: 11, fontFamily: "var(--mono)", color: "var(--green)",
+                border: "1px solid var(--green)", borderRadius: 5, padding: "1px 6px",
+                background: "var(--green-dim)", fontWeight: 600,
+              }}>ÖLÇÜLDÜ · {row.game.measurements}</span>
+          ) : (
+            <span title="Bu satır ölçüme dayanmıyor; sapma büyük olabilir"
+              style={{
+                fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-3)",
+                border: "1px dashed var(--border)", borderRadius: 5, padding: "1px 6px",
+              }}>TAHMİN</span>
+          )}
           {row.game.competitive ? (
             <span style={{
               fontSize: 11, fontFamily: "var(--mono)", color: "var(--amber)",
@@ -829,6 +869,7 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, onClose }: {
   const target = targetFps(game);
   const v = verdict(r.fps, target, r.status);
   const color = VERDICT_COLOR[v];
+  const measured = (game.measurements ?? 0) > 0;
 
   return (
     <>
@@ -848,6 +889,20 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, onClose }: {
             <div style={{ fontSize: 13.5, color: "var(--text-3)", marginTop: 5 }}>
               {game.genre}
               {game.competitive ? " · rekabetçi" : ""} · hedef {target} fps
+            </div>
+            {/* The single most important thing on this panel: whether the big
+                number below is worth trusting. Measured rows sit at 8.9% mean
+                error, derived ones were 49.2% out against the same set. */}
+            <div style={{
+              marginTop: 10, display: "inline-flex", alignItems: "center", gap: 7,
+              fontSize: 12.5, borderRadius: 8, padding: "6px 10px",
+              border: `1px solid ${measured ? "var(--green)" : "var(--border)"}`,
+              background: measured ? "var(--green-dim)" : "transparent",
+              color: measured ? "var(--green)" : "var(--text-3)",
+            }}>
+              {measured
+                ? `✓ ${game.measurements} gerçek ölçüme dayanıyor`
+                : "Tahmin — bu oyun ölçülmedi"}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -869,6 +924,16 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, onClose }: {
           <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 7 }}>
             {r.bottleneck} sınırlı · {r.vram_needed_gb} GB VRAM · {r.quality}
           </div>
+          {!measured && (
+            <div style={{
+              fontSize: 12.5, color: "var(--text-3)", marginTop: 12,
+              maxWidth: 330, marginLeft: "auto", marginRight: "auto", lineHeight: 1.55,
+            }}>
+              Bu oyunun maliyet profili ölçülmedi, benzer oyunlardan türetildi.
+              Ölçülen oyunlarda motor %9 hatayla çalışıyor; türetilmiş
+              profillerde aynı test %49 sapma gösterdi.
+            </div>
+          )}
         </div>
 
         <div style={{ display: "grid", gap: 17 }}>

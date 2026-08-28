@@ -106,10 +106,23 @@ def export_catalog():
             out.append({c: r[c] for c in columns if c in keys})
         return out
 
+    # How many benchmark rows stand behind each game. This is the difference
+    # between a row the interface can state with confidence and one it should
+    # hedge: measured games sit at 8.9% mean error, and the derived costs the
+    # rest carry were 49.2% out when tested against the same measurements.
+    # Presenting both in the same weight would be dishonest, so the count ships
+    # with the catalogue and the UI marks the difference.
+    measured = {r["game"]: r["n"] for r in conn.execute(
+        "SELECT game, COUNT(*) AS n FROM benchmarks GROUP BY game")}
+
+    games = rows("games", GAME_COLUMNS)
+    for g in games:
+        g["measurements"] = measured.get(g["name"], 0)
+
     data = {
         "cpus": rows("cpus", CPU_COLUMNS),
         "gpus": rows("gpus", GPU_COLUMNS),
-        "games": rows("games", GAME_COLUMNS),
+        "games": games,
     }
     conn.close()
 

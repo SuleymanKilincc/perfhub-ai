@@ -50,6 +50,7 @@ export type Game = {
   target_fps?: number | null;
   cover_url?: string | null;
   flags_verified?: number | null;
+  measurements?: number | null;
 };
 
 export type Estimate = {
