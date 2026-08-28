@@ -58,11 +58,15 @@ export const VERDICT_COLOR: Record<Verdict, string> = {
   bad: "var(--red)",
 };
 
-export const VERDICT_LABEL: Record<Verdict, string> = {
-  good: "hedefte",
-  close: "hedefin altında",
-  poor: "60 fps altı",
-  bad: "oynanamaz",
+/** Keyed into the translation table rather than holding the words. */
+export const VERDICT_KEY: Record<
+  Verdict,
+  "verdictGood" | "verdictClose" | "verdictPoor" | "verdictBad"
+> = {
+  good: "verdictGood",
+  close: "verdictClose",
+  poor: "verdictPoor",
+  bad: "verdictBad",
 };
 
 // ─── Search ──────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { normalise } from "./lib";
+import { useT } from "./i18n";
 
 export type PickerItem = { value: string; label: string; meta?: string };
 
@@ -20,6 +21,7 @@ export default function Picker({ items, value, onChange, placeholder, emptyLabel
   placeholder: string;
   emptyLabel: string;
 }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -106,7 +108,7 @@ export default function Picker({ items, value, onChange, placeholder, emptyLabel
           <div style={{ maxHeight: 320, overflowY: "auto" }}>
             {filtered.length === 0 ? (
               <div style={{ padding: "18px 16px", color: "var(--text-3)", fontSize: 14 }}>
-                Eşleşme yok
+                {t.noMatch}
               </div>
             ) : (
               filtered.map((i, n) => (

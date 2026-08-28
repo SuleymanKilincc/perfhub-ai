@@ -40,9 +40,13 @@ FRAME_GEN = ["Kapalı", "2x", "3x", "4x"]
 # VRAM spilling into system RAM, and that only shows up when RAM is short.
 RAM_SIZES = [8, 16, 24, 32, 64]
 
+# `notes` is the structured version and the one that matters: it compares what
+# the model observed rather than how it was worded, so rephrasing a warning no
+# longer fails the run. `warnings` stays in the list because the desktop app
+# reads it and the two renderers have to agree character for character.
 FIELDS = ["fps", "capped_fps", "rendered_fps", "status", "bottleneck",
           "vram_needed_gb", "vram_alloc_gb", "vram_available_gb", "quality",
-          "warnings"]
+          "notes", "warnings"]
 
 GAME_KEYS = ["name", "gpu_cost", "cpu_cost", "vram_base_gb", "ram_base_gb",
              "tier_min", "tier_max", "fps_cap", "supports_rt", "supports_pt",

@@ -53,6 +53,25 @@ export type Game = {
   measurements?: number | null;
 };
 
+/**
+ * What the model observed, as a code and the numbers behind it.
+ *
+ * The prose used to live inside the model, in Turkish, and the conformance
+ * test compared it word for word — so rephrasing a warning broke the test, and
+ * showing the site in another language was impossible without touching the
+ * engine. The model reports structure now and the interface writes the
+ * sentence. `warnings` is still produced, from these, because the desktop
+ * application reads it.
+ */
+export type Note =
+  | { code: "ram_short"; game_ram_gb: number; ram_gb: number }
+  | { code: "vram_tight"; needed_gb: number; wanted_gb: number; capacity_gb: number }
+  | { code: "vram_spill"; needed_gb: number; capacity_gb: number; overflow_gb: number }
+  | { code: "unplayable"; overflow_gb: number; ram_gb: number; suggested_ram_gb: number }
+  | { code: "ram_cramped"; ram_gb: number; suggested_ram_gb: number }
+  | { code: "upscaling_unsupported" }
+  | { code: "fps_cap"; cap: number; uncapped: number };
+
 export type Estimate = {
   fps: number;
   capped_fps: number | null;
@@ -63,6 +82,7 @@ export type Estimate = {
   vram_alloc_gb: number;
   vram_available_gb: number;
   quality: string;
+  notes: Note[];
   warnings: string[];
 };
 
@@ -285,18 +305,15 @@ function vramAllocation(workingGb: number, vramAvailable: number): number {
 
 function memoryPressure(
   vramNeeded: number, vramAvailable: number, ramGb: number, ramBaseGb: number,
-): { mult: number; status: Estimate["status"]; warnings: string[] } {
-  const warnings: string[] = [];
+): { mult: number; status: Estimate["status"]; notes: Note[] } {
+  const notes: Note[] = [];
   const ramFree = ramGb - ramBaseGb - bc.OS_RAM_RESERVE_GB;
   const overflow = vramNeeded - vramAvailable;
 
   let ramMult = 1.0;
   if (ramFree < 0) {
     ramMult = bc.RAM_SHORTFALL_PENALTY;
-    warnings.push(
-      `Sistem RAM'i yetersiz: oyun ~${fmt(ramBaseGb, 0)} GB istiyor, ` +
-        `${ramGb} GB RAM ile takas (paging) başlıyor.`,
-    );
+    notes.push({ code: "ram_short", game_ram_gb: ramBaseGb, ram_gb: ramGb });
   } else if (ramFree > 8) {
     ramMult = bc.RAM_ABUNDANCE_BONUS;
   }
@@ -307,29 +324,23 @@ function memoryPressure(
       return {
         mult: bc.VRAM_TIGHT_PENALTY * ramMult,
         status: "vram_tight",
-        warnings: [
-          ...warnings,
-          `VRAM sınırda: kare için ~${fmt(vramNeeded, 1)} GB yetiyor ama oyun ` +
-            `~${fmt(wanted, 1)} GB önbellek ayırmak istiyor (${vramAvailable} GB kart). ` +
-            `Ortalama FPS iyi kalır, ancak yeni sahnelere geçerken takılma olabilir.`,
+        notes: [
+          ...notes,
+          { code: "vram_tight", needed_gb: vramNeeded, wanted_gb: wanted,
+            capacity_gb: vramAvailable },
         ],
       };
     }
-    return { mult: ramMult, status: warnings.length ? "ram_short" : "ok", warnings };
+    return { mult: ramMult, status: notes.length ? "ram_short" : "ok", notes };
   }
 
-  warnings.push(
-    `VRAM yetersiz: ~${fmt(vramNeeded, 1)} GB ihtiyaç, ${vramAvailable} GB kart ` +
-      `(~${fmt(overflow, 1)} GB taşıyor).`,
-  );
+  notes.push({ code: "vram_spill", needed_gb: vramNeeded,
+    capacity_gb: vramAvailable, overflow_gb: overflow });
 
   if (ramFree < overflow * bc.RAM_UNPLAYABLE_SHORTFALL_RATIO) {
-    warnings.push(
-      `Taşan ${fmt(overflow, 1)} GB'ı karşılayacak sistem RAM'i de yok ` +
-        `(${ramGb} GB). Oyun çökebilir veya oynanamaz hale gelir — ` +
-        `${Math.trunc(ramGb * 2)} GB RAM bu senaryoyu kurtarır.`,
-    );
-    return { mult: bc.VRAM_SPILL_FLOOR * 0.35, status: "unplayable", warnings };
+    notes.push({ code: "unplayable", overflow_gb: overflow, ram_gb: ramGb,
+      suggested_ram_gb: Math.trunc(ramGb * 2) });
+    return { mult: bc.VRAM_SPILL_FLOOR * 0.35, status: "unplayable", notes };
   }
 
   const severity = overflow / Math.max(vramAvailable, 1.0);
@@ -338,14 +349,44 @@ function memoryPressure(
   const comfort = Math.min(1.0, ramFree / Math.max(overflow * bc.RAM_SPILL_COMFORT_RATIO, 0.1));
   mult *= bc.RAM_SPILL_CRAMPED_PENALTY + (1.0 - bc.RAM_SPILL_CRAMPED_PENALTY) * comfort;
   if (comfort < 0.6) {
-    warnings.push(
-      `Sistem RAM'i taşmayı ancak zar zor karşılıyor; daha fazla RAM ` +
-        `(${Math.trunc(ramGb * 2)} GB) bu senaryoda gözle görülür fark yaratır.`,
-    );
+    notes.push({ code: "ram_cramped", ram_gb: ramGb,
+      suggested_ram_gb: Math.trunc(ramGb * 2) });
   }
 
   mult = Math.max(bc.VRAM_SPILL_FLOOR, mult);
-  return { mult: mult * ramMult, status: "vram_spill", warnings };
+  return { mult: mult * ramMult, status: "vram_spill", notes };
+}
+
+/** Mirrors _render_note in core/scoring_engine.py, character for character. */
+export function renderNote(note: Note): string {
+  switch (note.code) {
+    case "ram_short":
+      return `Sistem RAM'i yetersiz: oyun ~${fmt(note.game_ram_gb, 0)} GB istiyor, ` +
+        `${note.ram_gb} GB RAM ile takas (paging) başlıyor.`;
+    case "vram_tight":
+      return `VRAM sınırda: kare için ~${fmt(note.needed_gb, 1)} GB yetiyor ama oyun ` +
+        `~${fmt(note.wanted_gb, 1)} GB önbellek ayırmak istiyor ` +
+        `(${note.capacity_gb} GB kart). Ortalama FPS iyi kalır, ancak ` +
+        `yeni sahnelere geçerken takılma olabilir.`;
+    case "vram_spill":
+      return `VRAM yetersiz: ~${fmt(note.needed_gb, 1)} GB ihtiyaç, ` +
+        `${note.capacity_gb} GB kart ` +
+        `(~${fmt(note.overflow_gb, 1)} GB taşıyor).`;
+    case "unplayable":
+      return `Taşan ${fmt(note.overflow_gb, 1)} GB'ı karşılayacak sistem RAM'i de yok ` +
+        `(${note.ram_gb} GB). Oyun çökebilir veya oynanamaz hale gelir — ` +
+        `${note.suggested_ram_gb} GB RAM bu senaryoyu kurtarır.`;
+    case "ram_cramped":
+      return `Sistem RAM'i taşmayı ancak zar zor karşılıyor; daha fazla RAM ` +
+        `(${note.suggested_ram_gb} GB) bu senaryoda gözle görülür fark yaratır.`;
+    case "upscaling_unsupported":
+      return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
+        "native çözünürlükte hesaplandı.";
+    case "fps_cap":
+      return `Bu oyun varsayılan halinde ${note.cap} FPS ile sınırlı. ` +
+        `Donanımın ${note.uncapped} FPS'e yetiyor, ancak sınır ` +
+        `kaldırılmadan ${note.cap} FPS görürsün.`;
+  }
 }
 
 export function estimateFpsDetailed(
@@ -378,27 +419,19 @@ export function estimateFpsDetailed(
   let renderedFps = 1000.0 / blendFrameTime(ftGpu, ftCpu);
 
   const vramNeeded = vramDemand(vramBase, quality, resolution, renderScale, rt, pt, fgMode);
-  const { mult, status, warnings } = memoryPressure(vramNeeded, vram, ramGb, ramBase);
+  const { mult, status, notes } = memoryPressure(vramNeeded, vram, ramGb, ramBase);
   renderedFps *= mult;
 
   const fps = fgMode
     ? renderedFps * (asRecord<number>(bc.FG_OUTPUT_MULTIPLIER)[fgMode] ?? 1.0)
     : renderedFps;
 
-  if (!upscaleActive) {
-    warnings.push(
-      "Bu oyun seçilen upscaling teknolojisini desteklemiyor; native çözünürlükte hesaplandı.",
-    );
-  }
+  if (!upscaleActive) notes.push({ code: "upscaling_unsupported" });
 
   const uncappedFps = Math.max(pyRound(fps), 0);
   const fpsCap = game.fps_cap || 0;
   if (fpsCap && uncappedFps > fpsCap) {
-    warnings.push(
-      `Bu oyun varsayılan halinde ${Math.trunc(fpsCap)} FPS ile sınırlı. ` +
-        `Donanımın ${uncappedFps} FPS'e yetiyor, ancak sınır kaldırılmadan ` +
-        `${Math.trunc(fpsCap)} FPS görürsün.`,
-    );
+    notes.push({ code: "fps_cap", cap: Math.trunc(fpsCap), uncapped: uncappedFps });
   }
 
   return {
@@ -411,7 +444,8 @@ export function estimateFpsDetailed(
     vram_alloc_gb: pyRound(vramAllocation(vramNeeded, vram), 1),
     vram_available_gb: vram,
     quality,
-    warnings,
+    notes,
+    warnings: notes.map(renderNote),
   };
 }
 

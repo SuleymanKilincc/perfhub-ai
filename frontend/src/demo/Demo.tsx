@@ -2,9 +2,10 @@ import { useMemo, useState } from "react";
 import { cpus, gpus, games, predictAll } from "../engine/catalog";
 import { estimateFpsDetailed, getFgOptions } from "../engine/cadence";
 import type { CPUData, GPUData } from "../types";
-import { targetFps, verdict, searchGames, VERDICT_COLOR, VERDICT_LABEL, type Verdict } from "./lib";
+import { targetFps, verdict, searchGames, VERDICT_COLOR, VERDICT_KEY, type Verdict } from "./lib";
 import Picker from "./Picker";
 import useIsMobile from "./useIsMobile";
+import { LangContext, strings, useT, renderNote, type Lang } from "./i18n";
 
 const RESOLUTIONS = ["1080p", "1440p", "4k"];
 const PRESETS = ["Low", "Medium", "High", "Ultra"];
@@ -24,6 +25,8 @@ type Game = (typeof games)[number];
 
 export default function Demo() {
   const mobile = useIsMobile();
+  const [lang, setLang] = useState<Lang>("tr");
+  const t = strings[lang];
   const [section, setSection] = useState<"gaming" | "workstation">("gaming");
   const [phase, setPhase] = useState<Phase>("build");
 
@@ -69,10 +72,10 @@ export default function Demo() {
     } else if (sort === "fastest") {
       list.sort((a, b) => b.fps - a.fps);
     } else {
-      list.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+      list.sort((a, b) => a.name.localeCompare(b.name, lang));
     }
     return list;
-  }, [scored, query, onlyProblems, onlyMeasured, sort]);
+  }, [scored, query, onlyProblems, onlyMeasured, sort, lang]);
 
   const summary = useMemo(() => ({
     good: scored.filter((r) => r.v === "good").length,
@@ -85,11 +88,13 @@ export default function Demo() {
   const open = openId === null ? null : games.find((g) => g.id === openId) ?? null;
 
   return (
+    <LangContext.Provider value={{ lang, t }}>
     <div style={{
       display: "flex", flexDirection: mobile ? "column" : "row",
       height: "100%", background: "var(--bg)",
     }}>
       <Sidebar mobile={mobile} section={section} onSection={setSection}
+        lang={lang} onLang={setLang}
         onHome={() => setPhase("build")} />
 
       <main style={{ flex: 1, position: "relative", overflow: "hidden" }}>
@@ -131,17 +136,35 @@ export default function Demo() {
         />
       )}
     </div>
+    </LangContext.Provider>
   );
 }
 
 // ─── Shell ───────────────────────────────────────────────────────────────────
 
-function Sidebar({ mobile, section, onSection, onHome }: {
+function LangToggle({ lang, onLang }: { lang: Lang; onLang: (l: Lang) => void }) {
+  return (
+    <div style={{ display: "flex", gap: 2, background: "var(--bg)", borderRadius: 8, padding: 2 }}>
+      {(["tr", "en"] as const).map((l) => (
+        <button key={l} onClick={() => onLang(l)} style={{
+          padding: "5px 9px", borderRadius: 6, border: "none", fontSize: 12,
+          fontFamily: "var(--mono)", fontWeight: lang === l ? 600 : 400,
+          background: lang === l ? "var(--raised)" : "transparent",
+          color: lang === l ? "var(--amber)" : "var(--text-3)",
+        }}>{l.toUpperCase()}</button>
+      ))}
+    </div>
+  );
+}
+
+function Sidebar({ mobile, section, onSection, lang, onLang, onHome }: {
   mobile: boolean;
   section: "gaming" | "workstation";
   onSection: (s: "gaming" | "workstation") => void;
+  lang: Lang; onLang: (l: Lang) => void;
   onHome: () => void;
 }) {
+  const { t } = useT();
   if (mobile) {
     return (
       <header style={{
@@ -155,7 +178,8 @@ function Sidebar({ mobile, section, onSection, onHome }: {
             color: "var(--amber)",
           }}>PERFHUB</span>
         </button>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+          <LangToggle lang={lang} onLang={onLang} />
           {(["gaming", "workstation"] as const).map((k) => (
             <button
               key={k}
@@ -166,7 +190,7 @@ function Sidebar({ mobile, section, onSection, onHome }: {
                 background: section === k ? "var(--amber-glow)" : "transparent",
                 color: section === k ? "var(--amber)" : "var(--text-3)",
               }}
-            >{k === "gaming" ? "Oyun" : "İş istasyonu"}</button>
+            >{k === "gaming" ? t.navGaming : t.navWorkstation}</button>
           ))}
         </div>
       </header>
@@ -187,23 +211,28 @@ function Sidebar({ mobile, section, onSection, onHome }: {
           color: "var(--amber)",
         }}>PERFHUB</div>
         <div style={{ fontSize: 27, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 4 }}>
-          Performans
+          {t.brand}
         </div>
       </button>
 
+      <div style={{ padding: "0 24px 22px" }}>
+        <LangToggle lang={lang} onLang={onLang} />
+      </div>
+
       <nav style={{ padding: "0 14px", display: "grid", gap: 4 }}>
         <NavItem active={section === "gaming"} onClick={() => onSection("gaming")}
-          label="Oyun" hint="FPS tahmini" />
+          label={t.navGaming} hint={t.navGamingHint} />
         <NavItem active={section === "workstation"} onClick={() => onSection("workstation")}
-          label="İş istasyonu" hint="Render, derleme" muted />
+          label={t.navWorkstation} hint={t.navWorkstationHint} muted />
       </nav>
 
       <div style={{ marginTop: "auto", padding: "0 26px" }}>
         <div style={{
           fontFamily: "var(--mono)", fontSize: 12, color: "var(--text-3)", lineHeight: 1.8,
         }}>
-          Cadence 1.0<br />
-          106 ölçüm · %9.0 hata
+          {t.engineFoot(106, "9.0").split("\n").map((line, i) => (
+            <span key={i}>{line}<br /></span>
+          ))}
         </div>
       </div>
     </aside>
@@ -331,14 +360,13 @@ function Blueprint({ dim }: { dim: boolean }) {
 }
 
 function Placeholder() {
+  const { t } = useT();
   return (
     <div style={{ display: "grid", placeItems: "center", height: "100%", textAlign: "center" }}>
       <div>
-        <div style={{ fontSize: 24, fontWeight: 600 }}>İş istasyonu modu</div>
+        <div style={{ fontSize: 24, fontWeight: 600 }}>{t.workstationTitle}</div>
         <p style={{ color: "var(--text-2)", maxWidth: 440, margin: "12px auto 0", lineHeight: 1.7, fontSize: 16 }}>
-          Bu bölüm ayrı veri istiyor: tek çekirdek ve çok çekirdek skorları,
-          Blender gibi uygulamalarda ölçülmüş süreler. Oyun puanları buraya
-          taşınamaz — bilerek oyun endeksine çevrildiler.
+          {t.workstationBody}
         </p>
       </div>
     </div>
@@ -354,6 +382,7 @@ function Builder(p: {
   onRam: (n: number) => void; onResolution: (s: string) => void;
   onPreset: (s: string) => void; onSubmit: () => void; mobile: boolean;
 }) {
+  const { t } = useT();
   return (
     <div style={{ padding: p.mobile ? "22px 18px" : "26px 48px", height: "100%", overflowY: "auto" }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
@@ -371,27 +400,24 @@ function Builder(p: {
           fontSize: p.mobile ? 26 : 34, fontWeight: 600, letterSpacing: "-0.03em",
           margin: 0, lineHeight: 1.1,
         }}>
-          Donanımını seç,{" "}
-          <span style={{ color: "var(--text-2)" }}>
-            {p.total} oyunun kaç kare vereceğini gör.
-          </span>
+          {t.buildTitleA}{" "}
+          <span style={{ color: "var(--text-2)" }}>{t.buildTitleB(p.total)}</span>
         </h1>
         <p style={{ color: "var(--text-2)", margin: "12px 0 22px", fontSize: 15, lineHeight: 1.55, maxWidth: 580 }}>
-          Çözünürlük ve preset tüm listeyi belirler. Ray tracing, upscaling ve
-          frame generation oyun başına.
+          {t.buildLead}
         </p>
 
         <div style={{ display: "grid", gap: 13 }}>
-          <Field label="İşlemci">
+          <Field label={t.cpu}>
             <Picker
               items={cpus.map((c) => ({ value: c.name, label: c.name, meta: String(c.power_score) }))}
               value={p.cpu?.name ?? ""}
               onChange={(v) => p.onCpu(cpus.find((c) => c.name === v) ?? null)}
-              placeholder="Ara — 5600, 14700, x3d…"
-              emptyLabel="İşlemci seçin"
+              placeholder={t.searchCpu}
+              emptyLabel={t.pickCpu}
             />
           </Field>
-          <Field label="Ekran kartı">
+          <Field label={t.gpu}>
             <Picker
               items={gpus.map((g) => ({
                 value: g.name, label: g.name,
@@ -399,8 +425,8 @@ function Builder(p: {
               }))}
               value={p.gpu?.name ?? ""}
               onChange={(v) => p.onGpu(gpus.find((g) => g.name === v) ?? null)}
-              placeholder="Ara — 4070, 9070 xt, arc…"
-              emptyLabel="Ekran kartı seçin"
+              placeholder={t.searchGpu}
+              emptyLabel={t.pickGpu}
             />
           </Field>
 
@@ -408,15 +434,15 @@ function Builder(p: {
             display: "grid",
             gridTemplateColumns: p.mobile ? "1fr" : "1fr 1fr 1.2fr", gap: 14,
           }}>
-            <Field label="RAM">
+            <Field label={t.ram}>
               <Segmented value={String(p.ram)} onChange={(v) => p.onRam(Number(v))}
                 options={RAM.map((r) => ({ value: String(r), label: `${r}` }))} />
             </Field>
-            <Field label="Çözünürlük">
+            <Field label={t.resolution}>
               <Segmented value={p.resolution} onChange={p.onResolution}
                 options={RESOLUTIONS.map((r) => ({ value: r, label: r }))} />
             </Field>
-            <Field label="Preset">
+            <Field label={t.preset}>
               <Segmented value={p.preset} onChange={p.onPreset}
                 options={PRESETS.map((r) => ({ value: r, label: r }))} />
             </Field>
@@ -435,7 +461,7 @@ function Builder(p: {
             cursor: p.ready ? "pointer" : "not-allowed",
           }}
         >
-          {p.ready ? `${p.total} oyunu hesapla` : "İşlemci ve ekran kartı seçin"}
+          {p.ready ? t.calculate(p.total) : t.needParts}
         </button>
       </div>
     </div>
@@ -466,6 +492,7 @@ function Results(p: {
   // size to arrive on and the wrong size to read a list through, so it packs
   // itself away once you start scrolling and comes back when you return.
   const [compact, setCompact] = useState(false);
+  const { t } = useT();
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -489,7 +516,7 @@ function Results(p: {
             <button onClick={p.onBack} style={{
               background: "var(--surface)", border: "1px solid var(--border)",
               borderRadius: 10, padding: "10px 15px", fontSize: 14, color: "var(--text-2)",
-            }}>← Sistemi değiştir</button>
+            }}>{t.back}</button>
             <div style={{ fontFamily: "var(--mono)", fontSize: 13.5, color: "var(--text-2)" }}>
               {p.cpu.name} · {p.gpu.name} · {p.ram} GB ·{" "}
               <span style={{ color: "var(--amber)" }}>{p.resolution} {p.preset}</span>
@@ -524,15 +551,18 @@ function Results(p: {
               <div style={{
                 fontSize: 13, letterSpacing: "0.24em", color: "var(--text-3)",
                 fontFamily: "var(--mono)",
-              }}>KÜTÜPHANE DURUMU</div>
+              }}>{t.libraryStatus}</div>
               <h1 style={{
                 fontSize: p.mobile ? 25 : 36, fontWeight: 600, letterSpacing: "-0.03em",
                 margin: "8px 0 0", lineHeight: 1.08,
               }}>
-                {p.total} oyunun{" "}
-                <span style={{ color: "var(--green)" }}>{p.summary.good}</span>
-                {"'i "}
-                <span style={{ color: "var(--text-2)" }}>bu sistemde hedefinde çalışıyor.</span>
+                {t.headline(p.total, p.summary.good).a}
+                <span style={{ color: "var(--green)" }}>
+                  {t.headline(p.total, p.summary.good).b}
+                </span>
+                <span style={{ color: "var(--text-2)" }}>
+                  {t.headline(p.total, p.summary.good).c}
+                </span>
               </h1>
             </div>
             <SummaryArc summary={p.summary} total={p.total} mobile={p.mobile} />
@@ -549,7 +579,7 @@ function Results(p: {
           <input
             value={p.query}
             onChange={(e) => p.onQuery(e.target.value)}
-            placeholder="Oyun ara —  cs2, gta, cyberpunk…"
+            placeholder={t.searchGame}
             style={{
               flex: 1, background: "var(--surface)", border: "1px solid var(--border)",
               borderRadius: 10, padding: "13px 16px", fontSize: 15.5, outline: "none",
@@ -558,9 +588,9 @@ function Results(p: {
           <Segmented
             value={p.sort} onChange={(v) => p.onSort(v as Sort)}
             options={[
-              { value: "struggling", label: "Zorlananlar" },
-              { value: "fastest", label: "En hızlı" },
-              { value: "name", label: "A-Z" },
+              { value: "struggling", label: t.sortStruggling },
+              { value: "fastest", label: t.sortFastest },
+              { value: "name", label: t.sortName },
             ]}
           />
           {/* The count lives in the label because with "struggling" sorting the
@@ -568,9 +598,7 @@ function Results(p: {
               to change nothing visible and read as a broken button. */}
           <button
             onClick={() => p.onToggleMeasured(!p.onlyMeasured)}
-            title={p.onlyMeasured
-              ? "Tahmini oyunları da göster — bunlar ölçüme dayanmıyor"
-              : "Sadece ölçüme dayanan oyunlar"}
+            title={p.onlyMeasured ? t.estimatedTitle : t.measuredTitle(0)}
             style={{
               border: `1px solid ${p.onlyMeasured ? "var(--green)" : "var(--border)"}`,
               background: p.onlyMeasured ? "var(--green-dim)" : "var(--surface)",
@@ -579,7 +607,7 @@ function Results(p: {
               fontWeight: p.onlyMeasured ? 600 : 400,
             }}
           >
-            {p.onlyMeasured ? "✓ " : ""}Ölçülmüş · {p.measuredCount}
+            {p.onlyMeasured ? "✓ " : ""}{t.measuredFilter(p.measuredCount)}
           </button>
           <button
             onClick={() => p.onToggleProblems(!p.onlyProblems)}
@@ -591,7 +619,7 @@ function Results(p: {
               fontWeight: p.onlyProblems ? 600 : 400,
             }}
           >
-            Sorunlular · {p.problemCount}
+            {t.problemFilter(p.problemCount)}
           </button>
         </div>
       </div>
@@ -609,13 +637,13 @@ function Results(p: {
               padding: "12px 0", fontSize: 13.5, color: "var(--text-2)",
               fontFamily: "var(--mono)",
             }}>
-              {p.total} oyundan {p.rows.length} tanesi gösteriliyor
-              {p.onlyProblems && " · sadece sorunlular"}
+              {t.showing(p.total, p.rows.length)}
+              {p.onlyProblems && t.onlyProblemsNote}
             </div>
           )}
           {p.rows.length === 0 ? (
             <div style={{ padding: 70, textAlign: "center", color: "var(--text-3)", fontSize: 16 }}>
-              Eşleşen oyun yok.
+              {t.noGames}
             </div>
           ) : (
             p.rows.map((r, i) => (
@@ -642,6 +670,7 @@ function SummaryArc({ summary, total, mobile }: {
   summary: { good: number; close: number; poor: number; bad: number };
   total: number; mobile: boolean;
 }) {
+  const { t } = useT();
   const pct = total ? Math.round((summary.good / total) * 100) : 0;
   const sweep = 220;
   const start = 180 + (360 - sweep) / 2;
@@ -691,14 +720,14 @@ function SummaryArc({ summary, total, mobile }: {
           }}>{pct}<tspan style={{ fontSize: 18, fill: "var(--text-3)" }}>%</tspan></text>
           <text x="110" y="134" textAnchor="middle" style={{
             fill: "var(--text-3)", fontSize: 11.5, letterSpacing: "0.22em",
-          }}>HEDEFTE</text>
+          }}>{t.inTarget}</text>
         </svg>
       </div>
 
       <div style={{ display: "grid", gap: mobile ? 7 : 11, minWidth: 0 }}>
-        <Legend n={summary.good} label="hedefe ulaşıyor" color="var(--green)" />
-        <Legend n={summary.close} label="hedefe yakın" color="var(--orange)" />
-        <Legend n={summary.poor + summary.bad} label="hedefin altında" color="var(--red)" />
+        <Legend n={summary.good} label={t.onTarget} color="var(--green)" />
+        <Legend n={summary.close} label={t.nearTarget} color="var(--orange)" />
+        <Legend n={summary.poor + summary.bad} label={t.belowTarget} color="var(--red)" />
       </div>
     </div>
   );
@@ -796,6 +825,7 @@ function Monogram({ name, width = 52, height = 52 }: {
 function GameRow({ row, index, mobile, onOpen }: {
   row: Row; index: number; mobile: boolean; onOpen: () => void;
 }) {
+  const { t } = useT();
   const color = VERDICT_COLOR[row.v];
   const ratio = Math.min(1, row.fps / row.target);
   const warning = row.status && row.status !== "ok" && row.status !== "ram_short";
@@ -837,24 +867,24 @@ function GameRow({ row, index, mobile, onOpen }: {
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 5 }}>
           <span style={{ fontSize: 13, color: "var(--text-3)" }}>{row.genre}</span>
           {(row.game.measurements ?? 0) > 0 ? (
-            <span title={`${row.game.measurements} gerçek benchmark ölçümüne dayanıyor`}
+            <span title={t.measuredTitle(row.game.measurements ?? 0)}
               style={{
                 fontSize: 11, fontFamily: "var(--mono)", color: "var(--green)",
                 border: "1px solid var(--green)", borderRadius: 5, padding: "1px 6px",
                 background: "var(--green-dim)", fontWeight: 600,
-              }}>ÖLÇÜLDÜ · {row.game.measurements}</span>
+              }}>{t.measured(row.game.measurements ?? 0)}</span>
           ) : (
-            <span title="Bu satır ölçüme dayanmıyor; sapma büyük olabilir"
+            <span title={t.estimatedTitle}
               style={{
                 fontSize: 11, fontFamily: "var(--mono)", color: "var(--text-3)",
                 border: "1px dashed var(--border)", borderRadius: 5, padding: "1px 6px",
-              }}>TAHMİN</span>
+              }}>{t.estimated}</span>
           )}
           {row.game.competitive ? (
             <span style={{
               fontSize: 11, fontFamily: "var(--mono)", color: "var(--amber)",
               border: "1px solid var(--amber-dim)", borderRadius: 5, padding: "1px 6px",
-            }}>REKABETÇİ</span>
+            }}>{t.competitive}</span>
           ) : null}
           {warning && (
             <span style={{
@@ -862,9 +892,9 @@ function GameRow({ row, index, mobile, onOpen }: {
               background: "var(--red-dim)", border: "1px solid var(--red-deep)",
               borderRadius: 6, padding: "2px 8px",
             }}>
-              {row.status === "unplayable" ? "⚠ OYNANAMAZ"
-                : row.status === "vram_spill" ? `⚠ VRAM TAŞIYOR · ${row.vram_needed_gb} GB`
-                : `⚠ VRAM SINIRDA · ${row.vram_needed_gb} GB`}
+              {row.status === "unplayable" ? t.badgeUnplayable
+                : row.status === "vram_spill" ? t.badgeSpill(row.vram_needed_gb ?? 0)
+                : t.badgeTight(row.vram_needed_gb ?? 0)}
             </span>
           )}
         </div>
@@ -885,8 +915,8 @@ function GameRow({ row, index, mobile, onOpen }: {
           fontSize: 12, color: "var(--text-3)", marginTop: 8, fontFamily: "var(--mono)",
           display: "flex", justifyContent: "space-between",
         }}>
-          <span style={{ color }}>{VERDICT_LABEL[row.v]}</span>
-          <span>hedef {row.target}</span>
+          <span style={{ color }}>{t[VERDICT_KEY[row.v]]}</span>
+          <span>{t.target(row.target)}</span>
         </div>
       </div>
 
@@ -908,6 +938,7 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
   game: Game; cpu: CPUData; gpu: GPUData; ram: number;
   resolution: string; preset: string; mobile: boolean; onClose: () => void;
 }) {
+  const { t, lang } = useT();
   const [res, setRes] = useState(resolution);
   const [set, setSet] = useState(preset);
   const [ups, setUps] = useState("Native");
@@ -929,6 +960,8 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
   // upscalers, so the game side is keyed off those.
   const gameHasFg = !!(game.supports_dlss || game.supports_fsr);
   const fgOptions = gameHasFg ? getFgOptions(gpu.name) : ["Kapalı"];
+  // "Kapalı" stays the value the engine sees; only the label is translated.
+  const fgLabel = (x: string) => (x === "Kapalı" ? t.fgOff : x);
 
   const r = estimateFpsDetailed(
     { name: cpu.name, power_score: cpu.power_score },
@@ -962,8 +995,7 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
               {game.name}
             </h2>
             <div style={{ fontSize: 13.5, color: "var(--text-3)", marginTop: 5 }}>
-              {game.genre}
-              {game.competitive ? " · rekabetçi" : ""} · hedef {target} fps
+              {t.detailTargetLine(game.genre, !!game.competitive, target)}
             </div>
             {/* The single most important thing on this panel: whether the big
                 number below is worth trusting. Measured rows sit at 8.9% mean
@@ -975,9 +1007,7 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
               background: measured ? "var(--green-dim)" : "transparent",
               color: measured ? "var(--green)" : "var(--text-3)",
             }}>
-              {measured
-                ? `✓ ${game.measurements} gerçek ölçüme dayanıyor`
-                : "Tahmin — bu oyun ölçülmedi"}
+              {measured ? t.measuredBadge(game.measurements ?? 0) : t.estimatedBadge}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -994,34 +1024,32 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
             fontFamily: "var(--mono)", fontSize: 66, fontWeight: 600, lineHeight: 1, color,
           }}>{r.fps}</div>
           <div style={{ fontSize: 14, color, marginTop: 9, fontWeight: 500 }}>
-            {VERDICT_LABEL[v]}
+            {t[VERDICT_KEY[v]]}
           </div>
           <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 7 }}>
-            {r.bottleneck} sınırlı · {r.vram_needed_gb} GB VRAM · {r.quality}
+            {t.bottleneckLine(r.bottleneck, r.vram_needed_gb, r.quality)}
           </div>
           {!measured && (
             <div style={{
               fontSize: 12.5, color: "var(--text-3)", marginTop: 12,
               maxWidth: 330, marginLeft: "auto", marginRight: "auto", lineHeight: 1.55,
             }}>
-              Bu oyunun maliyet profili ölçülmedi, benzer oyunlardan türetildi.
-              Ölçülen oyunlarda motor %9 hatayla çalışıyor; türetilmiş
-              profillerde aynı test %49 sapma gösterdi.
+              {t.estimatedExplain}
             </div>
           )}
         </div>
 
         <div style={{ display: "grid", gap: 17 }}>
-          <Field label="Çözünürlük">
+          <Field label={t.resolution}>
             <Segmented value={res} onChange={setRes}
               options={RESOLUTIONS.map((x) => ({ value: x, label: x }))} />
           </Field>
-          <Field label="Preset">
+          <Field label={t.preset}>
             <Segmented value={set} onChange={setSet}
               options={PRESETS.map((x) => ({ value: x, label: x }))} />
           </Field>
           {upscalers.length > 1 ? (
-            <Field label="Upscaling">
+            <Field label={t.upscaling}>
               {/* The technology has to stay in the label. Stripping it left
                   three separate buttons all reading "Quality" — one each for
                   DLSS, FSR and XeSS — which is worse than the overflow it was
@@ -1036,28 +1064,28 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
                 }))} />
             </Field>
           ) : (
-            <Unsupported label="Upscaling" note="Bu oyunda upscaling yok" />
+            <Unsupported label={t.upscaling} note={t.noUpscaling} />
           )}
           {fgOptions.length > 1 ? (
-            <Field label="Frame generation">
+            <Field label={t.frameGen}>
               <Segmented value={fg} onChange={setFg}
-                options={fgOptions.map((x) => ({ value: x, label: x }))} />
+                options={fgOptions.map((x) => ({ value: x, label: fgLabel(x) }))} />
             </Field>
           ) : (
             <Unsupported
-              label="Frame generation"
-              note={gameHasFg ? "Bu ekran kartı desteklemiyor" : "Bu oyunda frame generation yok"}
+              label={t.frameGen}
+              note={gameHasFg ? t.noFgGpu : t.noFgGame}
             />
           )}
           <div style={{ display: "flex", gap: 12 }}>
-            <Toggle on={rt} disabled={!game.supports_rt} onClick={() => setRt(!rt)} label="Ray tracing" />
-            <Toggle on={pt} disabled={!game.supports_pt} onClick={() => setPt(!pt)} label="Path tracing" />
+            <Toggle on={rt} disabled={!game.supports_rt} onClick={() => setRt(!rt)} label={t.rayTracing} />
+            <Toggle on={pt} disabled={!game.supports_pt} onClick={() => setPt(!pt)} label={t.pathTracing} />
           </div>
         </div>
 
-        {r.warnings.length > 0 && (
+        {r.notes.length > 0 && (
           <div style={{ marginTop: 26, display: "grid", gap: 12 }}>
-            {r.warnings.map((w, i) => (
+            {r.notes.map((n, i) => (
               <div key={i} style={{
                 fontSize: 13.5, lineHeight: 1.65, color: "var(--text)",
                 background: "var(--red-dim)",
@@ -1066,7 +1094,7 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
                 display: "flex", gap: 11,
               }}>
                 <span style={{ color: "var(--red)", fontSize: 16, lineHeight: 1.3 }}>⚠</span>
-                <span>{w}</span>
+                <span>{renderNote(n, lang)}</span>
               </div>
             ))}
           </div>
@@ -1147,11 +1175,12 @@ function Segmented({ value, onChange, options }: {
 function Toggle({ on, disabled, onClick, label }: {
   on: boolean; disabled?: boolean; onClick: () => void; label: string;
 }) {
+  const { t } = useT();
   return (
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      title={disabled ? "Bu oyun desteklemiyor" : undefined}
+      title={disabled ? t.unsupported : undefined}
       style={{
         flex: 1, padding: "13px 10px", borderRadius: 10, fontSize: 14.5,
         border: `1px solid ${on ? "var(--amber)" : "var(--border)"}`,

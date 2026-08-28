@@ -385,7 +385,7 @@ def _memory_pressure(vram_needed, vram_available, ram_gb, ram_base_gb):
         vram_spill   — the frame itself does not fit; slow but playable
         unplayable   — overflowing with nowhere to spill to
     """
-    warnings = []
+    notes = []
     ram_free = ram_gb - ram_base_gb - bc.OS_RAM_RESERVE_GB
     overflow = vram_needed - vram_available
 
@@ -393,10 +393,8 @@ def _memory_pressure(vram_needed, vram_available, ram_gb, ram_base_gb):
     ram_mult = 1.0
     if ram_free < 0:
         ram_mult = bc.RAM_SHORTFALL_PENALTY
-        warnings.append(
-            f"Sistem RAM'i yetersiz: oyun ~{ram_base_gb:.0f} GB istiyor, "
-            f"{ram_gb} GB RAM ile takas (paging) başlıyor."
-        )
+        notes.append({"code": "ram_short",
+                      "game_ram_gb": ram_base_gb, "ram_gb": ram_gb})
     elif ram_free > 8:
         ram_mult = bc.RAM_ABUNDANCE_BONUS
 
@@ -406,29 +404,23 @@ def _memory_pressure(vram_needed, vram_available, ram_gb, ram_base_gb):
         # moves somewhere new".
         wanted = vram_needed * bc.VRAM_ALLOC_APPETITE + bc.VRAM_ALLOC_HEADROOM_GB
         if wanted > vram_available:
-            return (bc.VRAM_TIGHT_PENALTY * ram_mult, "vram_tight", warnings + [
-                f"VRAM sınırda: kare için ~{vram_needed:.1f} GB yetiyor ama oyun "
-                f"~{wanted:.1f} GB önbellek ayırmak istiyor ({vram_available} GB kart). "
-                f"Ortalama FPS iyi kalır, ancak yeni sahnelere geçerken takılma olabilir."
+            return (bc.VRAM_TIGHT_PENALTY * ram_mult, "vram_tight", notes + [
+                {"code": "vram_tight", "needed_gb": vram_needed,
+                 "wanted_gb": wanted, "capacity_gb": vram_available}
             ])
-        return ram_mult, ("ok" if not warnings else "ram_short"), warnings
+        return ram_mult, ("ok" if not notes else "ram_short"), notes
 
     # Overflowing. The spilled data has to live in system RAM.
-    warnings.append(
-        f"VRAM yetersiz: ~{vram_needed:.1f} GB ihtiyaç, {vram_available} GB kart "
-        f"(~{overflow:.1f} GB taşıyor)."
-    )
+    notes.append({"code": "vram_spill", "needed_gb": vram_needed,
+                  "capacity_gb": vram_available, "overflow_gb": overflow})
 
     if ram_free < overflow * bc.RAM_UNPLAYABLE_SHORTFALL_RATIO:
         # Nothing meaningful left to spill into. Merely having less free RAM
         # than the overflow is not enough — Windows pages the rest to disk and
         # the game stays playable, just slower.
-        warnings.append(
-            f"Taşan {overflow:.1f} GB'ı karşılayacak sistem RAM'i de yok "
-            f"({ram_gb} GB). Oyun çökebilir veya oynanamaz hale gelir — "
-            f"{int(ram_gb * 2)} GB RAM bu senaryoyu kurtarır."
-        )
-        return (bc.VRAM_SPILL_FLOOR * 0.35, "unplayable", warnings)
+        notes.append({"code": "unplayable", "overflow_gb": overflow,
+                      "ram_gb": ram_gb, "suggested_ram_gb": int(ram_gb * 2)})
+        return (bc.VRAM_SPILL_FLOOR * 0.35, "unplayable", notes)
 
     # Spilling, but system RAM can absorb it. Streaming over PCIe is slow and
     # gets worse the further over the limit you are.
@@ -442,13 +434,55 @@ def _memory_pressure(vram_needed, vram_available, ram_gb, ram_base_gb):
     comfort = min(1.0, ram_free / max(overflow * bc.RAM_SPILL_COMFORT_RATIO, 0.1))
     mult *= bc.RAM_SPILL_CRAMPED_PENALTY + (1.0 - bc.RAM_SPILL_CRAMPED_PENALTY) * comfort
     if comfort < 0.6:
-        warnings.append(
-            f"Sistem RAM'i taşmayı ancak zar zor karşılıyor; daha fazla RAM "
-            f"({int(ram_gb * 2)} GB) bu senaryoda gözle görülür fark yaratır."
-        )
+        notes.append({"code": "ram_cramped", "ram_gb": ram_gb,
+                      "suggested_ram_gb": int(ram_gb * 2)})
 
     mult = max(bc.VRAM_SPILL_FLOOR, mult)
-    return (mult * ram_mult, "vram_spill", warnings)
+    return (mult * ram_mult, "vram_spill", notes)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Note rendering
+#
+#  The model reports what happened as a code and the numbers behind it; this
+#  turns that into a sentence. Keeping the prose out of the model is what lets
+#  the website show these in another language without the engine knowing one
+#  exists — and it makes the conformance test compare structure rather than
+#  wording, so rephrasing a warning no longer breaks it.
+#
+#  `warnings` is still returned, and still in Turkish, because the desktop
+#  application reads it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_note(note):
+    c = note["code"]
+    if c == "ram_short":
+        return (f"Sistem RAM'i yetersiz: oyun ~{note['game_ram_gb']:.0f} GB istiyor, "
+                f"{note['ram_gb']} GB RAM ile takas (paging) başlıyor.")
+    if c == "vram_tight":
+        return (f"VRAM sınırda: kare için ~{note['needed_gb']:.1f} GB yetiyor ama oyun "
+                f"~{note['wanted_gb']:.1f} GB önbellek ayırmak istiyor "
+                f"({note['capacity_gb']} GB kart). Ortalama FPS iyi kalır, ancak "
+                f"yeni sahnelere geçerken takılma olabilir.")
+    if c == "vram_spill":
+        return (f"VRAM yetersiz: ~{note['needed_gb']:.1f} GB ihtiyaç, "
+                f"{note['capacity_gb']} GB kart "
+                f"(~{note['overflow_gb']:.1f} GB taşıyor).")
+    if c == "unplayable":
+        return (f"Taşan {note['overflow_gb']:.1f} GB'ı karşılayacak sistem RAM'i de yok "
+                f"({note['ram_gb']} GB). Oyun çökebilir veya oynanamaz hale gelir — "
+                f"{note['suggested_ram_gb']} GB RAM bu senaryoyu kurtarır.")
+    if c == "ram_cramped":
+        return (f"Sistem RAM'i taşmayı ancak zar zor karşılıyor; daha fazla RAM "
+                f"({note['suggested_ram_gb']} GB) bu senaryoda gözle görülür fark yaratır.")
+    if c == "upscaling_unsupported":
+        return ("Bu oyun seçilen upscaling teknolojisini desteklemiyor; "
+                "native çözünürlükte hesaplandı.")
+    if c == "fps_cap":
+        return (f"Bu oyun varsayılan halinde {note['cap']} FPS ile sınırlı. "
+                f"Donanımın {note['uncapped']} FPS'e yetiyor, ancak sınır "
+                f"kaldırılmadan {note['cap']} FPS görürsün.")
+    return ""
 
 
 def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
@@ -486,7 +520,7 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
 
     vram_needed = _vram_demand(vram_base, quality, resolution, render_scale,
                                ray_tracing, path_tracing, fg_mode)
-    mem_mult, status, warnings = _memory_pressure(vram_needed, vram, ram_gb, ram_base)
+    mem_mult, status, notes = _memory_pressure(vram_needed, vram, ram_gb, ram_base)
     rendered_fps *= mem_mult
 
     # Generated frames need no CPU simulation, which is why frame generation
@@ -494,8 +528,7 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
     fps = rendered_fps * bc.FG_OUTPUT_MULTIPLIER.get(fg_mode, 1.0) if fg_mode else rendered_fps
 
     if not upscale_active:
-        warnings.append("Bu oyun seçilen upscaling teknolojisini desteklemiyor; "
-                        "native çözünürlükte hesaplandı.")
+        notes.append({"code": "upscaling_unsupported"})
 
     # Some games ship with a hard frame rate limit. Reporting only the capped
     # figure would make every capable GPU look identical, so the uncapped
@@ -503,11 +536,8 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
     uncapped_fps = max(int(round(fps)), 0)
     fps_cap = game.get("fps_cap") or 0
     if fps_cap and uncapped_fps > fps_cap:
-        warnings.append(
-            f"Bu oyun varsayılan halinde {int(fps_cap)} FPS ile sınırlı. "
-            f"Donanımın {uncapped_fps} FPS'e yetiyor, ancak sınır kaldırılmadan "
-            f"{int(fps_cap)} FPS görürsün."
-        )
+        notes.append({"code": "fps_cap", "cap": int(fps_cap),
+                      "uncapped": uncapped_fps})
 
     return {
         "fps": uncapped_fps,
@@ -520,7 +550,9 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
         "vram_alloc_gb": round(_vram_allocation(vram_needed, vram), 1),
         "vram_available_gb": vram,
         "quality": quality,
-        "warnings": warnings,
+        # Structured first, prose derived from it. See _render_note.
+        "notes": notes,
+        "warnings": [_render_note(n) for n in notes],
     }
 
 
