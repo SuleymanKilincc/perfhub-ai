@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { cpus, gpus, games, predictAll } from "../engine/catalog";
 import { estimateFpsDetailed, getFgOptions } from "../engine/cadence";
+import { LEGACY_GPU_ARCHITECTURES } from "../engine/balance.generated";
 import type { CPUData, GPUData } from "../types";
 import { targetFps, verdict, searchGames, VERDICT_COLOR, VERDICT_KEY, type Verdict } from "./lib";
 import Picker from "./Picker";
@@ -45,7 +46,7 @@ export default function Demo() {
 
   const [query, setQuery] = useState("");
   const [onlyProblems, setOnlyProblems] = useState(false);
-  // Measured games predict at 8.9% mean error; the derived costs the rest
+  // Measured games predict at 9.1% mean error; the derived costs the rest
   // carry were 49.2% out against the same benchmarks. Showing both by
   // default would present a coin flip with the same confidence as a
   // measurement, so the trustworthy set is what you see first.
@@ -581,6 +582,27 @@ function Results(p: {
           </div>
         </div>
       </header>
+
+      {/* A caveat belongs where the wrong number is loudest. On a GTX 1070 the
+          engine reports 78% of the library on target, Starfield at 132 fps and
+          Alan Wake 2 at 86 — against roughly 40 and 25 in reality. Leaving that
+          only in a per-game panel would mean the headline stays confident and
+          the correction stays hidden. */}
+      {(LEGACY_GPU_ARCHITECTURES as readonly string[]).includes(p.gpu.architecture ?? "") && (
+        <div style={{
+          padding: p.mobile ? "12px 16px" : "14px 36px",
+          background: "color-mix(in oklab, var(--orange) 12%, var(--bg))",
+          borderBottom: "1px solid color-mix(in oklab, var(--orange) 34%, var(--border))",
+        }}>
+          <div style={{
+            maxWidth: WIDTH, margin: "0 auto", display: "flex", gap: 12,
+            alignItems: "flex-start", fontSize: p.mobile ? 13 : 14, lineHeight: 1.5,
+          }}>
+            <span style={{ color: "var(--orange)", flexShrink: 0 }}>▲</span>
+            <span style={{ color: "var(--text-2)" }}>{t.legacyGpuBanner(p.gpu.architecture ?? "")}</span>
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: p.mobile ? "12px 16px" : "16px 36px", borderBottom: "1px solid var(--border)" }}>
         <div style={{

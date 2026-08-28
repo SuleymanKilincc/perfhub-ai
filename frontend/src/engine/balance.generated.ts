@@ -25,6 +25,7 @@ export const FG_VRAM_ADD_GB = {
   } as const;
 export const GPU_MS_CONST = 2.65 as const;
 export const GPU_PERF_EXPONENT = 1.85 as const;
+export const LEGACY_GPU_ARCHITECTURES = ["Gen 11", "Gen 9.5", "Kepler", "Maxwell", "Pascal", "Polaris", "Vega"] as const;
 export const OS_RAM_RESERVE_GB = 3.5 as const;
 export const PT_CPU_COST_MULT = 1.12 as const;
 export const PT_GPU_COST_MULT = 3.3 as const;

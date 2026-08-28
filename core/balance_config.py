@@ -104,6 +104,27 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # and 40 at Extreme. Measurements now record which preset they used
 # (benchmarks.rt_level) and the calibration holds Extreme rows out, so a single
 # maxed-out run cannot drag this toward a setting most players never pick.
+# Architectures from before the 2018-19 generation. Five outside systems built
+# on them — RX 580, GTX 1070, GTX 1060 3GB against Turing and RDNA cards —
+# disagree with the engine by +110% on average in current games, while the
+# Turing and RDNA rows in the same comparison land at -0.1%. The boundary is
+# that sharp, and the gap is not uniform: Forza Horizon 5 comes out within 10%
+# on the very same cards that miss Starfield by 223% and Alan Wake 2 by 308%.
+#
+# So this is not a scoring error to be corrected by lowering a number. One
+# scalar per card cannot say "fine in a 2021 racer, falls apart in a 2023
+# renderer" — these chips lack mesh shaders and the rest of the DX12 Ultimate
+# feature set that newer engines assume, and what they lose depends entirely on
+# what the game asks for. Modelling it properly needs a per-game notion of how
+# modern the engine is, which is data we do not have yet.
+#
+# Until then the honest thing is to say so. The estimate is still produced —
+# refusing to answer helps nobody — but it carries a note rather than the
+# quiet confidence of a number that has been checked.
+LEGACY_GPU_ARCHITECTURES = frozenset({
+    "Kepler", "Maxwell", "Pascal", "Polaris", "Vega", "Gen 9.5", "Gen 11",
+})
+
 RT_GPU_COST_MULT = 1.68
 PT_GPU_COST_MULT = 3.30
 RT_VRAM_ADD_GB = 1.10

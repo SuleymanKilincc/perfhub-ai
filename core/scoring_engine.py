@@ -211,8 +211,11 @@ def _extract_hardware(cpu_data, gpu_data):
         gpu_score = gpu_data.get("power_score", 50.0)
         gpu_name = gpu_data.get("name", "") or ""
         vram = gpu_data.get("vram", 8) or 8
+        gpu_arch = gpu_data.get("architecture", "") or ""
     else:
-        gpu_score, gpu_name, vram = float(gpu_data), "", 8
+        # A bare score carries no architecture, so no generation claim can be
+        # made about it either way.
+        gpu_score, gpu_name, vram, gpu_arch = float(gpu_data), "", 8, ""
 
     # Apple unified memory: the GPU can address system RAM, so VRAM pressure
     # is not a meaningful constraint here.
@@ -224,7 +227,7 @@ def _extract_hardware(cpu_data, gpu_data):
     # It does now — the CPU scores are a 1080p gaming index, and the model that
     # fills in the unmeasured chips has its own fitted 1.23x X3D multiplier, so
     # applying it again here counted it twice.
-    return cpu_score, cpu_name, gpu_score, gpu_name, vram
+    return cpu_score, cpu_name, gpu_score, gpu_name, vram, gpu_arch
 
 
 def _game_profile(game):
@@ -478,6 +481,11 @@ def _render_note(note):
     if c == "upscaling_unsupported":
         return ("Bu oyun seçilen upscaling teknolojisini desteklemiyor; "
                 "native çözünürlükte hesaplandı.")
+    if c == "legacy_gpu":
+        return (f"Bu kart {note['architecture']} nesli. Ölçümlerimiz 2019 ve "
+                f"sonrası mimarilerde doğrulandı; bu nesilde motor yeni "
+                f"oyunlarda gerçekte olandan belirgin şekilde yüksek FPS "
+                f"tahmin ediyor. Eski oyunlarda tahmin tutarlı kalıyor.")
     if c == "fps_cap":
         return (f"Bu oyun varsayılan halinde {note['cap']} FPS ile sınırlı. "
                 f"Donanımın {note['uncapped']} FPS'e yetiyor, ancak sınır "
@@ -500,7 +508,7 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
         vram_needed_gb   estimated VRAM working set
         warnings         human-readable notes for the UI
     """
-    cpu_score, _, gpu_score, _, vram = _extract_hardware(cpu_data, gpu_data)
+    cpu_score, _, gpu_score, _, vram, gpu_arch = _extract_hardware(cpu_data, gpu_data)
     gpu_cost, cpu_cost, vram_base, ram_base = _game_profile(game)
 
     quality = _resolve_quality(settings, game)
@@ -529,6 +537,11 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
 
     if not upscale_active:
         notes.append({"code": "upscaling_unsupported"})
+
+    # Outside the range the engine has been checked against. See
+    # LEGACY_GPU_ARCHITECTURES for the measurements behind this.
+    if gpu_arch in bc.LEGACY_GPU_ARCHITECTURES:
+        notes.append({"code": "legacy_gpu", "architecture": gpu_arch})
 
     # Some games ship with a hard frame rate limit. Reporting only the capped
     # figure would make every capable GPU look identical, so the uncapped

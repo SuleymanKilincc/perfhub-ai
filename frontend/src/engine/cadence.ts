@@ -24,7 +24,12 @@
 import * as bc from "./balance.generated";
 
 export type Cpu = { name?: string; power_score: number };
-export type Gpu = { name?: string; power_score: number; vram?: number | null };
+export type Gpu = {
+  name?: string;
+  power_score: number;
+  vram?: number | null;
+  architecture?: string | null;
+};
 
 export type Game = {
   name: string;
@@ -70,6 +75,7 @@ export type Note =
   | { code: "unplayable"; overflow_gb: number; ram_gb: number; suggested_ram_gb: number }
   | { code: "ram_cramped"; ram_gb: number; suggested_ram_gb: number }
   | { code: "upscaling_unsupported" }
+  | { code: "legacy_gpu"; architecture: string }
   | { code: "fps_cap"; cap: number; uncapped: number };
 
 export type Estimate = {
@@ -167,22 +173,26 @@ function extractHardware(cpu: Cpu | number, gpu: Gpu | number) {
     cpuName = "";
   }
 
-  let gpuScore: number, gpuName: string, vram: number;
+  let gpuScore: number, gpuName: string, vram: number, gpuArch: string;
   if (typeof gpu === "object") {
     gpuScore = gpu.power_score ?? 50.0;
     gpuName = gpu.name || "";
     vram = gpu.vram || 8;
+    gpuArch = gpu.architecture || "";
   } else {
+    // A bare score carries no architecture, so no generation claim can be
+    // made about it either way.
     gpuScore = gpu;
     gpuName = "";
     vram = 8;
+    gpuArch = "";
   }
 
   // Apple unified memory: the GPU can address system RAM, so VRAM pressure is
   // not a meaningful constraint here.
   if (gpuName.toLowerCase().includes("apple")) vram = 64;
 
-  return { cpuScore, cpuName, gpuScore, gpuName, vram };
+  return { cpuScore, cpuName, gpuScore, gpuName, vram, gpuArch };
 }
 
 function gameProfile(game: Game) {
@@ -382,6 +392,11 @@ export function renderNote(note: Note): string {
     case "upscaling_unsupported":
       return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
         "native çözünürlükte hesaplandı.";
+    case "legacy_gpu":
+      return `Bu kart ${note.architecture} nesli. Ölçümlerimiz 2019 ve ` +
+        `sonrası mimarilerde doğrulandı; bu nesilde motor yeni ` +
+        `oyunlarda gerçekte olandan belirgin şekilde yüksek FPS ` +
+        `tahmin ediyor. Eski oyunlarda tahmin tutarlı kalıyor.`;
     case "fps_cap":
       return `Bu oyun varsayılan halinde ${note.cap} FPS ile sınırlı. ` +
         `Donanımın ${note.uncapped} FPS'e yetiyor, ancak sınır ` +
@@ -401,7 +416,7 @@ export function estimateFpsDetailed(
   rayTracing = false,
   pathTracing = false,
 ): Estimate {
-  const { cpuScore, gpuScore, vram } = extractHardware(cpuData, gpuData);
+  const { cpuScore, gpuScore, vram, gpuArch } = extractHardware(cpuData, gpuData);
   const { gpuCost, cpuCost, vramBase, ramBase } = gameProfile(game);
 
   const quality = resolveQuality(settings, game);
@@ -427,6 +442,12 @@ export function estimateFpsDetailed(
     : renderedFps;
 
   if (!upscaleActive) notes.push({ code: "upscaling_unsupported" });
+
+  // Outside the range the engine has been checked against. See
+  // LEGACY_GPU_ARCHITECTURES for the measurements behind this.
+  if ((bc.LEGACY_GPU_ARCHITECTURES as readonly string[]).includes(gpuArch)) {
+    notes.push({ code: "legacy_gpu", architecture: gpuArch });
+  }
 
   const uncappedFps = Math.max(pyRound(fps), 0);
   const fpsCap = game.fps_cap || 0;

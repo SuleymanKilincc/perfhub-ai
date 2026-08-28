@@ -64,6 +64,12 @@ of the same GPU. Current standing against that set:
 | Systematic bias | −1.3% |
 | Within 20% of measured | 86% |
 
+That figure covers 2019-and-later graphics architectures, which is what the
+measurements cover. On Pascal, Polaris and older the engine reads about 110%
+high in current games — it says so on screen rather than quietly — and
+[CALIBRATION.md](CALIBRATION.md) explains why lowering those scores would be
+the wrong fix.
+
 RTX 4090 + Ryzen 7 7800X3D in Cyberpunk 2077 at Ultra, native, no ray tracing:
 
 | Resolution | Predicted | Measured |

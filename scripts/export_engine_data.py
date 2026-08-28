@@ -55,6 +55,11 @@ def ts_value(v, indent=2):
         return json.dumps(v)
     if isinstance(v, (list, tuple)):
         return "[" + ", ".join(ts_value(x, indent) for x in v) + "]"
+    # Sets become sorted arrays: TypeScript has Set, but a generated module is
+    # easier to read as a literal, and sorting keeps the diff stable when the
+    # set is edited.
+    if isinstance(v, (set, frozenset)):
+        return "[" + ", ".join(ts_value(x, indent) for x in sorted(v)) + "]"
     if isinstance(v, dict):
         inner = ",\n".join(f"{pad}  {json.dumps(k)}: {ts_value(x, indent + 2)}"
                            for k, x in v.items())

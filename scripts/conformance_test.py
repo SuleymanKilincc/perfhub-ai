@@ -59,15 +59,21 @@ def build_cases(n, seed=20260824):
     gpus = [dict(g) for g in db_manager.get_all_gpus()]
     games = [dict(g) for g in db_manager.get_all_games()]
 
+    # Trim to the fields the engines actually read, but trim honestly: a field
+    # left out here is a field the test cannot compare, and it will still pass.
+    # `architecture` was missing when the legacy-GPU note was added, so 4768
+    # cases agreed perfectly while never once running the new branch.
+    def hw(row, *keys):
+        return {k: row.get(k) for k in keys}
+
     cases = []
     for _ in range(n):
         cpu = rng.choice(cpus)
         gpu = rng.choice(gpus)
         game = rng.choice(games)
         cases.append({
-            "cpu": {"name": cpu["name"], "power_score": cpu["power_score"]},
-            "gpu": {"name": gpu["name"], "power_score": gpu["power_score"],
-                    "vram": gpu.get("vram")},
+            "cpu": hw(cpu, "name", "power_score"),
+            "gpu": hw(gpu, "name", "power_score", "vram", "architecture"),
             "game": {k: game.get(k) for k in GAME_KEYS},
             "resolution": rng.choice(RESOLUTIONS),
             "settings": rng.choice(SETTINGS),
@@ -91,9 +97,8 @@ def build_cases(n, seed=20260824):
             for res in RESOLUTIONS:
                 for ram in (8, 32):
                     cases.append({
-                        "cpu": {"name": cpu["name"], "power_score": cpu["power_score"]},
-                        "gpu": {"name": gpu["name"], "power_score": gpu["power_score"],
-                                "vram": gpu.get("vram")},
+                        "cpu": hw(cpu, "name", "power_score"),
+                        "gpu": hw(gpu, "name", "power_score", "vram", "architecture"),
                         "game": {k: game.get(k) for k in GAME_KEYS},
                         "resolution": res, "settings": "Ultra",
                         "upscaling": "Native", "frame_gen": "Kapalı",
