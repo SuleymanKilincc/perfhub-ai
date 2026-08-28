@@ -81,8 +81,38 @@ GENRE_CPU_RATIO = {
     "Action Adventure": 0.70,
     "Horror": 0.65,
     "Puzzle": 0.75,
+    # The genre labels were made finer later on and this table was not, so for
+    # a while 19 of the 34 values matched nothing and fell to DEFAULT_CPU_RATIO
+    # in silence — roughly sixty games given a 1.0 that reads as a judgement
+    # and was really a missing key. A lookup that quietly succeeds with the
+    # wrong answer is worse than one that fails, hence check_genre_coverage().
+    "Action RPG": 0.80,
+    "Souls-like": 0.70,
+    "Adventure": 0.70,
+    "Sports": 0.95,
+    "Racing Sim": 0.85,
+    "Arcade Racing": 0.85,
+    "City Builder": 1.9,     # the most CPU-bound thing on the list — agent counts
+    "Party": 1.0,
+    "Open World": 1.1,       # streaming and NPC simulation cost CPU, but these
+                             # are also heavy renderers, so only just above 1
+    "Co-op Shooter": 1.2,
+    "Looter Shooter": 1.2,
+    "Extraction Shooter": 1.4,   # large persistent maps, many actors
+    "MOBA": 1.6,             # runs at hundreds of fps, so the CPU wall arrives first
+    "CRPG": 1.5,             # turn-based simulation of a whole party and its world
+    "JRPG": 0.80,
+    "Platformer": 0.90,
+    "Puzzle Platformer": 0.75,
+    "Stealth": 0.75,
+    "Co-op Horror": 0.90,
 }
 DEFAULT_CPU_RATIO = 1.0
+
+
+def check_genre_coverage(genres):
+    """Return the genre labels in use that this table has no entry for."""
+    return sorted({g for g in genres if g and g not in GENRE_CPU_RATIO})
 
 # Genres whose VRAM footprint runs above/below what raw render cost implies.
 GENRE_VRAM_BIAS = {

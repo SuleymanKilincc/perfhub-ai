@@ -11,8 +11,8 @@ context.
 |---|---|
 | Engine | Cadence 1.0 |
 | Measurements in `benchmarks` table | 111 |
-| Mean absolute error | **8.9%** (44.8% before any calibration) |
-| Systematic bias | −1.1% |
+| Mean absolute error | **9.1%** (44.8% before any calibration) |
+| Systematic bias | −1.3% |
 | Within 10% of measured | 69% |
 | Within 20% of measured | 86% |
 
@@ -227,6 +227,20 @@ Visible in the validation output; none of these are hidden.
    ~4 GB spilling to system RAM. The engine predicts 19 fps against 10.
 5. **Ray Reconstruction is not modelled**; the one measurement using it is
    recorded as RT + DLSS Quality.
+5a. **Measuring only on fast CPUs hid a whole class of error.** 74 of the 111
+   rows use an X3D chip, where the CPU term almost never binds, so a wrong CPU
+   cost changes no prediction and no fit notices. A single outside run on a
+   Ryzen 5 5600 exposed three games whose fitted CPU cost was nonsense — Grand
+   Theft Auto V Enhanced implied that chip could not pass 38 fps, against 125
+   observed. The cause was that `fit_game_costs` required two *rows* rather
+   than two *distinct configurations*: GTA V's four rows are a frame-generation
+   ladder at one resolution on one machine, and the solver was free to park the
+   cost anywhere. `is_identifiable` now requires variation in resolution,
+   preset or CPU before the split is fitted at all, and holds the ratio at the
+   genre prior otherwise. GTA V's ceiling moved to 213 fps and the independent
+   run agrees to within 1%. Cost: 0.2 points of fitted error, for three numbers
+   the data never supported. The gap that remains is the measurement set, not
+   the fit — weak CPUs are what it lacks.
 5b. **The model has one ray-tracing flag where games ship several presets**,
    and the cost of that is now measured rather than suspected. Forza Horizon 6
    on an RTX 3080 Ti at 1440p reads 85 fps at High RT and 40 at Extreme; the

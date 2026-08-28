@@ -26,6 +26,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core import balance_config as bc
 from core import db_manager
 from core import scoring_engine as se
+# The same genre priors the profiles were derived from, so a game whose rows
+# cannot pin down its CPU:GPU split falls back to exactly where it started
+# rather than to a second, separately maintained guess.
+from migrate_game_profiles import (DEFAULT_CPU_RATIO, GENRE_CPU_RATIO,
+                                   check_genre_coverage)
 
 
 def load():
@@ -36,6 +41,14 @@ def load():
     gpus = {g["name"]: dict(g) for g in db_manager.get_all_gpus()}
     rows = [dict(r) for r in conn.execute("SELECT * FROM benchmarks")]
     conn.close()
+
+    # A genre with no prior silently becomes 1.0, which is indistinguishable
+    # from a deliberate 1.0. Say so rather than let it pass.
+    missing = check_genre_coverage(g.get("genre") for g in games.values())
+    if missing:
+        print(f"  UYARI: prior'i olmayan tur ({len(missing)}): {', '.join(missing)}")
+        print("  -> migrate_game_profiles.GENRE_CPU_RATIO'ya eklenmeli\n")
+
     return games, cpus, gpus, rows
 
 
@@ -61,11 +74,46 @@ def frange(lo, hi, step):
         v += step
 
 
+def is_identifiable(rs, cpus):
+    """
+    Can these rows actually separate a game's CPU cost from its GPU cost?
+
+    Only if something moves the two terms independently. Three things do:
+    resolution, because pixel count drives the GPU term and leaves the CPU term
+    alone; the CPU itself; and the preset, which sounds like it should scale
+    both together but does not — the quality multipliers run 0.42 to 1.70 on
+    the GPU against 0.80 to 1.14 on the CPU, so a Very Low to Ultra sweep
+    swings the balance between them by 2.8x.
+
+    Changing only the GPU or the upscaler does not qualify. Those move one term
+    while the other stays put, which identifies the split only through the
+    curvature of the blend — and at k=4 that blend is very nearly a plain max,
+    so the signal is almost nothing.
+
+    Counting rows instead of counting *distinct configurations* is what let
+    Grand Theft Auto V Enhanced through. Its four rows are a frame-generation
+    ladder at one resolution on one machine, which is one configuration seen
+    four ways, and the solver quietly parked the cost in the CPU term: it
+    implied a Ryzen 5 5600 could not exceed 38 fps in a game that really runs
+    well past a hundred. Every measurement we hold is on a strong CPU, where
+    that term barely binds, so nothing in the fit noticed.
+    """
+    return (len({r["resolution"] for r in rs}) >= 2
+            or len({r["settings"] for r in rs}) >= 2
+            or len({cpus[r["cpu"]]["power_score"] for r in rs}) >= 2)
+
+
 def fit_game_costs(rows, games, cpus, gpus, verbose=True, use_all_rows=False):
     """
     Fit gpu_cost / cpu_cost for every game with at least two usable rows. A
     single row cannot separate the two costs, so those are skipped — guessing
     a split from one data point would only bake in an assumption.
+
+    Where the rows cannot separate the two (see is_identifiable), only the
+    overall magnitude is fitted and the CPU:GPU ratio is held at the genre
+    prior. One degree of freedom in the data, one number fitted. The prior is a
+    weaker claim than a measurement, but it is an honest one, and it beats a
+    number the data never constrained.
 
     With use_all_rows, ray tracing / frame generation rows are included too.
     That is for games measured only with those features on, where the choice
@@ -91,10 +139,12 @@ def fit_game_costs(rows, games, cpus, gpus, verbose=True, use_all_rows=False):
             continue
         g = games[name]
         before = err(rs, games, cpus, gpus)
+        free = is_identifiable(rs, cpus)
+        ratio = GENRE_CPU_RATIO.get(g.get("genre"), DEFAULT_CPU_RATIO)
         best = None
         for gc in frange(0.10, 8.0, 0.05):
             g["gpu_cost"] = gc
-            for cc in frange(0.10, 8.0, 0.10):
+            for cc in (frange(0.10, 8.0, 0.10) if free else [round(gc * ratio, 4)]):
                 g["cpu_cost"] = cc
                 e = sum(abs(predict(r, games, cpus, gpus) - r["fps_avg"]) / r["fps_avg"]
                         for r in rs)
@@ -106,8 +156,9 @@ def fit_game_costs(rows, games, cpus, gpus, verbose=True, use_all_rows=False):
         fitted[name] = (gc, cc, before, after, len(rs))
         if verbose:
             bound = "CPU" if cc > gc else "GPU"
+            note = "" if free else f"  oran prior'da sabit ({ratio:.2f})"
             print(f"    {name[:30]:30s} n={len(rs)}  gpu={gc:5.2f} cpu={cc:5.2f} "
-                  f"[{bound}]  {before:5.1f}% -> {after:5.1f}%")
+                  f"[{bound}]  {before:5.1f}% -> {after:5.1f}%{note}")
     return fitted
 
 
