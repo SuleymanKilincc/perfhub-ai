@@ -4,6 +4,7 @@ import { estimateFpsDetailed, getFgOptions } from "../engine/cadence";
 import type { CPUData, GPUData } from "../types";
 import { targetFps, verdict, searchGames, VERDICT_COLOR, VERDICT_LABEL, type Verdict } from "./lib";
 import Picker from "./Picker";
+import useIsMobile from "./useIsMobile";
 
 const RESOLUTIONS = ["1080p", "1440p", "4k"];
 const PRESETS = ["Low", "Medium", "High", "Ultra"];
@@ -22,6 +23,7 @@ type Sort = "struggling" | "fastest" | "name";
 type Game = (typeof games)[number];
 
 export default function Demo() {
+  const mobile = useIsMobile();
   const [section, setSection] = useState<"gaming" | "workstation">("gaming");
   const [phase, setPhase] = useState<Phase>("build");
 
@@ -83,20 +85,24 @@ export default function Demo() {
   const open = openId === null ? null : games.find((g) => g.id === openId) ?? null;
 
   return (
-    <div style={{ display: "flex", height: "100%", background: "var(--bg)" }}>
-      <Sidebar section={section} onSection={setSection} onHome={() => setPhase("build")} />
+    <div style={{
+      display: "flex", flexDirection: mobile ? "column" : "row",
+      height: "100%", background: "var(--bg)",
+    }}>
+      <Sidebar mobile={mobile} section={section} onSection={setSection}
+        onHome={() => setPhase("build")} />
 
       <main style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         {section === "workstation" ? (
           <Placeholder />
         ) : (
-          <Stage phase={phase}>
+          <Stage phase={phase} mobile={mobile}>
             {phase === "build" ? (
               <Builder
                 cpu={cpu} gpu={gpu} ram={ram} resolution={resolution} preset={preset}
                 onCpu={setCpu} onGpu={setGpu} onRam={setRam}
                 onResolution={setResolution} onPreset={setPreset}
-                ready={ready} total={games.length}
+                ready={ready} total={games.length} mobile={mobile}
                 onSubmit={() => setPhase("results")}
               />
             ) : (
@@ -108,7 +114,7 @@ export default function Demo() {
                 onlyProblems={onlyProblems} onToggleProblems={setOnlyProblems}
                 onlyMeasured={onlyMeasured} onToggleMeasured={setOnlyMeasured}
                 measuredCount={measuredCount}
-                sort={sort} onSort={setSort}
+                sort={sort} onSort={setSort} mobile={mobile}
                 onBack={() => setPhase("build")}
                 onOpen={setOpenId}
               />
@@ -120,7 +126,7 @@ export default function Demo() {
       {open && cpu && gpu && (
         <Detail
           game={open} cpu={cpu} gpu={gpu} ram={ram}
-          resolution={resolution} preset={preset}
+          resolution={resolution} preset={preset} mobile={mobile}
           onClose={() => setOpenId(null)}
         />
       )}
@@ -130,11 +136,42 @@ export default function Demo() {
 
 // ─── Shell ───────────────────────────────────────────────────────────────────
 
-function Sidebar({ section, onSection, onHome }: {
+function Sidebar({ mobile, section, onSection, onHome }: {
+  mobile: boolean;
   section: "gaming" | "workstation";
   onSection: (s: "gaming" | "workstation") => void;
   onHome: () => void;
 }) {
+  if (mobile) {
+    return (
+      <header style={{
+        flexShrink: 0, borderBottom: "1px solid var(--border)",
+        background: "var(--surface)", display: "flex", alignItems: "center",
+        gap: 10, padding: "12px 16px",
+      }}>
+        <button onClick={onHome} style={{ background: "none", border: "none", textAlign: "left", padding: 0 }}>
+          <span style={{
+            fontFamily: "var(--mono)", fontSize: 11, letterSpacing: "0.3em",
+            color: "var(--amber)",
+          }}>PERFHUB</span>
+        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          {(["gaming", "workstation"] as const).map((k) => (
+            <button
+              key={k}
+              onClick={() => onSection(k)}
+              style={{
+                padding: "7px 12px", borderRadius: 8, fontSize: 13,
+                border: `1px solid ${section === k ? "var(--amber)" : "var(--border)"}`,
+                background: section === k ? "var(--amber-glow)" : "transparent",
+                color: section === k ? "var(--amber)" : "var(--text-3)",
+              }}
+            >{k === "gaming" ? "Oyun" : "İş istasyonu"}</button>
+          ))}
+        </div>
+      </header>
+    );
+  }
   return (
     <aside style={{
       width: 264, flexShrink: 0, borderRight: "1px solid var(--border)",
@@ -206,7 +243,15 @@ function NavItem({ active, onClick, label, hint, muted }: {
  * which is both the "entering an object" effect and the fix for the frame's
  * real problem — a fixed bezel around a 176-row list leaves no room to read it.
  */
-function Stage({ phase, children }: { phase: Phase; children: React.ReactNode }) {
+function Stage({ phase, mobile, children }: {
+  phase: Phase; mobile: boolean; children: React.ReactNode;
+}) {
+  // The bezel is the right frame for this on a desktop and completely wrong on
+  // a phone, where it would spend most of a 375px screen on a picture of a
+  // monitor. Below the breakpoint the content just fills the viewport.
+  if (mobile) {
+    return <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>{children}</div>;
+  }
   const building = phase === "build";
   return (
     <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
@@ -307,10 +352,10 @@ function Builder(p: {
   resolution: string; preset: string; ready: boolean; total: number;
   onCpu: (c: CPUData | null) => void; onGpu: (g: GPUData | null) => void;
   onRam: (n: number) => void; onResolution: (s: string) => void;
-  onPreset: (s: string) => void; onSubmit: () => void;
+  onPreset: (s: string) => void; onSubmit: () => void; mobile: boolean;
 }) {
   return (
-    <div style={{ padding: "26px 48px", height: "100%", overflowY: "auto" }}>
+    <div style={{ padding: p.mobile ? "22px 18px" : "26px 48px", height: "100%", overflowY: "auto" }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <div style={{
           fontSize: 12.5, letterSpacing: "0.24em", color: "var(--amber)",
@@ -323,8 +368,8 @@ function Builder(p: {
             button past the bottom of the monitor and the whole screen had to
             be scrolled, which is not what a five-field form should ask for. */}
         <h1 style={{
-          fontSize: 34, fontWeight: 600, letterSpacing: "-0.03em",
-          margin: 0, lineHeight: 1.08,
+          fontSize: p.mobile ? 26 : 34, fontWeight: 600, letterSpacing: "-0.03em",
+          margin: 0, lineHeight: 1.1,
         }}>
           Donanımını seç,{" "}
           <span style={{ color: "var(--text-2)" }}>
@@ -359,7 +404,10 @@ function Builder(p: {
             />
           </Field>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr", gap: 14 }}>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: p.mobile ? "1fr" : "1fr 1fr 1.2fr", gap: 14,
+          }}>
             <Field label="RAM">
               <Segmented value={String(p.ram)} onChange={(v) => p.onRam(Number(v))}
                 options={RAM.map((r) => ({ value: String(r), label: `${r}` }))} />
@@ -411,7 +459,7 @@ function Results(p: {
   onlyProblems: boolean; onToggleProblems: (b: boolean) => void;
   onlyMeasured: boolean; onToggleMeasured: (b: boolean) => void;
   measuredCount: number;
-  sort: Sort; onSort: (s: Sort) => void;
+  sort: Sort; onSort: (s: Sort) => void; mobile: boolean;
   onBack: () => void; onOpen: (id: number) => void;
 }) {
   // The hero is 322px, which is a third of the viewport. That is the right
@@ -425,7 +473,9 @@ function Results(p: {
           everywhere — it comes from a lot of room in one place and very little
           in the rest, which is the thing the first pass got wrong. */}
       <header style={{
-        padding: compact ? "16px 36px" : "30px 36px 28px",
+        padding: compact
+          ? (p.mobile ? "12px 16px" : "16px 36px")
+          : (p.mobile ? "18px 16px 20px" : "30px 36px 28px"),
         borderBottom: "1px solid var(--border)",
         background: "var(--lift)", flexShrink: 0, overflow: "hidden",
         transition: "padding 380ms var(--ease)",
@@ -463,8 +513,9 @@ function Results(p: {
               headline, making the hero *taller* on the screens that could
               least afford it. Here the headline gives way instead. */}
           <div style={{
-            display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto",
-            alignItems: "center", gap: 32,
+            display: "grid",
+            gridTemplateColumns: p.mobile ? "1fr" : "minmax(0, 1fr) auto",
+            alignItems: "center", gap: p.mobile ? 18 : 32,
             maxHeight: compact ? 0 : 300,
             opacity: compact ? 0 : 1,
             transition: "max-height 380ms var(--ease), opacity 240ms var(--ease)",
@@ -475,7 +526,7 @@ function Results(p: {
                 fontFamily: "var(--mono)",
               }}>KÜTÜPHANE DURUMU</div>
               <h1 style={{
-                fontSize: 36, fontWeight: 600, letterSpacing: "-0.03em",
+                fontSize: p.mobile ? 25 : 36, fontWeight: 600, letterSpacing: "-0.03em",
                 margin: "8px 0 0", lineHeight: 1.08,
               }}>
                 {p.total} oyunun{" "}
@@ -484,13 +535,17 @@ function Results(p: {
                 <span style={{ color: "var(--text-2)" }}>bu sistemde hedefinde çalışıyor.</span>
               </h1>
             </div>
-            <SummaryArc summary={p.summary} total={p.total} />
+            <SummaryArc summary={p.summary} total={p.total} mobile={p.mobile} />
           </div>
         </div>
       </header>
 
-      <div style={{ padding: "16px 36px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ maxWidth: WIDTH, margin: "0 auto", display: "flex", gap: 14, alignItems: "center" }}>
+      <div style={{ padding: p.mobile ? "12px 16px" : "16px 36px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{
+          maxWidth: WIDTH, margin: "0 auto", display: "flex",
+          gap: p.mobile ? 8 : 14, alignItems: "center",
+          flexWrap: p.mobile ? "wrap" : "nowrap",
+        }}>
           <input
             value={p.query}
             onChange={(e) => p.onQuery(e.target.value)}
@@ -548,7 +603,7 @@ function Results(p: {
           setCompact((c) => (c ? y > 30 : y > 90));  // hysteresis, so it does
         }}                                            // not flicker at the edge
       >
-        <div style={{ maxWidth: WIDTH, margin: "0 auto", padding: "0 36px" }}>
+        <div style={{ maxWidth: WIDTH, margin: "0 auto", padding: p.mobile ? "0 12px" : "0 36px" }}>
           {(p.query || p.onlyProblems) && (
             <div style={{
               padding: "12px 0", fontSize: 13.5, color: "var(--text-2)",
@@ -564,7 +619,8 @@ function Results(p: {
             </div>
           ) : (
             p.rows.map((r, i) => (
-              <GameRow key={r.id} row={r} index={i} onOpen={() => p.onOpen(r.id)} />
+              <GameRow key={r.id} row={r} index={i} mobile={p.mobile}
+                onOpen={() => p.onOpen(r.id)} />
             ))
           )}
         </div>
@@ -582,9 +638,9 @@ function Results(p: {
  * gets the size that deserves. The arc reuses the loader's instrument
  * language, which is what makes the two screens feel like one product.
  */
-function SummaryArc({ summary, total }: {
+function SummaryArc({ summary, total, mobile }: {
   summary: { good: number; close: number; poor: number; bad: number };
-  total: number;
+  total: number; mobile: boolean;
 }) {
   const pct = total ? Math.round((summary.good / total) * 100) : 0;
   const sweep = 220;
@@ -612,8 +668,12 @@ function SummaryArc({ summary, total }: {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
-      <div style={{ position: "relative", width: 190, height: 124, flexShrink: 0 }}>
-        <svg width="190" height="124" viewBox="20 26 180 118" aria-hidden>
+      <div style={{
+        position: "relative", width: mobile ? 150 : 190, height: mobile ? 98 : 124,
+        flexShrink: 0,
+      }}>
+        <svg width={mobile ? 150 : 190} height={mobile ? 98 : 124}
+          viewBox="20 26 180 118" aria-hidden>
           <path d={arc(start, start + sweep, R)} fill="none"
             stroke="var(--raised)" strokeWidth="13" strokeLinecap="round" />
           {segs.map((s, i) => {
@@ -635,7 +695,7 @@ function SummaryArc({ summary, total }: {
         </svg>
       </div>
 
-      <div style={{ display: "grid", gap: 11 }}>
+      <div style={{ display: "grid", gap: mobile ? 7 : 11, minWidth: 0 }}>
         <Legend n={summary.good} label="hedefe ulaşıyor" color="var(--green)" />
         <Legend n={summary.close} label="hedefe yakın" color="var(--orange)" />
         <Legend n={summary.poor + summary.bad} label="hedefin altında" color="var(--red)" />
@@ -646,12 +706,16 @@ function SummaryArc({ summary, total }: {
 
 function Legend({ n, label, color }: { n: number; label: string; color: string }) {
   return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 11 }}>
+    <div style={{ display: "flex", alignItems: "baseline", gap: 9, minWidth: 0 }}>
       <span style={{ width: 9, height: 9, borderRadius: 3, background: color, flexShrink: 0 }} />
-      <span style={{ fontFamily: "var(--mono)", fontSize: 26, fontWeight: 600, color, minWidth: 46 }}>
-        {n}
-      </span>
-      <span style={{ fontSize: 15, color: "var(--text-2)" }}>{label}</span>
+      <span style={{
+        fontFamily: "var(--mono)", fontSize: 24, fontWeight: 600, color,
+        minWidth: 40, flexShrink: 0,
+      }}>{n}</span>
+      <span style={{
+        fontSize: 14, color: "var(--text-2)", minWidth: 0,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      }}>{label}</span>
     </div>
   );
 }
@@ -729,7 +793,9 @@ function Monogram({ name, width = 52, height = 52 }: {
  * against this game's own target rather than a fixed number — 60 fps is green
  * in an RPG and red in Counter-Strike, and both are correct.
  */
-function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () => void }) {
+function GameRow({ row, index, mobile, onOpen }: {
+  row: Row; index: number; mobile: boolean; onOpen: () => void;
+}) {
   const color = VERDICT_COLOR[row.v];
   const ratio = Math.min(1, row.fps / row.target);
   const warning = row.status && row.status !== "ok" && row.status !== "ram_short";
@@ -740,8 +806,11 @@ function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () =
       className="rise"
       style={{
         ["--i" as string]: Math.min(index, 18),
-        display: "grid", gridTemplateColumns: "1fr 190px 150px", alignItems: "center",
-        gap: 22, width: "100%", textAlign: "left", padding: "13px 18px",
+        display: "grid",
+        gridTemplateColumns: mobile ? "1fr auto" : "1fr 190px 150px",
+        alignItems: "center",
+        gap: mobile ? 12 : 22, width: "100%", textAlign: "left",
+        padding: mobile ? "12px 10px" : "13px 18px",
         background: "none", border: "1px solid transparent",
         borderBottom: "1px solid var(--border)", borderRadius: 12,
         transition: "background 160ms, transform 160ms var(--ease), border-color 160ms",
@@ -759,7 +828,7 @@ function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () =
       }}
     >
       <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 18 }}>
-        <Cover game={row.game} eager={index < 12} />
+        <Cover game={row.game} size={mobile ? 76 : 108} eager={index < 12} />
         <div style={{ minWidth: 0 }}>
         <div style={{
           fontSize: 18, fontWeight: 500,
@@ -802,7 +871,7 @@ function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () =
         </div>
       </div>
 
-      <div>
+      <div style={{ gridColumn: mobile ? "1 / -1" : undefined, order: mobile ? 3 : undefined }}>
         <div style={{
           height: 8, background: "var(--raised)", borderRadius: 4, overflow: "hidden",
           boxShadow: "inset 0 1px 2px rgba(0,0,0,0.5)",
@@ -824,7 +893,7 @@ function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () =
       {/* The number is the answer. It gets to be the biggest thing on the row. */}
       <div style={{ textAlign: "right" }}>
         <span style={{
-          fontFamily: "var(--mono)", fontSize: 38, fontWeight: 600, color,
+          fontFamily: "var(--mono)", fontSize: mobile ? 30 : 38, fontWeight: 600, color,
           letterSpacing: "-0.035em", lineHeight: 1,
         }}>{row.fps}</span>
         <span style={{ fontSize: 13, color: "var(--text-3)", marginLeft: 6 }}>fps</span>
@@ -835,9 +904,9 @@ function GameRow({ row, index, onOpen }: { row: Row; index: number; onOpen: () =
 
 // ─── Per-game detail ─────────────────────────────────────────────────────────
 
-function Detail({ game, cpu, gpu, ram, resolution, preset, onClose }: {
+function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
   game: Game; cpu: CPUData; gpu: GPUData; ram: number;
-  resolution: string; preset: string; onClose: () => void;
+  resolution: string; preset: string; mobile: boolean; onClose: () => void;
 }) {
   const [res, setRes] = useState(resolution);
   const [set, setSet] = useState(preset);
@@ -876,7 +945,13 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, onClose }: {
       <div onClick={onClose} style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 20,
       }} />
-      <aside style={{
+      {/* A 470px drawer is wider than a phone, so on mobile it becomes a
+          bottom sheet instead — the same content, reachable with a thumb. */}
+      <aside style={mobile ? {
+        position: "fixed", left: 0, right: 0, bottom: 0, maxHeight: "88%", zIndex: 21,
+        background: "var(--surface)", borderTop: "1px solid var(--border-strong)",
+        borderRadius: "16px 16px 0 0", padding: "20px 18px 28px", overflowY: "auto",
+      } : {
         position: "fixed", top: 0, right: 0, bottom: 0, width: 470, zIndex: 21,
         background: "var(--surface)", borderLeft: "1px solid var(--border-strong)",
         padding: "30px 32px", overflowY: "auto",
