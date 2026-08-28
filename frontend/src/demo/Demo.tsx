@@ -6,6 +6,7 @@ import { targetFps, verdict, searchGames, VERDICT_COLOR, VERDICT_KEY, type Verdi
 import Picker from "./Picker";
 import useIsMobile from "./useIsMobile";
 import { LangContext, strings, useT, renderNote, type Lang } from "./i18n";
+import { readUrl, useUrlState } from "./urlState";
 
 const RESOLUTIONS = ["1080p", "1440p", "4k"];
 const PRESETS = ["Low", "Medium", "High", "Ultra"];
@@ -25,16 +26,22 @@ type Game = (typeof games)[number];
 
 export default function Demo() {
   const mobile = useIsMobile();
-  const [lang, setLang] = useState<Lang>("tr");
+  // Read once, at mount. A shared link should open on the result it points
+  // at, and an unknown part name simply falls back rather than erroring.
+  const [initial] = useState(readUrl);
+
+  const [lang, setLang] = useState<Lang>(initial.lang ?? "tr");
   const t = strings[lang];
   const [section, setSection] = useState<"gaming" | "workstation">("gaming");
-  const [phase, setPhase] = useState<Phase>("build");
 
-  const [cpu, setCpu] = useState<CPUData | null>(null);
-  const [gpu, setGpu] = useState<GPUData | null>(null);
-  const [ram, setRam] = useState(16);
-  const [resolution, setResolution] = useState("1440p");
-  const [preset, setPreset] = useState("High");
+  const [cpu, setCpu] = useState<CPUData | null>(
+    () => cpus.find((c) => c.name === initial.cpu) ?? null);
+  const [gpu, setGpu] = useState<GPUData | null>(
+    () => gpus.find((g) => g.name === initial.gpu) ?? null);
+  const [ram, setRam] = useState(initial.ram ?? 16);
+  const [resolution, setResolution] = useState(initial.res ?? "1440p");
+  const [preset, setPreset] = useState(initial.preset ?? "High");
+  const [phase, setPhase] = useState<Phase>(cpu && gpu ? "results" : "build");
 
   const [query, setQuery] = useState("");
   const [onlyProblems, setOnlyProblems] = useState(false);
@@ -44,7 +51,12 @@ export default function Demo() {
   // measurement, so the trustworthy set is what you see first.
   const [onlyMeasured, setOnlyMeasured] = useState(true);
   const [sort, setSort] = useState<Sort>("struggling");
-  const [openId, setOpenId] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<number | null>(initial.game ?? null);
+
+  useUrlState({
+    cpu: cpu?.name, gpu: gpu?.name, ram, res: resolution, preset, lang,
+    game: openId ?? undefined,
+  });
 
   const scored = useMemo(() => {
     if (!cpu || !gpu) return [];
