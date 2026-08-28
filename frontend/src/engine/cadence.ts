@@ -393,10 +393,10 @@ export function renderNote(note: Note): string {
       return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
         "native çözünürlükte hesaplandı.";
     case "legacy_gpu":
-      return `Bu kart ${note.architecture} nesli. Ölçümlerimiz 2019 ve ` +
-        `sonrası mimarilerde doğrulandı; bu nesilde motor yeni ` +
-        `oyunlarda gerçekte olandan belirgin şekilde yüksek FPS ` +
-        `tahmin ediyor. Eski oyunlarda tahmin tutarlı kalıyor.`;
+      return `Bu kart ${note.architecture} nesli ve elimizdeki ölçümlerin ` +
+        `tamamı 2019 sonrası mimarilerde. Bu nesilde tahmin doğrulanmadı — ` +
+        `dışarıdan gelen sonuçlar hem çok yüksek hem tutarlı çıktığı için ` +
+        `hangi yönde saptığını da söyleyemiyoruz.`;
     case "fps_cap":
       return `Bu oyun varsayılan halinde ${note.cap} FPS ile sınırlı. ` +
         `Donanımın ${note.uncapped} FPS'e yetiyor, ancak sınır ` +
@@ -443,8 +443,8 @@ export function estimateFpsDetailed(
 
   if (!upscaleActive) notes.push({ code: "upscaling_unsupported" });
 
-  // Outside the range the engine has been checked against. See
-  // LEGACY_GPU_ARCHITECTURES for the measurements behind this.
+  // No measurement exists on this architecture. See
+  // LEGACY_GPU_ARCHITECTURES for why no correction is applied.
   if ((bc.LEGACY_GPU_ARCHITECTURES as readonly string[]).includes(gpuArch)) {
     notes.push({ code: "legacy_gpu", architecture: gpuArch });
   }

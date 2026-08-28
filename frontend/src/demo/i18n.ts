@@ -36,10 +36,10 @@ export const strings = {
     back: "← Sistemi değiştir",
     libraryStatus: "KÜTÜPHANE DURUMU",
     legacyGpuBanner: (arch: string) =>
-      `Bu ekran kartı ${arch} nesli. Motorumuz 2019 ve sonrası mimarilerde ` +
-      `ölçüldü; bu nesilde yeni oyunlar için gerçekte olandan belirgin şekilde ` +
-      `yüksek FPS tahmin ediyor. Aşağıdaki sayıları bu kartta iyimser kabul edin — ` +
-      `eski oyunlarda tahmin tutarlı kalıyor.`,
+      `Bu ekran kartı ${arch} nesli ve elimizdeki 123 ölçümün tamamı 2019 ` +
+      `sonrası mimarilerde. Aşağıdaki sayılar bu nesilde doğrulanmadı; ` +
+      `dışarıdan gelen sonuçlar birbiriyle çeliştiği için hangi yönde saptığını ` +
+      `da söyleyemiyoruz. Kesin değil, tahmin olarak okuyun.`,
     headline: (total: number, good: number) => ({
       a: `${total} oyunun `, b: `${good}`,
       c: "'i bu sistemde hedefinde çalışıyor.",
@@ -115,10 +115,10 @@ export const strings = {
     back: "← Change system",
     libraryStatus: "LIBRARY STATUS",
     legacyGpuBanner: (arch: string) =>
-      `This is a ${arch} generation card. Our engine is validated against 2019 ` +
-      `and later architectures; on this generation it predicts noticeably higher ` +
-      `frame rates than these cards really reach in current games. Read the ` +
-      `numbers below as optimistic here — older games remain accurate.`,
+      `This is a ${arch} generation card, and all 123 measurements behind this ` +
+      `engine are on 2019-or-later architectures. The numbers below are ` +
+      `unvalidated on this generation, and outside results disagree with each ` +
+      `other, so we cannot say which way they lean. Read them as a guess.`,
     headline: (total: number, good: number) => ({
       a: "", b: `${good}`, c: ` of ${total} games hit their target on this system.`,
     }),
@@ -202,10 +202,10 @@ export function renderNote(note: Note, lang: Lang): string {
         return "This game does not support the selected upscaling technology; " +
           "it was calculated at native resolution.";
       case "legacy_gpu":
-        return `This is a ${note.architecture} generation card. Our measurements ` +
-          `cover 2019 and later architectures; on this generation the engine ` +
-          `predicts noticeably higher frame rates than these cards really ` +
-          `reach in current games. Older games remain accurate.`;
+        return `This is a ${note.architecture} generation card, and every ` +
+          `measurement we hold is on a 2019-or-later architecture. The ` +
+          `prediction is unvalidated here — outside results on this generation ` +
+          `disagree with each other, so we cannot even say which way it leans.`;
       case "fps_cap":
         return `This game is capped at ${note.cap} fps by default. Your hardware ` +
           `is good for ${note.uncapped} fps, but without lifting the cap you will ` +
@@ -235,10 +235,10 @@ export function renderNote(note: Note, lang: Lang): string {
       return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
         "native çözünürlükte hesaplandı.";
     case "legacy_gpu":
-      return `Bu kart ${note.architecture} nesli. Ölçümlerimiz 2019 ve sonrası ` +
-        `mimarilerde doğrulandı; bu nesilde motor yeni oyunlarda gerçekte ` +
-        `olandan belirgin şekilde yüksek FPS tahmin ediyor. Eski oyunlarda ` +
-        `tahmin tutarlı kalıyor.`;
+      return `Bu kart ${note.architecture} nesli ve elimizdeki ölçümlerin ` +
+        `tamamı 2019 sonrası mimarilerde. Bu nesilde tahmin doğrulanmadı — ` +
+        `dışarıdan gelen sonuçlar birbiriyle çeliştiği için hangi yönde ` +
+        `saptığını da söyleyemiyoruz.`;
     case "fps_cap":
       return `Bu oyun varsayılan halinde ${note.cap} FPS ile sınırlı. Donanımın ` +
         `${note.uncapped} FPS'e yetiyor, ancak sınır kaldırılmadan ` +

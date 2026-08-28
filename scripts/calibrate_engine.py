@@ -39,7 +39,11 @@ def load():
     games = {g["name"]: dict(g) for g in db_manager.get_all_games()}
     cpus = {c["name"]: dict(c) for c in db_manager.get_all_cpus()}
     gpus = {g["name"]: dict(g) for g in db_manager.get_all_gpus()}
-    rows = [dict(r) for r in conn.execute("SELECT * FROM benchmarks")]
+    # Free-gameplay rows measure a different thing — see
+    # scripts/migrate_measurement_kind.py — so they are held out of every fit
+    # and used only to check it.
+    rows = [dict(r) for r in conn.execute(
+        "SELECT * FROM benchmarks WHERE COALESCE(scene, 'benchmark') = 'benchmark'")]
     conn.close()
 
     # A genre with no prior silently becomes 1.0, which is indistinguishable

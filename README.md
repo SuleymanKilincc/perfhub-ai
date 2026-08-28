@@ -60,15 +60,16 @@ of the same GPU. Current standing against that set:
 
 | Metric | Value |
 |---|---|
-| Mean absolute error | **9.1%** |
-| Systematic bias | −1.3% |
+| Mean absolute error | **9.0%** |
+| Systematic bias | −1.1% |
 | Within 20% of measured | 86% |
 
-That figure covers 2019-and-later graphics architectures, which is what the
-measurements cover. On Pascal, Polaris and older the engine reads about 110%
-high in current games — it says so on screen rather than quietly — and
-[CALIBRATION.md](CALIBRATION.md) explains why lowering those scores would be
-the wrong fix.
+A further 12 measurements are held out of the fit entirely — free gameplay
+rather than benchmark loops, on hardware nothing else covers — and the engine
+answers those to 19.6%. That is the number that says whether it generalises,
+so it is reported separately rather than averaged in. Predictions on
+pre-2019 graphics architectures are unvalidated, and the interface says so
+rather than presenting them at the same confidence.
 
 RTX 4090 + Ryzen 7 7800X3D in Cyberpunk 2077 at Ultra, native, no ray tracing:
 

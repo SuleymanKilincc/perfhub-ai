@@ -104,34 +104,44 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # and 40 at Extreme. Measurements now record which preset they used
 # (benchmarks.rt_level) and the calibration holds Extreme rows out, so a single
 # maxed-out run cannot drag this toward a setting most players never pick.
-# Architectures from before the 2018-19 generation. Five outside systems built
-# on them — RX 580, GTX 1070, GTX 1060 3GB against Turing and RDNA cards —
-# disagree with the engine by +110% on average in current games, while the
-# Turing and RDNA rows in the same comparison land at -0.1%. The boundary is
-# that sharp, and the gap is not uniform: Forza Horizon 5 comes out within 10%
-# on the very same cards that miss Starfield by 223% and Alan Wake 2 by 308%.
-#
-# So this is not a scoring error to be corrected by lowering a number. One
-# scalar per card cannot say "fine in a 2021 racer, falls apart in a 2023
-# renderer" — these chips lack mesh shaders and the rest of the DX12 Ultimate
-# feature set that newer engines assume, and what they lose depends entirely on
-# what the game asks for. Modelling it properly needs a per-game notion of how
-# modern the engine is, which is data we do not have yet.
-#
-# Until then the honest thing is to say so. The estimate is still produced —
-# refusing to answer helps nobody — but it carries a note rather than the
-# quiet confidence of a number that has been checked.
-LEGACY_GPU_ARCHITECTURES = frozenset({
-    "Kepler", "Maxwell", "Pascal", "Polaris", "Vega", "Gen 9.5", "Gen 11",
-})
-
 RT_GPU_COST_MULT = 1.68
-PT_GPU_COST_MULT = 3.30
+PT_GPU_COST_MULT = 3.28
 RT_VRAM_ADD_GB = 1.10
 PT_VRAM_ADD_GB = 1.90
 # RT also adds BVH build/update work on the CPU.
 RT_CPU_COST_MULT = 1.08
 PT_CPU_COST_MULT = 1.12
+
+# ─── Hardware outside the measured range ────────────────────────────────────
+# Architectures with no measurement behind them at all: 79 of the 164 catalogue
+# GPUs sit on one, and every benchmark we hold is Turing or newer.
+#
+# What outside runs on these cards say is genuinely unsettled. Five systems put
+# the engine +110% high on average, which looked at first like a clean
+# architectural cliff — these chips lack mesh shaders and much of the DX12
+# Ultimate set that newer engines assume. A sixth then contradicted it: the GTX
+# 1080 Ti is the same Pascal generation as the GTX 1070 that read +153%, and
+# across ten current games it comes to +8%, landing within 2% on the very title
+# the 1070 missed by 308%.
+#
+# VRAM looked like the explanation — 11 GB against 8 — and it was worth chasing,
+# because the working sets really were 18% low and fixing them moved the memory
+# model from seeing 4 of 12 games spill on an 8 GB card to seeing 8, against 7
+# that really do. But it moved the low-end frame rates by 1.7 points. So that is
+# not the cause either.
+#
+# Which leaves the honest answer: we do not know. The runs that disagree most
+# pair a flagship CPU with a 2016 budget card, a combination assembled for
+# content rather than for use, and their numbers are not internally consistent
+# with each other. Claiming a correction from them would be inventing a law out
+# of two videos.
+#
+# The estimate is still produced, and it carries a note saying the card is
+# outside what has been measured. Not a direction, not a magnitude — those are
+# what the evidence does not support.
+LEGACY_GPU_ARCHITECTURES = frozenset({
+    "Kepler", "Maxwell", "Pascal", "Polaris", "Vega", "Gen 9.5", "Gen 11",
+})
 
 # ─── Upscaling ──────────────────────────────────────────────────────────────
 # Linear render scale per mode: the GPU renders at this fraction of the output
@@ -167,8 +177,8 @@ FG_OUTPUT_MULTIPLIER = {
 # Fraction of the rendered frame's GPU time spent generating the extra frames.
 FG_GPU_OVERHEAD = {
     "2x": 0.35,
-    "3x": 0.55,
-    "4x": 0.75,
+    "3x": 0.51,
+    "4x": 0.67,
 }
 FG_VRAM_ADD_GB = {
     "2x": 1.0,

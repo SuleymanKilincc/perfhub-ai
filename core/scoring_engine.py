@@ -482,10 +482,10 @@ def _render_note(note):
         return ("Bu oyun seçilen upscaling teknolojisini desteklemiyor; "
                 "native çözünürlükte hesaplandı.")
     if c == "legacy_gpu":
-        return (f"Bu kart {note['architecture']} nesli. Ölçümlerimiz 2019 ve "
-                f"sonrası mimarilerde doğrulandı; bu nesilde motor yeni "
-                f"oyunlarda gerçekte olandan belirgin şekilde yüksek FPS "
-                f"tahmin ediyor. Eski oyunlarda tahmin tutarlı kalıyor.")
+        return (f"Bu kart {note['architecture']} nesli ve elimizdeki ölçümlerin "
+                f"tamamı 2019 sonrası mimarilerde. Bu nesilde tahmin "
+                f"doğrulanmadı — dışarıdan gelen sonuçlar hem çok yüksek hem "
+                f"tutarlı çıktığı için hangi yönde saptığını da söyleyemiyoruz.")
     if c == "fps_cap":
         return (f"Bu oyun varsayılan halinde {note['cap']} FPS ile sınırlı. "
                 f"Donanımın {note['uncapped']} FPS'e yetiyor, ancak sınır "
@@ -538,8 +538,8 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
     if not upscale_active:
         notes.append({"code": "upscaling_unsupported"})
 
-    # Outside the range the engine has been checked against. See
-    # LEGACY_GPU_ARCHITECTURES for the measurements behind this.
+    # No measurement exists on this architecture. See
+    # LEGACY_GPU_ARCHITECTURES for why no correction is applied.
     if gpu_arch in bc.LEGACY_GPU_ARCHITECTURES:
         notes.append({"code": "legacy_gpu", "architecture": gpu_arch})
 

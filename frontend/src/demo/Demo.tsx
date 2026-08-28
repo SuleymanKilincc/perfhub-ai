@@ -583,11 +583,11 @@ function Results(p: {
         </div>
       </header>
 
-      {/* A caveat belongs where the wrong number is loudest. On a GTX 1070 the
-          engine reports 78% of the library on target, Starfield at 132 fps and
-          Alan Wake 2 at 86 — against roughly 40 and 25 in reality. Leaving that
-          only in a per-game panel would mean the headline stays confident and
-          the correction stays hidden. */}
+      {/* A caveat belongs where the confidence is loudest. The headline reads
+          "78% of your library on target" whether or not a single measurement
+          exists for the card it was computed on, and 79 of the 164 GPUs have
+          none. Filed behind a click, the confident half stays on screen and the
+          qualification does not. */}
       {(LEGACY_GPU_ARCHITECTURES as readonly string[]).includes(p.gpu.architecture ?? "") && (
         <div style={{
           padding: p.mobile ? "12px 16px" : "14px 36px",

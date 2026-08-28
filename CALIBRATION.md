@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 111 |
-| Mean absolute error | **9.1%** (44.8% before any calibration) |
-| Systematic bias | −1.3% |
+| Measurements in `benchmarks` table | 123 (111 fitted, 12 held out) |
+| Mean absolute error | **9.0%** fitted, **19.6%** on the held-out set |
+| Systematic bias | −1.1% fitted, +7.1% held out |
 | Within 10% of measured | 69% |
 | Within 20% of measured | 86% |
 
@@ -227,21 +227,30 @@ Visible in the validation output; none of these are hidden.
    ~4 GB spilling to system RAM. The engine predicts 19 fps against 10.
 5. **Ray Reconstruction is not modelled**; the one measurement using it is
    recorded as RT + DLSS Quality.
-5-0. **The engine is validated on 2019-and-later GPUs only, and outside that
-   range it is confidently wrong.** Five outside systems built on older cards —
-   RX 580, GTX 1070, GTX 1060 3GB — run +109.7% against the engine across 17
-   rows, while the Turing and RDNA rows in the same comparison come to -0.1%
-   across 9. The boundary is that sharp. And the gap is not uniform: Forza
-   Horizon 5 lands within 10% on the very cards that miss Starfield by 223% and
-   Alan Wake 2 by 308%, so lowering those cards' scores would break the games
-   they currently get right. One scalar per card cannot express "fine in a 2021
-   racer, falls apart in a 2023 renderer" — these chips lack mesh shaders and
-   the rest of the DX12 Ultimate set that newer engines assume, and what they
-   lose depends on what the game asks for. Modelling it needs a per-game notion
-   of engine era, which is data we do not have. Until then the estimate is
-   still produced and carries `legacy_gpu`, and the interface says so above the
-   headline rather than only inside a per-game panel. 79 of the 164 catalogue
-   GPUs sit on architectures with no measurement at all.
+5-0. **We do not know how the engine behaves on pre-2019 GPUs, and the attempt
+   to find out is worth recording because it failed twice.** 79 of the 164
+   catalogue GPUs are on architectures with no measurement at all. Five outside
+   systems on such cards put the engine +110% high, which looked like a clean
+   architectural cliff — no mesh shaders, little of the DX12 Ultimate set newer
+   engines assume. A sixth broke it: the GTX 1080 Ti is the same Pascal
+   generation as the GTX 1070 that read +153%, and across ten current games it
+   comes to +8%, landing within 2% on the title the 1070 missed by 308%.
+   VRAM was the next hypothesis — 11 GB against 8 — and chasing it found a real
+   bug worth fixing on its own terms (see 5-1), but correcting it moved the
+   low-end frame rates by 1.7 points out of 110. So that is not the cause
+   either. What the disagreeing runs have in common is a flagship CPU bolted to
+   a 2016 budget card, a pairing assembled for content rather than for use, and
+   their numbers do not agree with each other. The engine therefore applies no
+   correction and says the card is outside what has been measured — no
+   direction, no magnitude, because the evidence supports neither.
+5-1. **VRAM working sets were about 18% low**, found by comparing against a
+   GTX 1080 Ti, whose 11 GB means nothing it reports is clamped by capacity.
+   The consequence was concrete: on an 8 GB card the model saw 4 of 12 current
+   games spilling where 7 really do, so the collapse spilling causes was
+   invisible to it. Now −8.4% and 8 of 12. `vram_measured_kind` records whether
+   a figure is allocation or usage, since inverting a usage reading through the
+   allocation model lands ~25% low, and overlays generally report one without
+   labelling it.
 5a. **Measuring only on fast CPUs hid a whole class of error.** 74 of the 111
    rows use an X3D chip, where the CPU term almost never binds, so a wrong CPU
    cost changes no prediction and no fit notices. A single outside run on a

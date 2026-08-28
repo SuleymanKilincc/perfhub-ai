@@ -6,8 +6,11 @@ which conflates "expensive to render" with "hungry for memory" — and got it
 badly wrong. A Plague Tale: Requiem is one of the heaviest games to render and
 uses about 5 GB; the derived value said 12.3.
 
-Overlays report *allocation*, so the measured figures have to be inverted
-through the allocation model to recover the working set:
+Overlays that report *allocation* have to be inverted through the allocation
+model to recover the working set. Ones that report *usage* already give the
+working set and must not be inverted — doing it anyway lands about 25% low.
+`vram_measured_kind` says which, because an overlay usually shows one number
+and does not label it:
 
     allocation = working * VRAM_ALLOC_APPETITE + VRAM_ALLOC_HEADROOM_GB
     working    = base * quality_vram * res_vram + rt/pt/fg additions
@@ -49,11 +52,18 @@ def main(apply_changes):
 
         # Discard anything at or near the card's ceiling: the game would have
         # taken more if it could, so the figure is a property of the GPU.
+        # A usage figure pinned at the card's ceiling means the game wanted
+        # more and could not have it, same as a clamped allocation.
         if measured >= capacity * bc.VRAM_ALLOC_CAPACITY_LIMIT * 0.97:
             discarded += 1
             continue
 
-        working = (measured - bc.VRAM_ALLOC_HEADROOM_GB) / bc.VRAM_ALLOC_APPETITE
+        if (r.get("vram_measured_kind") or "allocated") == "used":
+            # Usage is the working set, near enough: it is what the frame
+            # actually touches, which is the quantity the model calls for.
+            working = measured
+        else:
+            working = (measured - bc.VRAM_ALLOC_HEADROOM_GB) / bc.VRAM_ALLOC_APPETITE
 
         # Strip the additions the engine layers on top of the base figure.
         if r["path_tracing"]:

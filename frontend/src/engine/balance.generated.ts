@@ -10,8 +10,8 @@ export const DEFAULT_QUALITY_TIER = "High" as const;
 export const DEFAULT_UPSCALING_PASS_COST_MS = 0.35 as const;
 export const FG_GPU_OVERHEAD = {
     "2x": 0.35,
-    "3x": 0.55,
-    "4x": 0.75,
+    "3x": 0.51,
+    "4x": 0.67,
   } as const;
 export const FG_OUTPUT_MULTIPLIER = {
     "2x": 2.0,
@@ -28,7 +28,7 @@ export const GPU_PERF_EXPONENT = 1.85 as const;
 export const LEGACY_GPU_ARCHITECTURES = ["Gen 11", "Gen 9.5", "Kepler", "Maxwell", "Pascal", "Polaris", "Vega"] as const;
 export const OS_RAM_RESERVE_GB = 3.5 as const;
 export const PT_CPU_COST_MULT = 1.12 as const;
-export const PT_GPU_COST_MULT = 3.3 as const;
+export const PT_GPU_COST_MULT = 3.28 as const;
 export const PT_VRAM_ADD_GB = 1.9 as const;
 export const QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"] as const;
 export const QUALITY_TIERS = {
