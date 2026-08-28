@@ -10,10 +10,10 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 109 |
-| Mean absolute error | **8.5%** (44.8% before any calibration) |
-| Systematic bias | −1.4% |
-| Within 10% of measured | 71% |
+| Measurements in `benchmarks` table | 111 |
+| Mean absolute error | **8.9%** (44.8% before any calibration) |
+| Systematic bias | −1.1% |
+| Within 10% of measured | 69% |
 | Within 20% of measured | 86% |
 
 The set now covers resolution sweeps, GPU and CPU ladders, preset ladders,
@@ -34,7 +34,7 @@ Fitted in `core/balance_config.py` from the batches noted below.
 | `CPU_MS_CONST` | 2.65 | 2.25 | CPU ladder |
 | `VRAM_SPILL_SEVERITY` | 2.6 | 0.50 | 8GB vs 16GB pairs |
 | `VRAM_SPILL_FLOOR` | 0.22 | 0.80 | 8GB vs 16GB pairs |
-| `RT_GPU_COST_MULT` | 1.80 | 1.70 | games measured RT on and off |
+| `RT_GPU_COST_MULT` | 1.80 | 1.68 | RT on/off pairs, Extreme presets held out |
 | `PT_GPU_COST_MULT` | 3.10 | 3.30 | Alan Wake 2 and Cyberpunk, PT on and off |
 | `FG_GPU_OVERHEAD` | .22/.31/.38 | .35/.55/.75 | GTA V Enhanced 2x/3x/4x ladder |
 
@@ -227,6 +227,14 @@ Visible in the validation output; none of these are hidden.
    ~4 GB spilling to system RAM. The engine predicts 19 fps against 10.
 5. **Ray Reconstruction is not modelled**; the one measurement using it is
    recorded as RT + DLSS Quality.
+5b. **The model has one ray-tracing flag where games ship several presets**,
+   and the cost of that is now measured rather than suspected. Forza Horizon 6
+   on an RTX 3080 Ti at 1440p reads 85 fps at High RT and 40 at Extreme; the
+   engine answers 56 to both, so it is 34% low on one and 40% high on the
+   other. `benchmarks.rt_level` records the preset from now on and the
+   calibration holds Extreme rows out, so the multiplier means a *typical*
+   preset. Building real RT levels needs more than the two rows that exist —
+   an RT sweep on a second game would be the thing that makes it possible.
 6. **~155 games remain uncalibrated.** The plan is to derive genre-level
    corrections from the calibrated twenty rather than measure every title.
 7. **Frame generation is the weakest part of the model**, at 21.7% error over

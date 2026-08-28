@@ -58,7 +58,7 @@ export const RES_VRAM_FACTOR = {
     "8k": 1.85,
   } as const;
 export const RT_CPU_COST_MULT = 1.08 as const;
-export const RT_GPU_COST_MULT = 1.7 as const;
+export const RT_GPU_COST_MULT = 1.68 as const;
 export const RT_VRAM_ADD_GB = 1.1 as const;
 export const UPSCALING_PASS_COST_MS = {
     "dlss": 0.35,

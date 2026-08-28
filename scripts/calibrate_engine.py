@@ -168,9 +168,16 @@ def main(apply_changes):
                      for r in rows)
               and any(r["game"] == g and r["ray_tracing"] and not r["path_tracing"]
                       for r in rows)}
+    # Rows tagged as the game's most demanding RT preset are held out. The
+    # model has one ray-tracing flag, so this multiplier is an average over
+    # whatever presets the sources used, and one Extreme measurement — Forza
+    # Horizon 6 reads 85 fps at High and 40 at Extreme on the same card — would
+    # drag that average toward a setting most of the other rows were not using.
+    # See scripts/add_rt_level.py.
     rt_rows = [r for r in rows
                if r["game"] in paired and r["ray_tracing"] and not r["path_tracing"]
-               and r["frame_gen"] == "Kapalı"]
+               and r["frame_gen"] == "Kapalı"
+               and (r.get("rt_level") or "") != "Extreme"]
     print(f"    kullanilan oyunlar: {sorted(paired) or 'yok'}")
     if rt_rows:
         before = err(rt_rows, games, cpus, gpus)

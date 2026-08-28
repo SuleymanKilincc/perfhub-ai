@@ -60,8 +60,8 @@ of the same GPU. Current standing against that set:
 
 | Metric | Value |
 |---|---|
-| Mean absolute error | **8.5%** |
-| Systematic bias | −1.4% |
+| Mean absolute error | **8.9%** |
+| Systematic bias | −1.1% |
 | Within 20% of measured | 86% |
 
 RTX 4090 + Ryzen 7 7800X3D in Cyberpunk 2077 at Ultra, native, no ray tracing:

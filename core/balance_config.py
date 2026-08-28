@@ -97,7 +97,14 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # Multipliers on GPU frame-time cost, plus the extra VRAM the BVH and
 # denoisers need. Path tracing is a different order of magnitude, not a
 # heavier RT preset.
-RT_GPU_COST_MULT = 1.70
+#
+# RT_GPU_COST_MULT is an average over *typical* ray-tracing presets, not the
+# maximum. The model has one boolean where games ship several levels, and the
+# spread is large: Forza Horizon 6 on one card at 1440p reads 85 fps at High RT
+# and 40 at Extreme. Measurements now record which preset they used
+# (benchmarks.rt_level) and the calibration holds Extreme rows out, so a single
+# maxed-out run cannot drag this toward a setting most players never pick.
+RT_GPU_COST_MULT = 1.68
 PT_GPU_COST_MULT = 3.30
 RT_VRAM_ADD_GB = 1.10
 PT_VRAM_ADD_GB = 1.90
