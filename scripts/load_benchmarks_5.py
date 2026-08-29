@@ -31,8 +31,9 @@ DDR4-3600 CL14 on AM4, DDR5-7200 on LGA1700, DDR5-8200 CUDIMM on LGA1851),
 which the model cannot represent — it takes a capacity, not a speed. On a
 CPU-bound test that is a real confound and it is not being modelled.
 
-Presets: "Epic" is mapped to Ultra and "High Quality" to High. Ryzen 7 5700X3D
-is skipped — it is not in the catalogue.
+Presets: "Epic" is mapped to Ultra and "High Quality" to High. The Ryzen 7
+5700X3D was missing from the catalogue on the first run and was added
+afterwards by scripts/add_5700x3d.py, which scores it from this very ladder.
 
     python scripts/load_benchmarks_5.py [--apply]
 """
@@ -69,6 +70,7 @@ GAMES = {
         ("Intel Core i7-12700K", 139, 120), ("Intel Core i5-12600K", 136, 108),
         ("Intel Core i5-12400F", 131, 104), ("AMD Ryzen 7 5700X", 118, 90),
         ("Intel Core i3-12100F", 110, 85),
+        ("AMD Ryzen 7 5700X3D", 155, 137),
     ],
     ("The Last of Us Part I", "Ultra"): [
         ("AMD Ryzen 7 9800X3D", 208, 155), ("AMD Ryzen 7 7800X3D", 197, 136),
@@ -85,6 +87,7 @@ GAMES = {
         ("AMD Ryzen 7 5800X3D", 158, 109), ("Intel Core i5-12600K", 149, 113),
         ("Intel Core i5-12400F", 143, 109), ("AMD Ryzen 7 5700X", 136, 98),
         ("Intel Core i3-12100F", 113, 62),
+        ("AMD Ryzen 7 5700X3D", 151, 104),
     ],
     ("Cyberpunk 2077", "High"): [                      # Phantom Liberty, Dogtown
         ("AMD Ryzen 7 9800X3D", 219, 148), ("AMD Ryzen 7 7800X3D", 202, 143),
@@ -101,6 +104,7 @@ GAMES = {
         ("Intel Core i7-12700K", 146, 113), ("Intel Core i5-12600K", 138, 103),
         ("Intel Core i5-12400F", 133, 99), ("AMD Ryzen 7 5700X", 126, 91),
         ("Intel Core i3-12100F", 90, 68),
+        ("AMD Ryzen 7 5700X3D", 157, 111),
     ],
     ("Hogwarts Legacy", "High"): [
         ("AMD Ryzen 7 9800X3D", 170, 111), ("AMD Ryzen 9 7950X3D", 150, 98),
@@ -117,6 +121,7 @@ GAMES = {
         ("AMD Ryzen 7 5800X3D", 110, 68), ("Intel Core i5-12600K", 106, 76),
         ("Intel Core i5-12400F", 101, 73), ("AMD Ryzen 7 5700X", 91, 54),
         ("Intel Core i3-12100F", 74, 44),
+        ("AMD Ryzen 7 5700X3D", 102, 65),
     ],
     ("A Plague Tale: Requiem", "Ultra"): [
         ("AMD Ryzen 7 9800X3D", 195, 132), ("AMD Ryzen 7 7800X3D", 178, 127),
@@ -133,6 +138,7 @@ GAMES = {
         ("Intel Core Ultra 7 265K", 121, 74), ("Intel Core Ultra 5 245K", 120, 73),
         ("Intel Core i5-12400F", 118, 87), ("AMD Ryzen 7 5700X", 118, 85),
         ("Intel Core i3-12100F", 97, 62),
+        ("AMD Ryzen 7 5700X3D", 137, 103),
     ],
     ("Counter-Strike 2", "Medium"): [
         ("AMD Ryzen 7 9800X3D", 668, 362), ("AMD Ryzen 7 7800X3D", 592, 318),
@@ -149,6 +155,7 @@ GAMES = {
         ("Intel Core Ultra 5 245K", 402, 221), ("Intel Core i7-12700K", 392, 229),
         ("Intel Core i5-12600K", 344, 207), ("Intel Core i5-12400F", 331, 199),
         ("Intel Core i3-12100F", 247, 151),
+        ("AMD Ryzen 7 5700X3D", 476, 270),
     ],
     ("Assetto Corsa Competizione", "Ultra"): [         # chart says Epic
         ("AMD Ryzen 7 9800X3D", 269, 223), ("AMD Ryzen 7 7800X3D", 237, 192),
@@ -165,6 +172,7 @@ GAMES = {
         ("Intel Core i7-12700K", 136, 118), ("Intel Core i5-12600K", 128, 111),
         ("AMD Ryzen 7 5700X", 124, 108), ("Intel Core i5-12400F", 122, 106),
         ("Intel Core i3-12100F", 106, 85),
+        ("AMD Ryzen 7 5700X3D", 183, 154),
     ],
     ("Remnant II", "Ultra"): [
         ("AMD Ryzen 7 9800X3D", 158, 122), ("AMD Ryzen 7 7800X3D", 138, 120),
@@ -181,6 +189,7 @@ GAMES = {
         ("AMD Ryzen 7 5800X3D", 108, 91), ("Intel Core i5-12600K", 101, 86),
         ("Intel Core i5-12400F", 97, 82), ("AMD Ryzen 7 5700X", 88, 74),
         ("Intel Core i3-12100F", 83, 70),
+        ("AMD Ryzen 7 5700X3D", 102, 88),
     ],
 }
 

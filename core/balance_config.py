@@ -113,7 +113,7 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # (benchmarks.rt_level) and the calibration holds Extreme rows out, so a single
 # maxed-out run cannot drag this toward a setting most players never pick.
 RT_GPU_COST_MULT = 1.70
-PT_GPU_COST_MULT = 3.10
+PT_GPU_COST_MULT = 3.40
 RT_VRAM_ADD_GB = 1.10
 PT_VRAM_ADD_GB = 1.90
 # RT also adds BVH build/update work on the CPU.
@@ -184,11 +184,20 @@ FG_OUTPUT_MULTIPLIER = {
 }
 # Fraction of the rendered frame's GPU time spent generating the extra frames.
 # Fitted from a single 3x/4x ladder — one game, one card — which is why the
-# error on frame-generation rows stays at 21.9% while everything else sits near
-# 8%. The search range had to be widened to find these: at the old ceiling the
-# step pinned at 0.20, and a value resting on the edge of its own search is the
-# search running out of room, not a fit. calibrate_engine.py now says so out
-# loud instead of printing the boundary as if it were an answer.
+# error on frame-generation rows stays near 22% while everything else sits
+# under 8%.
+#
+# Getting even this far took widening the search: at the old ceiling the step
+# pinned at 0.20, and a value resting on the edge of its own range is the
+# search running out of room, not a fit. Widened once, the step moved off the
+# edge and the error fell 26.0% to 21.9% — worth having. Widened again, it ran
+# straight to the new edge for two tenths of a point, which is a flat objective
+# wandering rather than evidence. calibrate_engine.py now refuses a boundary
+# value that buys less than a point, so the warning is acted on instead of
+# printed and ignored.
+#
+# What that means: one ladder cannot pin the 3x/4x step down. A second one, on
+# a different game and card, is the measurement that would.
 FG_GPU_OVERHEAD = {
     "2x": 0.50,
     "3x": 0.92,

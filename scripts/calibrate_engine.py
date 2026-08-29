@@ -276,6 +276,9 @@ def main(apply_changes):
     fg_rows = [r for r in rows if r["frame_gen"] in ("2x", "3x", "4x")]
     if fg_rows:
         before = err(fg_rows, games, cpus, gpus)
+        # Captured before the search, which mutates the live constant on every
+        # iteration — reading it afterwards returns the last value tried.
+        previous = dict(bc.FG_GPU_OVERHEAD)
         best = None
         for o2 in frange(0.05, 1.20, 0.05):
             for step in frange(0.02, 0.50, 0.02):
@@ -285,17 +288,30 @@ def main(apply_changes):
                     best = (e, o2, step)
         _, o2, step = best
         bc.FG_GPU_OVERHEAD = {"2x": o2, "3x": round(o2 + step, 3), "4x": round(o2 + 2 * step, 3)}
-        print(f"    FG_GPU_OVERHEAD: {bc.FG_GPU_OVERHEAD}   "
-              f"({len(fg_rows)} olcum, {before:5.1f}% -> {err(fg_rows, games, cpus, gpus):5.1f}%)")
+        after = err(fg_rows, games, cpus, gpus)
         # A value sitting on the edge of its own search range is not a fit, it
-        # is the search running out of room: the data is asking for something
-        # the model cannot express, and the boundary number hides that.
+        # is the search running out of room. Widening the range once was worth
+        # doing — the step moved off 0.20 and the error fell 26.0% to 21.9%.
+        # Widening it again did not: the step ran to the new edge for two tenths
+        # of a point, which is a flat objective wandering, not evidence. So a
+        # boundary value that buys nothing is refused rather than adopted, and
+        # the warning is acted on instead of merely printed.
         pinned = [n for n, v, lo, hi in (("2x baz", o2, 0.05, 1.20),
                                          ("adim", step, 0.02, 0.50))
                   if v <= lo + 1e-9 or v >= hi - 1e-9]
-        if pinned:
-            print(f"    UYARI: {', '.join(pinned)} arama araliginin sinirinda — "
-                  f"deger fit degil, sinir. Modelin FG'yi temsil edisi yetersiz.")
+        if pinned and before - after < 1.0:
+            bc.FG_GPU_OVERHEAD = previous
+            print(f"    FG_GPU_OVERHEAD: degismedi {previous}   "
+                  f"({len(fg_rows)} olcum, {before:5.1f}%)")
+            print(f"    UYARI: {', '.join(pinned)} arama sinirinda ve kazanc "
+                  f"{before - after:.1f} puan — sinir degeri benimsenmedi. "
+                  f"Tek merdivenle bu parametre tanimlanamiyor.")
+        else:
+            print(f"    FG_GPU_OVERHEAD: {bc.FG_GPU_OVERHEAD}   "
+                  f"({len(fg_rows)} olcum, {before:5.1f}% -> {after:5.1f}%)")
+            if pinned:
+                print(f"    UYARI: {', '.join(pinned)} arama araliginin sinirinda — "
+                      f"deger fit degil, sinir.")
 
     # Games measured only with ray tracing or frame generation on could not be
     # fitted in stage 1 — their baseline never existed. Now that the global

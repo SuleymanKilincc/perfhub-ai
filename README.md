@@ -53,15 +53,15 @@ number. An 8 GB card running a heavy title at 1440p Ultra will warn about a
 crash risk on 16 GB of RAM, and report a playable-but-badly-degraded result on
 32 GB — which is the difference a buyer actually needs to know about.
 
-Accuracy is measured, not asserted. The engine is fitted against 327 recorded
+Accuracy is measured, not asserted. The engine is fitted against 335 recorded
 benchmark results covering resolution sweeps, GPU and CPU ladders, preset
 ladders, ray tracing, upscaling, frame generation and 8GB-vs-16GB VRAM pairs
 of the same GPU. Current standing against that set:
 
 | Metric | Value |
 |---|---|
-| Mean absolute error | **7.7%** |
-| Systematic bias | −0.6% |
+| Mean absolute error | **7.8%** |
+| Systematic bias | −0.9% |
 | Within 20% of measured | 91% |
 
 A further 12 measurements are held out of the fit entirely — free gameplay
@@ -108,7 +108,7 @@ judged rather than argued about.
 - **Bottleneck analysis** — reports whether the CPU or the GPU binds first
 
 ### Hardware database
-- **220 CPUs** — Intel Core / Core Ultra / Xeon, AMD Ryzen & Threadripper,
+- **221 CPUs** — Intel Core / Core Ultra / Xeon, AMD Ryzen & Threadripper,
   Apple Silicon, scored on 1080p gaming rather than all-core throughput
 - **164 GPUs** — NVIDIA GTX 700 through RTX 50, AMD Polaris through RDNA 4,
   Intel Arc, plus integrated graphics

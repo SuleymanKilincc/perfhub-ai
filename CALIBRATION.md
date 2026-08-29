@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 339 (327 fitted, 12 held out) |
-| Mean absolute error | **7.7%** fitted, **21.6%** on the held-out set |
-| Systematic bias | −0.6% fitted, +11.5% held out |
+| Measurements in `benchmarks` table | 347 (335 fitted, 12 held out) |
+| Mean absolute error | **7.8%** fitted, **22.5%** on the held-out set |
+| Systematic bias | −0.9% fitted, +10.6% held out |
 | Within 10% of measured | 72% |
 | Within 20% of measured | 91% |
 
@@ -261,6 +261,21 @@ Visible in the validation output; none of these are hidden.
    everything except the CPU and weights them 1/sqrt(n). The measured effect is
    small — non-batch rows improve 11.1% to 10.7%, the batch itself gives up 0.3
    — and it is kept for the structure rather than the number.
+5-0d. **One ladder cannot pin down the frame-generation step.** The fit kept
+   running to the edge of its search range: widening it once was real — the
+   step left 0.20 and the error fell 26.0% to 21.9% — but widening it again
+   bought two tenths of a point, which is a flat objective wandering rather
+   than evidence. `calibrate_engine.py` now refuses a boundary value that buys
+   less than a point instead of printing it as an answer. The 3x and 4x steps
+   still come from one game on one card, which is why those rows sit near 22%
+   while everything else is under 8%. A second ladder is the fix.
+5-0e. **The X3D gap may be understated.** Scoring the Ryzen 7 5700X3D off this
+   ladder gives 60 against its 5800X3D sibling (a stable 0.93-0.96 ratio across
+   eight games) but 65 against the non-X3D 5700X, because the ladder puts the
+   5800X3D 1.28x above the 5700X where their scores say 1.19x. The sibling
+   answer is the one used — same architecture, same cache, one variable — and
+   the disagreement is recorded here rather than folded into a single chip's
+   number, because it is a question about the CPU scores, not about that chip.
 5-1. **VRAM working sets were about 18% low**, found by comparing against a
    GTX 1080 Ti, whose 11 GB means nothing it reports is clamped by capacity.
    The consequence was concrete: on an 8 GB card the model saw 4 of 12 current
