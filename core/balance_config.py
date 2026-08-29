@@ -54,10 +54,13 @@ GPU_PERF_EXPONENT = 1.85
 # Fitting it needs the level of each game divided out first: a game whose cost
 # is wrong shifts its whole ladder up or down, while the exponent sets the
 # ladder's slope, and fitting both at once lets a level error masquerade as a
-# curve. With levels normalised, shape error is 6.3% at 1.00 and 6.1% at 1.10,
-# and the ratio between the fastest and slowest chip implies 1.06. So it stays
-# at 1.00: a fifth of a point is not a reason to move a constant, and what was
-# chosen on principle turns out to have been right.
+# curve — done raw, the scan runs away to 1.60 chasing level errors.
+#
+# The first ladder reached down to score 46 and put the optimum at 1.10, with
+# 6.3% shape error at 1.00. A second, reaching 30 (a Ryzen 5 2600), moved it to
+# exactly 1.00 and the error to 5.32% across 369 rows and 13 ladders. Extending
+# the measurement did not nudge the answer, it converged it — which is the
+# behaviour you want from a curve that was chosen on principle.
 CPU_PERF_EXPONENT = 1.00
 REF_SCORE = 100.0          # score that maps to 1.0x performance
 

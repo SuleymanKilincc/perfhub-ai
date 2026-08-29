@@ -10,10 +10,10 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 459 (447 fitted, 12 held out) |
-| Mean absolute error | **6.9%** fitted, **22.5%** on the held-out set |
-| Systematic bias | −0.6% fitted, +10.6% held out |
-| Within 10% of measured | 77% |
+| Measurements in `benchmarks` table | 492 (480 fitted, 12 held out) |
+| Mean absolute error | **6.8%** fitted, **22.5%** on the held-out set |
+| Systematic bias | −0.5% fitted, +10.6% held out |
+| Within 10% of measured | 78% |
 | Within 20% of measured | 93% |
 
 The set now covers resolution sweeps, GPU and CPU ladders, preset ladders,
@@ -250,10 +250,11 @@ Visible in the validation output; none of these are hidden.
    RTX 4090, from a 9800X3D down to an i3-12100F, settles it. Fitting the
    exponent needs each game's level divided out first, or a wrong game cost
    masquerades as a wrong curve: raw, the scan runs away to 1.60 chasing level
-   errors; with levels normalised, shape error is 6.3% at 1.00 against 6.1% at
-   1.10, and the fastest/slowest ratio implies 1.06. The constant stays at 1.00.
-   That 6.3% also says the CPU scores rank those 27 chips well (Spearman 0.67
-   to 0.91 per game).
+   errors. With levels normalised the first ladder, reaching score 46, put the
+   optimum at 1.10 with 6.3% at 1.00. A second reaching 30 — a Ryzen 5 2600 —
+   moved it to exactly 1.00 at 5.32% across 369 rows and 13 ladders. More
+   measurement converged the answer rather than moving it. The shape error also
+   says the CPU scores rank these chips well (Spearman 0.67 to 0.91 per game).
 5-0c. **A large batch must not settle questions by headcount.** The same ladder
    is 27 observations of the CPU axis and one of everything else, and counted
    flat it buried five rows from another source reading 123 fps where it reads

@@ -1,7 +1,7 @@
 # 🚀 PerfHub AI
 
 Hardware analysis and FPS prediction for PC gaming — pick a CPU, GPU and RAM
-configuration and see what frame rates to expect across 175 games.
+configuration and see what frame rates to expect across 176 games.
 
 [![Live Demo](https://img.shields.io/badge/live%20demo-perfhub.suleymankilinc.com-66FCF1)](https://perfhub.suleymankilinc.com)
 ![Version](https://img.shields.io/badge/version-5.1.0-blue)
@@ -53,14 +53,14 @@ number. An 8 GB card running a heavy title at 1440p Ultra will warn about a
 crash risk on 16 GB of RAM, and report a playable-but-badly-degraded result on
 32 GB — which is the difference a buyer actually needs to know about.
 
-Accuracy is measured, not asserted. The engine is fitted against 447 recorded
+Accuracy is measured, not asserted. The engine is fitted against 480 recorded
 benchmark results covering resolution sweeps, GPU and CPU ladders, preset
 ladders, ray tracing, upscaling, frame generation and 8GB-vs-16GB VRAM pairs
 of the same GPU. Current standing against that set:
 
 | Metric | Value |
 |---|---|
-| Mean absolute error | **6.9%** |
+| Mean absolute error | **6.8%** |
 | Systematic bias | −0.9% |
 | Within 20% of measured | 93% |
 
@@ -96,7 +96,7 @@ judged rather than argued about.
 ## ✨ Features
 
 ### Gaming & performance
-- **FPS prediction** across 175 games, from Very Low to Extreme presets
+- **FPS prediction** across 176 games, from Very Low to Extreme presets
   (clamped per game — a title only offers the tiers it really ships)
 - **Upscaling** — DLSS, FSR and XeSS, applied to rendered pixels, with a
   warning when the selected game does not support the chosen technology
@@ -108,11 +108,11 @@ judged rather than argued about.
 - **Bottleneck analysis** — reports whether the CPU or the GPU binds first
 
 ### Hardware database
-- **221 CPUs** — Intel Core / Core Ultra / Xeon, AMD Ryzen & Threadripper,
+- **222 CPUs** — Intel Core / Core Ultra / Xeon, AMD Ryzen & Threadripper,
   Apple Silicon, scored on 1080p gaming rather than all-core throughput
 - **164 GPUs** — NVIDIA GTX 700 through RTX 50, AMD Polaris through RDNA 4,
   Intel Arc, plus integrated graphics
-- **175 games** — per-title CPU and GPU cost, VRAM and RAM working sets,
+- **176 games** — per-title CPU and GPU cost, VRAM and RAM working sets,
   RT/PT and DLSS/FSR/XeSS support flags
 - Laptop and desktop parts are distinguished, and a laptop chip is never
   allowed to outscore the desktop part it is named after
@@ -201,7 +201,7 @@ choose **More info → Run anyway**.
 
 ## 🔬 Improving accuracy
 
-Twenty-eight of the 175 games have cost profiles fitted to real measurements. The
+Twenty-nine of the 176 games have cost profiles fitted to real measurements. The
 rest still carry values derived from the previous model and blended with genre
 priors — reasonable starting points, not measurements — so the accuracy figure
 above describes the measured set rather than the whole catalog.
