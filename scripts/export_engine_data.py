@@ -36,7 +36,7 @@ OUT_DIR = os.path.join("frontend", "src", "engine")
 # or only used by the calibration scripts, and shipping it would just be bytes.
 GAME_COLUMNS = [
     "id", "name", "genre", "gpu_cost", "cpu_cost", "vram_base_gb", "ram_base_gb",
-    "tier_min", "tier_max", "fps_cap", "supports_rt", "supports_pt",
+    "tier_min", "tier_max", "fps_cap", "fps_low_ratio", "fps_low_measured", "supports_rt", "supports_pt",
     "supports_dlss", "supports_fsr", "supports_xess",
     "competitive", "target_fps", "cover_url", "flags_verified",
 ]

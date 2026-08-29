@@ -35,6 +35,10 @@ export const strings = {
 
     back: "← Sistemi değiştir",
     libraryStatus: "KÜTÜPHANE DURUMU",
+    busyScenes: (low: number) => `yoğun sahnede ~${low}`,
+    fpsRange: (low: number, avg: number) => `${low} – ${avg} fps`,
+    lowMeasured: "Alt sınır bu oyunun kendi ölçümlerinden — %1 low / ortalama oranı.",
+    lowAssumed: "Alt sınır ölçülmüş 12 oyunun ortalama oranından (0.76) türetildi.",
     legacyGpuBanner: (arch: string) =>
       `Bu ekran kartı ${arch} nesli ve elimizdeki 123 ölçümün tamamı 2019 ` +
       `sonrası mimarilerde. Aşağıdaki sayılar bu nesilde doğrulanmadı; ` +
@@ -114,6 +118,10 @@ export const strings = {
 
     back: "← Change system",
     libraryStatus: "LIBRARY STATUS",
+    busyScenes: (low: number) => `~${low} when busy`,
+    fpsRange: (low: number, avg: number) => `${low} – ${avg} fps`,
+    lowMeasured: "The lower bound is this game's own measured 1% low / average ratio.",
+    lowAssumed: "The lower bound uses the mean ratio (0.76) of the 12 measured games.",
     legacyGpuBanner: (arch: string) =>
       `This is a ${arch} generation card, and all 123 measurements behind this ` +
       `engine are on 2019-or-later architectures. The numbers below are ` +

@@ -552,8 +552,20 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
         notes.append({"code": "fps_cap", "cap": int(fps_cap),
                       "uncapped": uncapped_fps})
 
+    # What the reader will see when the scene gets busy. Measured as a ratio
+    # of 1% low to average across 336 rows, where it came out a property of the
+    # game (0.53 in Counter-Strike 2, 0.88 in Hitman 3) and flat across CPU
+    # scores from 50 to 100. Games with no measurement carry the global mean
+    # and say so through fps_low_measured, so an assumed range is never shown
+    # with the confidence of a measured one.
+    low_ratio = game.get("fps_low_ratio") or bc.FPS_LOW_RATIO_DEFAULT
+    shown_fps = int(fps_cap) if fps_cap and uncapped_fps > fps_cap else uncapped_fps
+    fps_low = max(int(round(shown_fps * low_ratio)), 0)
+
     return {
         "fps": uncapped_fps,
+        "fps_low": fps_low,
+        "fps_low_measured": bool(game.get("fps_low_measured")),
         "capped_fps": int(fps_cap) if fps_cap and uncapped_fps > fps_cap else None,
         "rendered_fps": max(int(round(rendered_fps)), 0),
         "status": status,

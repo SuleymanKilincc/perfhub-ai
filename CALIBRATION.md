@@ -10,11 +10,11 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 347 (335 fitted, 12 held out) |
-| Mean absolute error | **7.8%** fitted, **22.5%** on the held-out set |
-| Systematic bias | −0.9% fitted, +10.6% held out |
-| Within 10% of measured | 72% |
-| Within 20% of measured | 91% |
+| Measurements in `benchmarks` table | 459 (447 fitted, 12 held out) |
+| Mean absolute error | **6.9%** fitted, **22.5%** on the held-out set |
+| Systematic bias | −0.6% fitted, +10.6% held out |
+| Within 10% of measured | 77% |
+| Within 20% of measured | 93% |
 
 The set now covers resolution sweeps, GPU and CPU ladders, preset ladders,
 ray tracing and path tracing, a full frame-generation ladder, 8K, and
@@ -261,6 +261,17 @@ Visible in the validation output; none of these are hidden.
    everything except the CPU and weights them 1/sqrt(n). The measured effect is
    small — non-batch rows improve 11.1% to 10.7%, the batch itself gives up 0.3
    — and it is kept for the structure rather than the number.
+5-0c2. **The estimate is a range now, and the range is measured.** A single
+   number invites the complaint it exists to prevent: told "80 fps" and then
+   seeing 65 in a firefight, a reader concludes the estimate was wrong. It was
+   not — it answered the average over a benchmark run. The 1% low is the number
+   people actually judge a build by, and it had been sitting unused in every
+   chart read so far. Across 336 rows the ratio of 1% low to average turns out
+   to be a property of the *game*, not the hardware: flat between 0.744 and
+   0.772 across CPU scores from 50 to 100, but running 0.533 in Counter-Strike 2
+   to 0.878 in Hitman 3. So it is stored per game in `games.fps_low_ratio`,
+   fitted for 12 titles, with the global 0.758 elsewhere and
+   `fps_low_measured` telling the interface which is which.
 5-0d. **One ladder cannot pin down the frame-generation step.** The fit kept
    running to the edge of its search range: widening it once was real — the
    step left 0.20 and the error fell 26.0% to 21.9% — but widening it again

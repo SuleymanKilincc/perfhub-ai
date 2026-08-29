@@ -44,11 +44,13 @@ RAM_SIZES = [8, 16, 24, 32, 64]
 # the model observed rather than how it was worded, so rephrasing a warning no
 # longer fails the run. `warnings` stays in the list because the desktop app
 # reads it and the two renderers have to agree character for character.
-FIELDS = ["fps", "capped_fps", "rendered_fps", "status", "bottleneck",
+FIELDS = ["fps", "fps_low", "fps_low_measured", "capped_fps", "rendered_fps",
+          "status", "bottleneck",
           "vram_needed_gb", "vram_alloc_gb", "vram_available_gb", "quality",
           "notes", "warnings"]
 
 GAME_KEYS = ["name", "gpu_cost", "cpu_cost", "vram_base_gb", "ram_base_gb",
+             "fps_low_ratio", "fps_low_measured",
              "tier_min", "tier_max", "fps_cap", "supports_rt", "supports_pt",
              "supports_dlss", "supports_fsr", "supports_xess"]
 

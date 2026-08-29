@@ -23,6 +23,7 @@ export const FG_VRAM_ADD_GB = {
     "3x": 1.4,
     "4x": 1.8,
   } as const;
+export const FPS_LOW_RATIO_DEFAULT = 0.758 as const;
 export const GPU_MS_CONST = 2.65 as const;
 export const GPU_PERF_EXPONENT = 1.85 as const;
 export const LEGACY_GPU_ARCHITECTURES = ["Gen 11", "Gen 9.5", "Kepler", "Maxwell", "Pascal", "Polaris", "Vega"] as const;

@@ -61,6 +61,11 @@ GPU_PERF_EXPONENT = 1.85
 CPU_PERF_EXPONENT = 1.00
 REF_SCORE = 100.0          # score that maps to 1.0x performance
 
+# Fallback ratio of 1% low to average frame rate, for games with no measurement
+# of their own. The mean of 336 measured rows; per-game values live in
+# games.fps_low_ratio and are fitted by scripts/calibrate_fps_low.py.
+FPS_LOW_RATIO_DEFAULT = 0.758
+
 # ─── Resolution ─────────────────────────────────────────────────────────────
 # Pixel counts relative to 1080p.
 RESOLUTION_PIXELS = {

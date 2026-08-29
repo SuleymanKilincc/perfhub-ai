@@ -57,6 +57,8 @@ export interface GameData {
   name: string
   genre: string
   fps: number
+  fps_low: number
+  fps_low_measured: boolean
   status?: FPSStatus
   bottleneck?: 'CPU' | 'GPU'
   vram_needed_gb?: number

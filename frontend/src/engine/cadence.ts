@@ -40,6 +40,8 @@ export type Game = {
   tier_min?: string | null;
   tier_max?: string | null;
   fps_cap?: number | null;
+  fps_low_ratio?: number | null;
+  fps_low_measured?: number | null;
   supports_rt?: number | null;
   supports_pt?: number | null;
   supports_dlss?: number | null;
@@ -80,6 +82,8 @@ export type Note =
 
 export type Estimate = {
   fps: number;
+  fps_low: number;
+  fps_low_measured: boolean;
   capped_fps: number | null;
   rendered_fps: number;
   status: "ok" | "ram_short" | "vram_tight" | "vram_spill" | "unplayable";
@@ -455,8 +459,20 @@ export function estimateFpsDetailed(
     notes.push({ code: "fps_cap", cap: Math.trunc(fpsCap), uncapped: uncappedFps });
   }
 
+  // What the reader will see when the scene gets busy. Measured as a ratio of
+  // 1% low to average across 336 rows, where it came out a property of the game
+  // (0.53 in Counter-Strike 2, 0.88 in Hitman 3) and flat across CPU scores
+  // from 50 to 100. Games with no measurement carry the global mean and say so
+  // through fps_low_measured, so an assumed range is never shown with the
+  // confidence of a measured one.
+  const lowRatio = game.fps_low_ratio || bc.FPS_LOW_RATIO_DEFAULT;
+  const shownFps = fpsCap && uncappedFps > fpsCap ? Math.trunc(fpsCap) : uncappedFps;
+  const fpsLow = Math.max(pyRound(shownFps * lowRatio), 0);
+
   return {
     fps: uncappedFps,
+    fps_low: fpsLow,
+    fps_low_measured: Boolean(game.fps_low_measured),
     capped_fps: fpsCap && uncappedFps > fpsCap ? Math.trunc(fpsCap) : null,
     rendered_fps: Math.max(pyRound(renderedFps), 0),
     status,

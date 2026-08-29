@@ -484,7 +484,8 @@ function Builder(p: {
 // ─── Results ─────────────────────────────────────────────────────────────────
 
 type Row = {
-  id: number; name: string; genre: string; fps: number; target: number;
+  id: number; name: string; genre: string; fps: number; fps_low: number;
+  fps_low_measured: boolean; target: number;
   v: Verdict; game: Game; status?: string; vram_needed_gb?: number; warnings?: string[];
 };
 
@@ -954,13 +955,21 @@ function GameRow({ row, index, mobile, onOpen }: {
         </div>
       </div>
 
-      {/* The number is the answer. It gets to be the biggest thing on the row. */}
+      {/* The number is the answer. It gets to be the biggest thing on the row.
+          The low sits under it in small type rather than beside it: a reader
+          scanning the list wants one number per game, and a reader deciding on
+          one game wants to know how far it drops when the scene fills up. */}
       <div style={{ textAlign: "right" }}>
-        <span style={{
-          fontFamily: "var(--mono)", fontSize: mobile ? 30 : 38, fontWeight: 600, color,
-          letterSpacing: "-0.035em", lineHeight: 1,
-        }}>{row.fps}</span>
-        <span style={{ fontSize: 13, color: "var(--text-3)", marginLeft: 6 }}>fps</span>
+        <div>
+          <span style={{
+            fontFamily: "var(--mono)", fontSize: mobile ? 30 : 38, fontWeight: 600, color,
+            letterSpacing: "-0.035em", lineHeight: 1,
+          }}>{row.fps}</span>
+          <span style={{ fontSize: 13, color: "var(--text-3)", marginLeft: 6 }}>fps</span>
+        </div>
+        <div style={{
+          fontFamily: "var(--mono)", fontSize: 12, color: "var(--text-3)", marginTop: 5,
+        }}>{t.busyScenes(row.fps_low)}</div>
       </div>
     </button>
   );
@@ -1059,6 +1068,16 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
           }}>{r.fps}</div>
           <div style={{ fontSize: 14, color, marginTop: 9, fontWeight: 500 }}>
             {t[VERDICT_KEY[v]]}
+          </div>
+          {/* Measured as a ratio of 1% low to average across 336 rows. It came
+              out a property of the game rather than of the hardware, which is
+              why it can be stated per title. */}
+          <div style={{
+            fontSize: 13, color: "var(--text-2)", marginTop: 11,
+            fontFamily: "var(--mono)",
+          }}>{t.fpsRange(r.fps_low, r.fps)}</div>
+          <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 4 }}>
+            {r.fps_low_measured ? t.lowMeasured : t.lowAssumed}
           </div>
           <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 7 }}>
             {t.bottleneckLine(r.bottleneck, r.vram_needed_gb, r.quality)}

@@ -57,6 +57,8 @@ export function predictAll(options: PredictionOptions): GameData[] {
         name: game.name,
         genre: game.genre,
         fps: r.fps,
+        fps_low: r.fps_low,
+        fps_low_measured: r.fps_low_measured,
         status: r.status,
         bottleneck: r.bottleneck,
         vram_needed_gb: r.vram_needed_gb,
