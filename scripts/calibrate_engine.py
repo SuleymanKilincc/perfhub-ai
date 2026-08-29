@@ -16,6 +16,7 @@ is visible instead of assumed.
     python scripts/calibrate_engine.py --apply    # write it to the database
 """
 import argparse
+import math
 import os
 import sqlite3
 import sys
@@ -107,6 +108,33 @@ def is_identifiable(rs, cpus):
             or len({cpus[r["cpu"]]["power_score"] for r in rs}) >= 2)
 
 
+def config_weights(rs):
+    """
+    Down-weight rows that share a configuration, so a large batch cannot settle
+    a question by headcount.
+
+    A 27-CPU ladder on one RTX 4090 at 1080p is 27 observations of the CPU axis
+    and one of everything else. Counted flat, it buried five rows from another
+    source that disagreed with it: on The Last of Us Part I those two sources
+    read 208 and 123 fps on the same processor at the same preset, a conflict
+    that deserves to be noticed rather than outvoted 27 to 5.
+
+    Rows are grouped by everything except the CPU and weighted 1/sqrt(n). Full
+    1/n would throw away the CPU-ladder information that makes such a batch
+    valuable; 1/1 lets one configuration decide a game's whole profile. The
+    square root is the usual compromise for correlated observations and is
+    chosen as a compromise, not derived.
+    """
+    groups = defaultdict(int)
+    keys = []
+    for r in rs:
+        k = (r["gpu"], r["resolution"], r["settings"], r["upscaling"],
+             r["frame_gen"], r["ray_tracing"], r["path_tracing"])
+        groups[k] += 1
+        keys.append(k)
+    return [1.0 / math.sqrt(groups[k]) for k in keys]
+
+
 def fit_game_costs(rows, games, cpus, gpus, verbose=True, use_all_rows=False):
     """
     Fit gpu_cost / cpu_cost for every game with at least two usable rows. A
@@ -145,13 +173,14 @@ def fit_game_costs(rows, games, cpus, gpus, verbose=True, use_all_rows=False):
         before = err(rs, games, cpus, gpus)
         free = is_identifiable(rs, cpus)
         ratio = GENRE_CPU_RATIO.get(g.get("genre"), DEFAULT_CPU_RATIO)
+        weights = config_weights(rs)
         best = None
         for gc in frange(0.10, 8.0, 0.05):
             g["gpu_cost"] = gc
             for cc in (frange(0.10, 8.0, 0.10) if free else [round(gc * ratio, 4)]):
                 g["cpu_cost"] = cc
-                e = sum(abs(predict(r, games, cpus, gpus) - r["fps_avg"]) / r["fps_avg"]
-                        for r in rs)
+                e = sum(w * abs(predict(r, games, cpus, gpus) - r["fps_avg"]) / r["fps_avg"]
+                        for r, w in zip(rs, weights))
                 if best is None or e < best[0]:
                     best = (e, gc, cc)
         _, gc, cc = best
@@ -248,8 +277,8 @@ def main(apply_changes):
     if fg_rows:
         before = err(fg_rows, games, cpus, gpus)
         best = None
-        for o2 in frange(0.05, 0.60, 0.05):
-            for step in frange(0.02, 0.20, 0.02):
+        for o2 in frange(0.05, 1.20, 0.05):
+            for step in frange(0.02, 0.50, 0.02):
                 bc.FG_GPU_OVERHEAD = {"2x": o2, "3x": o2 + step, "4x": o2 + 2 * step}
                 e = err(fg_rows, games, cpus, gpus)
                 if best is None or e < best[0]:
@@ -258,6 +287,15 @@ def main(apply_changes):
         bc.FG_GPU_OVERHEAD = {"2x": o2, "3x": round(o2 + step, 3), "4x": round(o2 + 2 * step, 3)}
         print(f"    FG_GPU_OVERHEAD: {bc.FG_GPU_OVERHEAD}   "
               f"({len(fg_rows)} olcum, {before:5.1f}% -> {err(fg_rows, games, cpus, gpus):5.1f}%)")
+        # A value sitting on the edge of its own search range is not a fit, it
+        # is the search running out of room: the data is asking for something
+        # the model cannot express, and the boundary number hides that.
+        pinned = [n for n, v, lo, hi in (("2x baz", o2, 0.05, 1.20),
+                                         ("adim", step, 0.02, 0.50))
+                  if v <= lo + 1e-9 or v >= hi - 1e-9]
+        if pinned:
+            print(f"    UYARI: {', '.join(pinned)} arama araliginin sinirinda — "
+                  f"deger fit degil, sinir. Modelin FG'yi temsil edisi yetersiz.")
 
     # Games measured only with ray tracing or frame generation on could not be
     # fitted in stage 1 — their baseline never existed. Now that the global

@@ -45,11 +45,19 @@ GPU_PERF_EXPONENT = 1.85
 # rate and needs no curve: 1.0 is the definition, not a fit.
 #
 # It was 0.60, which existed to flatten scores that ranked all-core throughput
-# — they had a Core Ultra 9 285K above a Ryzen 7 9800X3D. The benchmark set
-# cannot currently argue either way: a nested refit across exponents from 0.45
-# to 1.20 moves the error by half a point, because 74 of the 104 measurements
-# use a 7800X3D or a 9800X3D and nothing below a 5700X was ever measured. A
-# CPU ladder reaching the low end would settle it.
+# — they had a Core Ultra 9 285K above a Ryzen 7 9800X3D. For a long time the
+# benchmark set could not argue either way, because 74 of 111 measurements used
+# a 7800X3D or a 9800X3D and nothing below a 5700X existed. That has now been
+# settled by a 27-processor ladder on one RTX 4090 at 1080p, running from a
+# 9800X3D down to an i3-12100F.
+#
+# Fitting it needs the level of each game divided out first: a game whose cost
+# is wrong shifts its whole ladder up or down, while the exponent sets the
+# ladder's slope, and fitting both at once lets a level error masquerade as a
+# curve. With levels normalised, shape error is 6.3% at 1.00 and 6.1% at 1.10,
+# and the ratio between the fastest and slowest chip implies 1.06. So it stays
+# at 1.00: a fifth of a point is not a reason to move a constant, and what was
+# chosen on principle turns out to have been right.
 CPU_PERF_EXPONENT = 1.00
 REF_SCORE = 100.0          # score that maps to 1.0x performance
 
@@ -104,8 +112,8 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # and 40 at Extreme. Measurements now record which preset they used
 # (benchmarks.rt_level) and the calibration holds Extreme rows out, so a single
 # maxed-out run cannot drag this toward a setting most players never pick.
-RT_GPU_COST_MULT = 1.68
-PT_GPU_COST_MULT = 3.28
+RT_GPU_COST_MULT = 1.70
+PT_GPU_COST_MULT = 3.10
 RT_VRAM_ADD_GB = 1.10
 PT_VRAM_ADD_GB = 1.90
 # RT also adds BVH build/update work on the CPU.
@@ -175,10 +183,16 @@ FG_OUTPUT_MULTIPLIER = {
     "4x": 4.00,
 }
 # Fraction of the rendered frame's GPU time spent generating the extra frames.
+# Fitted from a single 3x/4x ladder — one game, one card — which is why the
+# error on frame-generation rows stays at 21.9% while everything else sits near
+# 8%. The search range had to be widened to find these: at the old ceiling the
+# step pinned at 0.20, and a value resting on the edge of its own search is the
+# search running out of room, not a fit. calibrate_engine.py now says so out
+# loud instead of printing the boundary as if it were an answer.
 FG_GPU_OVERHEAD = {
-    "2x": 0.35,
-    "3x": 0.51,
-    "4x": 0.67,
+    "2x": 0.50,
+    "3x": 0.92,
+    "4x": 1.34,
 }
 FG_VRAM_ADD_GB = {
     "2x": 1.0,

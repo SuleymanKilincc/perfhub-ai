@@ -53,16 +53,16 @@ number. An 8 GB card running a heavy title at 1440p Ultra will warn about a
 crash risk on 16 GB of RAM, and report a playable-but-badly-degraded result on
 32 GB — which is the difference a buyer actually needs to know about.
 
-Accuracy is measured, not asserted. The engine is fitted against 104 recorded
+Accuracy is measured, not asserted. The engine is fitted against 327 recorded
 benchmark results covering resolution sweeps, GPU and CPU ladders, preset
 ladders, ray tracing, upscaling, frame generation and 8GB-vs-16GB VRAM pairs
 of the same GPU. Current standing against that set:
 
 | Metric | Value |
 |---|---|
-| Mean absolute error | **9.0%** |
-| Systematic bias | −1.1% |
-| Within 20% of measured | 86% |
+| Mean absolute error | **7.7%** |
+| Systematic bias | −0.6% |
+| Within 20% of measured | 91% |
 
 A further 12 measurements are held out of the fit entirely — free gameplay
 rather than benchmark loops, on hardware nothing else covers — and the engine
@@ -201,7 +201,7 @@ choose **More info → Run anyway**.
 
 ## 🔬 Improving accuracy
 
-Twenty-one of the 175 games have cost profiles fitted to real measurements. The
+Twenty-four of the 175 games have cost profiles fitted to real measurements. The
 rest still carry values derived from the previous model and blended with genre
 priors — reasonable starting points, not measurements — so the accuracy figure
 above describes the measured set rather than the whole catalog.

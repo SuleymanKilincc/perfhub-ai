@@ -10,11 +10,11 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 123 (111 fitted, 12 held out) |
-| Mean absolute error | **9.0%** fitted, **19.6%** on the held-out set |
-| Systematic bias | −1.1% fitted, +7.1% held out |
-| Within 10% of measured | 69% |
-| Within 20% of measured | 86% |
+| Measurements in `benchmarks` table | 339 (327 fitted, 12 held out) |
+| Mean absolute error | **7.7%** fitted, **21.6%** on the held-out set |
+| Systematic bias | −0.6% fitted, +11.5% held out |
+| Within 10% of measured | 72% |
+| Within 20% of measured | 91% |
 
 The set now covers resolution sweeps, GPU and CPU ladders, preset ladders,
 ray tracing and path tracing, a full frame-generation ladder, 8K, and
@@ -243,6 +243,24 @@ Visible in the validation output; none of these are hidden.
    their numbers do not agree with each other. The engine therefore applies no
    correction and says the card is outside what has been measured — no
    direction, no magnitude, because the evidence supports neither.
+5-0b. **CPU_PERF_EXPONENT is measured now, and 1.00 was right.** It had been
+   set on principle since the CPU scores became a 1080p gaming index, with the
+   note that nothing in the data could argue either way — 74 of 111 rows sat on
+   an X3D chip and nothing below a 5700X existed. A 27-processor ladder on one
+   RTX 4090, from a 9800X3D down to an i3-12100F, settles it. Fitting the
+   exponent needs each game's level divided out first, or a wrong game cost
+   masquerades as a wrong curve: raw, the scan runs away to 1.60 chasing level
+   errors; with levels normalised, shape error is 6.3% at 1.00 against 6.1% at
+   1.10, and the fastest/slowest ratio implies 1.06. The constant stays at 1.00.
+   That 6.3% also says the CPU scores rank those 27 chips well (Spearman 0.67
+   to 0.91 per game).
+5-0c. **A large batch must not settle questions by headcount.** The same ladder
+   is 27 observations of the CPU axis and one of everything else, and counted
+   flat it buried five rows from another source reading 123 fps where it reads
+   208 on the same processor and preset. `config_weights` groups rows by
+   everything except the CPU and weights them 1/sqrt(n). The measured effect is
+   small — non-batch rows improve 11.1% to 10.7%, the batch itself gives up 0.3
+   — and it is kept for the structure rather than the number.
 5-1. **VRAM working sets were about 18% low**, found by comparing against a
    GTX 1080 Ti, whose 11 GB means nothing it reports is clamped by capacity.
    The consequence was concrete: on an 8 GB card the model saw 4 of 12 current
