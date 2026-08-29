@@ -12,12 +12,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        // The shipping app.
+        // The interface, at the site root. This was the prototype at
+        // /demo.html until its ideas had landed; it is the shipping one now.
         main: resolve(__dirname, 'index.html'),
-        // The design prototype, at /demo.html. Separate entry so it can be
-        // worked on without touching the live interface, and dropped in one
-        // line once its ideas have either landed or been rejected.
-        demo: resolve(__dirname, 'demo.html'),
+        // The previous interface, kept reachable at /classic.html rather than
+        // deleted: it still carries the AI assistant, which the new one does
+        // not, and /demo.html links people already have redirect to the root.
+        classic: resolve(__dirname, 'classic.html'),
       },
     },
   },

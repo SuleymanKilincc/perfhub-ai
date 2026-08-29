@@ -11,7 +11,8 @@ configuration and see what frame rates to expect across 176 games.
 ## 🌐 Try it now
 
 **[perfhub.suleymankilinc.com](https://perfhub.suleymankilinc.com)** — no install,
-no download. Choose your parts and get FPS estimates for every game in the
+no download. The previous interface is still at `/classic.html`; it is the one
+that carries the AI assistant. Choose your parts and get FPS estimates for every game in the
 database, along with warnings when a build is going to run into trouble.
 
 Predictions run **in the browser**, not on a server. The engine is a pure
