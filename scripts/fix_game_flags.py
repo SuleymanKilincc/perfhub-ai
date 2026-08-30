@@ -56,6 +56,33 @@ CONTRADICTED = {
     "A Plague Tale: Requiem": {"supports_rt": 1},
 }
 
+# Third-party research Süleyman relayed on 2026-08-30. Neither of us opened
+# these games, and unlike the ray-tracing-level and VRAM claims earlier in this
+# project there is nothing here I can test — we hold no XeSS measurements, so
+# the contradiction scan cannot speak to it either. They go in at
+# flags_verified = 0 and stay in the queue.
+#
+# Two claims in the same report asked for changes that were already the case
+# (Assetto Corsa Competizione's XeSS was off already), and one described
+# Hitman 3 as having XeSS *and* called our row correct while our row says it
+# does not — so that one is left alone until someone looks at the menu.
+RELAYED = {
+    # Reported as launching without ray tracing, the engine built for frame
+    # rate rather than reflections. Consistent with the flag having come from a
+    # genre derivation that assumed every modern shooter has it.
+    "Battlefield 6": {"supports_rt": 0},
+    # An AMD partner title: FSR yes, DLSS never shipped. This one I would have
+    # bet on independently.
+    "Far Cry 6": {"supports_dlss": 0},
+    # XeSS arriving in post-launch updates. Remnant II and Starfield match what
+    # I remember; Baldur's Gate 3 and Space Marine 2 I could not confirm on my
+    # own, and they are here on the strength of the report alone.
+    "Remnant II": {"supports_xess": 1},
+    "Starfield": {"supports_xess": 1},
+    "Baldur's Gate 3": {"supports_xess": 1},
+    "Warhammer 40K: Space Marine 2": {"supports_xess": 1},
+}
+
 RECALLED = {
     # The Next-Gen update (December 2022) added DLSS 3, FSR 2 and ray tracing.
     "The Witcher 3: Wild Hunt": {"supports_rt": 1, "supports_dlss": 1, "supports_fsr": 1},
@@ -71,6 +98,19 @@ RECALLED = {
     "Star Wars Outlaws": {"supports_pt": 1},
     "DOOM: The Dark Ages": {"supports_pt": 1},
 }
+
+
+# Measurements the scan proved wrong, rather than flags. Fixing a flag can
+# expose a bad row: setting Far Cry 6's supports_dlss to 0 made the scan report
+# two of its rows as using DLAA, which the game does not have — it never
+# shipped DLSS or anything built on it. The rows came from a source that
+# recorded the game's own temporal AA, and DLAA was the wrong word for it. In
+# this model that word is not cosmetic: DLAA costs an upscaling pass and Native
+# does not.
+MEASUREMENT_FIXES = [
+    # (source, game, old upscaling, new upscaling)
+    ("batch6-hdtex", "Far Cry 6", "DLAA", "Native"),
+]
 
 
 CHECKS = [
@@ -106,7 +146,8 @@ def main(apply_changes):
 
     for label, table, verified in (("GOZLEMLENDI", OBSERVED, 1),
                                    ("OLCUMLE CELISEN", CONTRADICTED, 1),
-                                   ("HATIRLANAN", RECALLED, 0)):
+                                   ("HATIRLANAN", RECALLED, 0),
+                                   ("AKTARILAN", RELAYED, 0)):
         print(f"\n=== {label} ===")
         for game, changes in table.items():
             row = cur.execute("SELECT * FROM games WHERE name=?", (game,)).fetchone()
@@ -124,6 +165,22 @@ def main(apply_changes):
                 sets = ", ".join(f"{k}=?" for k in diff)
                 cur.execute(f"UPDATE games SET {sets}, flags_verified=? WHERE name=?",
                             (*diff.values(), verified, game))
+
+    print()
+    print("=== OLCUM DUZELTMELERI ===")
+    for source, game, old, new in MEASUREMENT_FIXES:
+        rows = cur.execute(
+            "SELECT id, gpu, resolution FROM benchmarks"
+            " WHERE source=? AND game=? AND upscaling=?", (source, game, old)).fetchall()
+        if not rows:
+            print(f"  {game[:30]:30s} {old} -> {new}: eslesen satir yok (yapilmis)")
+            continue
+        for r in rows:
+            print(f"  id={r['id']:3d} {game[:26]:26s} {r['resolution']:6s} "
+                  f"{r['gpu'][14:32]:18s} {old} -> {new}")
+        if apply_changes:
+            cur.execute("UPDATE benchmarks SET upscaling=? WHERE source=? AND game=?"
+                        " AND upscaling=?", (new, source, game, old))
 
     print()
     print("=== OLCUMLERLE CELISKI TARAMASI ===")
