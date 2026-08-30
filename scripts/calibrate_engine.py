@@ -43,8 +43,15 @@ def load():
     # Free-gameplay rows measure a different thing — see
     # scripts/migrate_measurement_kind.py — so they are held out of every fit
     # and used only to check it.
+    # Two exclusions, for the same reason: a row that uses something the model
+    # cannot represent should not set the model's numbers. Free gameplay
+    # measures a different quantity than a benchmark loop, and an optional
+    # high-resolution texture pack changes a game's memory footprint in a way
+    # nothing here expresses. Far Cry 6's whole profile came from two HD-pack
+    # rows, which is why it read -31% against an ordinary install.
     rows = [dict(r) for r in conn.execute(
-        "SELECT * FROM benchmarks WHERE COALESCE(scene, 'benchmark') = 'benchmark'")]
+        "SELECT * FROM benchmarks WHERE COALESCE(scene, 'benchmark') = 'benchmark'"
+        " AND COALESCE(texture_pack, 0) = 0")]
     conn.close()
 
     # A genre with no prior silently becomes 1.0, which is indistinguishable

@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 524 (480 fitted, 44 held out) |
-| Mean absolute error | **6.6%** fitted, **22.2%** on the held-out set |
-| Systematic bias | −0.8% fitted, **+18.1%** held out |
+| Measurements in `benchmarks` table | 538 (478 fitted, 60 held out) |
+| Mean absolute error | **6.5%** fitted, **26.1%** gameplay, **44.3%** texture-pack |
+| Systematic bias | −0.7% fitted, +9.1% gameplay |
 | Within 10% of measured | 79% |
 | Within 20% of measured | 93% |
 
@@ -240,9 +240,23 @@ Open items. All are visible in the validation output; none are hidden.
    A second four-core chip makes it modellable.
 5. **Ray Reconstruction is not modelled.** The one measurement using it is
    recorded as RT + DLSS Quality.
-6. **Far Cry 6's optional HD texture pack is not modelled**, and neither is
-   Space Marine 2's. Needs a per-game flag rather than being folded into the
-   base cost.
+6. **Optional high-resolution texture packs are not modelled**, and the cost of
+   that is now measured: rows using one read 44.3% error against 6.5% for the
+   fitted set. Far Cry 6 is the case — an RTX 4060 Ti 8GB with its 38 GB pack
+   reads 28 fps at 1440p Ultra with ray tracing where an RTX 3060 Ti without it
+   reads 68. A 2.4x collapse from a texture download. `benchmarks.texture_pack`
+   records it and those rows are excluded from fitting, because a profile built
+   from them describes a configuration the engine cannot express — Far Cry 6's
+   whole profile came from two such rows and read -31% against an ordinary
+   install. Space Marine 2's 4K pack is in the same position but unmarked, since
+   its rows are a CPU ladder where the pack was constant.
+6b. **A game's ray-tracing implementation is not the global multiplier.** Far
+   Cry 6 measured on and off at the same settings costs 1.10x at 4K, against
+   `RT_GPU_COST_MULT` of 1.70. Its ray tracing is reflections and shadows;
+   Cyberpunk's is a different order of work. This is the RT-preset problem one
+   level up — one boolean averaging implementations that are not comparable —
+   and the fix is the same shape: a per-game notion of how much ray tracing a
+   title actually does.
 7. **Alan Wake 2 at 8K exhausts VRAM on a 32 GB card** — measured, ~4 GB
    spilling to system RAM. The engine predicts 14 fps against 10.
 

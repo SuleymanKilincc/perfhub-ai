@@ -165,14 +165,21 @@ def validate(only_verified=False):
     # The fit never sees gameplay rows, so their error is the only number here
     # that says anything about generalisation. Averaging the two together would
     # bury exactly that.
+    def bucket(b):
+        keys = b.keys()
+        if "texture_pack" in keys and b["texture_pack"]:
+            return "doku paketi"
+        return b["scene"] if "scene" in keys else "benchmark"
+
     by_scene = {}
     for r in results:
-        by_scene.setdefault(r[4]["scene"] if "scene" in r[4].keys() else "benchmark",
-                            []).append(r)
+        by_scene.setdefault(bucket(r[4]), []).append(r)
     if len(by_scene) > 1:
         print()
         for scene, rs in sorted(by_scene.items()):
-            label = "fit edilmis" if scene == "benchmark" else "HARIC TUTULAN"
+            label = {"benchmark": "fit edilmis",
+                     "gameplay": "HARIC — serbest oyun",
+                     "doku paketi": "HARIC — modellenmemis"}.get(scene, "HARIC TUTULAN")
             print(f"  {scene:10s} ({label:13s}) : n={len(rs):3d}  "
                   f"hata {sum(x[0] for x in rs)/len(rs):5.1f} %  "
                   f"sapma {sum(x[1] for x in rs)/len(rs):+5.1f} %")
