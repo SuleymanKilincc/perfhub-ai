@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 517 (480 fitted, 37 held out) |
-| Mean absolute error | **6.6%** fitted, **22.0%** on the held-out set |
-| Systematic bias | −0.8% fitted, **+18.1%** held out |
+| Measurements in `benchmarks` table | 518 (480 fitted, 38 held out) |
+| Mean absolute error | **6.6%** fitted, **21.6%** on the held-out set |
+| Systematic bias | −0.8% fitted, **+17.8%** held out |
 | Within 10% of measured | 79% |
 | Within 20% of measured | 93% |
 
@@ -220,7 +220,11 @@ Open items. All are visible in the validation output; none are hidden.
 2. **Frame generation is the weakest part, 18.5% against 6.2% on the base
    set.** The 3x and 4x steps come from one ladder, in one game, on one card.
    A second ladder is the whole fix.
-3. **`PT_GPU_COST_MULT` rests on two rows.** Path tracing now fits at 6.6%,
+3. **`PT_GPU_COST_MULT` rests on two rows.** Alan Wake 2 is the game that
+   should be constraining it and cannot: every one of its baseline rows is at
+   4K, so its own cost is unidentifiable and letting it set the multiplier
+   would be circular. One video at a second resolution with ray tracing off
+   fixes that, its own profile, and its ratio at the same time. Path tracing now fits at 6.6%,
    but only because everything that could not constrain it was excluded — what
    is left is Cyberpunk 2077's two rows. A second game measured both with and
    without path tracing would make it real.

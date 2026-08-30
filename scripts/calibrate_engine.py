@@ -224,10 +224,17 @@ def main(apply_changes):
     # path-tracing effect. Resident Evil Requiem is exactly that — two rows,
     # both path-traced — and Alan Wake 2 is one baseline row away from it,
     # which is not enough to pin a profile down either.
-    pt_paired = {g for g in {r["game"] for r in rows}
-                 if sum(1 for r in rows
-                        if r["game"] == g and not r["ray_tracing"]
-                        and not r["path_tracing"] and r["frame_gen"] == "Kapalı") >= 2}
+    def has_own_profile(game):
+        """Whether a game's baseline rows can pin its own cost down."""
+        base = [r for r in rows if r["game"] == game and not r["ray_tracing"]
+                and not r["path_tracing"] and r["frame_gen"] == "Kapalı"]
+        return len(base) >= 2 and is_identifiable(base, cpus)
+
+    # Counting baseline rows was the first version of this and it is not
+    # enough: two rows at one resolution on one machine, differing only by
+    # upscaler, leave the cost as unpinned as one row does. Alan Wake 2 is
+    # exactly that shape, so it stays out until a second resolution arrives.
+    pt_paired = {g for g in {r["game"] for r in rows} if has_own_profile(g)}
     pt_rows = [r for r in rows if r["path_tracing"] and r["frame_gen"] == "Kapalı"
                and r["game"] in pt_paired]
     dropped = sorted({r["game"] for r in rows
