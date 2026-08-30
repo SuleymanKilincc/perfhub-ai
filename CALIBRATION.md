@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 518 (480 fitted, 38 held out) |
-| Mean absolute error | **6.6%** fitted, **21.6%** on the held-out set |
-| Systematic bias | −0.8% fitted, **+17.8%** held out |
+| Measurements in `benchmarks` table | 524 (480 fitted, 44 held out) |
+| Mean absolute error | **6.6%** fitted, **22.2%** on the held-out set |
+| Systematic bias | −0.8% fitted, **+18.1%** held out |
 | Within 10% of measured | 79% |
 | Within 20% of measured | 93% |
 
@@ -301,6 +301,11 @@ Open items. All are visible in the validation output; none are hidden.
    measurements, only rural and indoor, so what is recorded is the ratio
    *outside* Kuttenberg. If the city really does drop 30-40%, that is a
    per-location effect one ratio per game cannot express.
+   The ratio has now survived three independent attempts to break it. Across
+   CPU scores from 50 to 100 it is flat between 0.744 and 0.772, which is why
+   it is stored per game at all. Across location it does not move (below).
+   And across GPU vendor it does not either: The Last of Us Part II reads 0.740
+   on an RTX 5080 and 0.746 on an RX 9070 XT, Blackwell against RDNA 4.
    That idea has now been tested twice and failed twice. Red Dead Redemption 2:
    Saint Denis 0.792, countryside 0.798. Starfield: New Atlantis 0.753, planet
    surface 0.753, identical to three places across nine rows none of which had

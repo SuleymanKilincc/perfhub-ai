@@ -65,9 +65,9 @@ of the same GPU. Current standing against that set:
 | Systematic bias | −0.9% |
 | Within 20% of measured | 93% |
 
-A further 38 measurements are held out of the fit entirely — free gameplay
+A further 44 measurements are held out of the fit entirely — free gameplay
 rather than benchmark loops, on hardware nothing else covers — and the engine
-answers those to 21.6%. That is the number that says whether it generalises,
+answers those to 22.2%. That is the number that says whether it generalises,
 so it is reported separately rather than averaged in. Predictions on
 pre-2019 graphics architectures are unvalidated, and the interface says so
 rather than presenting them at the same confidence.
