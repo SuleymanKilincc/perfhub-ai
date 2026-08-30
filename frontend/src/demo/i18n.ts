@@ -236,7 +236,19 @@ export function renderNote(note: Note, lang: Lang): string {
       case "upscaling_unsupported":
         return "This game does not support the selected upscaling technology; " +
           "it was calculated at native resolution.";
-      case "form_factor_mismatch": {
+      case "few_cores":
+        return `This processor has ${note.cores} cores. Some current engines ` +
+          `want more than four threads and fall behind what the score implies ` +
+          `there — against the one four-core chip we have measured the ` +
+          `estimate reads about 12% high on average and 55% in the heaviest ` +
+          `game. Lightly threaded games are unaffected.`;
+      case "few_cores":
+      return `Bu işlemcinin ${note.cores} çekirdeği var. Bazı yeni oyun ` +
+        `motorları dörtten fazla iş parçacığı istiyor ve orada puanın ima ` +
+        `ettiğinden daha yavaş kalıyor — ölçtüğümüz tek dört çekirdekli çipte ` +
+        `tahmin ortalama %12, en ağır oyunda %55 yüksek çıktı. Az iş parçacığı ` +
+        `kullanan oyunlar etkilenmiyor.`;
+    case "form_factor_mismatch": {
         const [a, b] = note.cpu_form === "laptop"
           ? ["The processor", "graphics card"] : ["The graphics card", "processor"];
         return `${a} is a laptop part and the ${b} is a desktop one. These two ` +
@@ -277,6 +289,12 @@ export function renderNote(note: Note, lang: Lang): string {
     case "upscaling_unsupported":
       return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
         "native çözünürlükte hesaplandı.";
+    case "few_cores":
+      return `Bu işlemcinin ${note.cores} çekirdeği var. Bazı yeni oyun ` +
+        `motorları dörtten fazla iş parçacığı istiyor ve orada puanın ima ` +
+        `ettiğinden daha yavaş kalıyor — ölçtüğümüz tek dört çekirdekli çipte ` +
+        `tahmin ortalama %12, en ağır oyunda %55 yüksek çıktı. Az iş parçacığı ` +
+        `kullanan oyunlar etkilenmiyor.`;
     case "form_factor_mismatch": {
       const [a, b] = note.cpu_form === "laptop"
         ? ["İşlemci", "ekran kartı"] : ["Ekran kartı", "işlemci"];

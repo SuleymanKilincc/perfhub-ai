@@ -155,6 +155,22 @@ PT_CPU_COST_MULT = 1.12
 # The estimate is still produced, and it carries a note saying the card is
 # outside what has been measured. Not a direction, not a magnitude — those are
 # what the evidence does not support.
+# Below this, a processor's score stops telling the whole story. The measured
+# set holds exactly one such chip — an i3-12100F — and across thirteen games it
+# reads +11.9% high on average. The average hides the shape, though: against
+# the i5-12400F one step up, whose score is only 1.13x higher, the measured gap
+# runs 1.15x in Assetto Corsa Competizione and 1.17x in Remnant II, where four
+# cores are plainly enough, and 1.44x in Battlefield 6, 1.48x in Cyberpunk
+# 2077, 1.82x in Star Wars Outlaws.
+#
+# So it is not a scoring error to be fixed by lowering the chip — that would
+# break every game in the first group. It is a per-game property: how badly an
+# engine wants more than four threads. Fitting that from one processor is the
+# identifiability trap this project has already fallen into once, so it is not
+# fitted. 35 of the 222 catalogue CPUs are affected and they are the budget
+# end, where an optimistic answer does the most harm, so the estimate says so.
+FEW_CORES_THRESHOLD = 4
+
 LEGACY_GPU_ARCHITECTURES = frozenset({
     "Kepler", "Maxwell", "Pascal", "Polaris", "Vega", "Gen 9.5", "Gen 11",
 })

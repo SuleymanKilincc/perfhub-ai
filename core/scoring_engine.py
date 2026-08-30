@@ -205,8 +205,9 @@ def _extract_hardware(cpu_data, gpu_data):
         cpu_score = cpu_data.get("power_score", 50.0)
         cpu_name = cpu_data.get("name", "") or ""
         cpu_form = cpu_data.get("form_factor", "") or ""
+        cpu_cores = cpu_data.get("cores") or 0
     else:
-        cpu_score, cpu_name, cpu_form = float(cpu_data), "", ""
+        cpu_score, cpu_name, cpu_form, cpu_cores = float(cpu_data), "", "", 0
 
     if isinstance(gpu_data, dict):
         gpu_score = gpu_data.get("power_score", 50.0)
@@ -229,7 +230,8 @@ def _extract_hardware(cpu_data, gpu_data):
     # It does now — the CPU scores are a 1080p gaming index, and the model that
     # fills in the unmeasured chips has its own fitted 1.23x X3D multiplier, so
     # applying it again here counted it twice.
-    return cpu_score, cpu_name, cpu_form, gpu_score, gpu_name, vram, gpu_arch, gpu_form
+    return (cpu_score, cpu_name, cpu_form, cpu_cores,
+            gpu_score, gpu_name, vram, gpu_arch, gpu_form)
 
 
 def _game_profile(game):
@@ -483,6 +485,12 @@ def _render_note(note):
     if c == "upscaling_unsupported":
         return ("Bu oyun seçilen upscaling teknolojisini desteklemiyor; "
                 "native çözünürlükte hesaplandı.")
+    if c == "few_cores":
+        return (f"Bu işlemcinin {note['cores']} çekirdeği var. Bazı yeni oyun "
+                f"motorları dörtten fazla iş parçacığı istiyor ve orada puanın "
+                f"ima ettiğinden daha yavaş kalıyor — ölçtüğümüz tek dört "
+                f"çekirdekli çipte tahmin ortalama %12, en ağır oyunda %55 "
+                f"yüksek çıktı. Az iş parçacığı kullanan oyunlar etkilenmiyor.")
     if c == "form_factor_mismatch":
         laptop, desktop = (("İşlemci", "ekran kartı") if note["cpu_form"] == "laptop"
                            else ("Ekran kartı", "işlemci"))
@@ -517,7 +525,7 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
         vram_needed_gb   estimated VRAM working set
         warnings         human-readable notes for the UI
     """
-    (cpu_score, _, cpu_form, gpu_score, _, vram, gpu_arch,
+    (cpu_score, _, cpu_form, cpu_cores, gpu_score, _, vram, gpu_arch,
      gpu_form) = _extract_hardware(cpu_data, gpu_data)
     gpu_cost, cpu_cost, vram_base, ram_base = _game_profile(game)
 
@@ -556,6 +564,11 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
     # A laptop CPU is soldered to its board and so is a laptop GPU, so these
     # two never sit in the same machine. Integrated graphics constrain nothing
     # and pair with either.
+    # See FEW_CORES_THRESHOLD: a real effect, measured on one chip, and left
+    # unmodelled rather than fitted from a single processor.
+    if 0 < cpu_cores <= bc.FEW_CORES_THRESHOLD:
+        notes.append({"code": "few_cores", "cores": cpu_cores})
+
     if {cpu_form, gpu_form} == {"desktop", "laptop"}:
         notes.append({"code": "form_factor_mismatch",
                       "cpu_form": cpu_form, "gpu_form": gpu_form})

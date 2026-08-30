@@ -23,7 +23,12 @@
  */
 import * as bc from "./balance.generated";
 
-export type Cpu = { name?: string; power_score: number; form_factor?: string | null };
+export type Cpu = {
+  name?: string;
+  power_score: number;
+  form_factor?: string | null;
+  cores?: number | null;
+};
 export type Gpu = {
   name?: string;
   power_score: number;
@@ -80,6 +85,7 @@ export type Note =
   | { code: "upscaling_unsupported" }
   | { code: "legacy_gpu"; architecture: string }
   | { code: "form_factor_mismatch"; cpu_form: string; gpu_form: string }
+  | { code: "few_cores"; cores: number }
   | { code: "fps_cap"; cap: number; uncapped: number };
 
 export type Estimate = {
@@ -170,15 +176,17 @@ function perf(score: number, exponent: number): number {
 }
 
 function extractHardware(cpu: Cpu | number, gpu: Gpu | number) {
-  let cpuScore: number, cpuName: string, cpuForm: string;
+  let cpuScore: number, cpuName: string, cpuForm: string, cpuCores: number;
   if (typeof cpu === "object") {
     cpuScore = cpu.power_score ?? 50.0;
     cpuName = cpu.name || "";
     cpuForm = cpu.form_factor || "";
+    cpuCores = cpu.cores || 0;
   } else {
     cpuScore = cpu;
     cpuName = "";
     cpuForm = "";
+    cpuCores = 0;
   }
 
   let gpuScore: number, gpuName: string, vram: number, gpuArch: string, gpuForm: string;
@@ -202,7 +210,7 @@ function extractHardware(cpu: Cpu | number, gpu: Gpu | number) {
   // not a meaningful constraint here.
   if (gpuName.toLowerCase().includes("apple")) vram = 64;
 
-  return { cpuScore, cpuName, cpuForm, gpuScore, gpuName, vram, gpuArch, gpuForm };
+  return { cpuScore, cpuName, cpuForm, cpuCores, gpuScore, gpuName, vram, gpuArch, gpuForm };
 }
 
 function gameProfile(game: Game) {
@@ -402,6 +410,12 @@ export function renderNote(note: Note): string {
     case "upscaling_unsupported":
       return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
         "native çözünürlükte hesaplandı.";
+    case "few_cores":
+      return `Bu işlemcinin ${note.cores} çekirdeği var. Bazı yeni oyun ` +
+        `motorları dörtten fazla iş parçacığı istiyor ve orada puanın ima ` +
+        `ettiğinden daha yavaş kalıyor — ölçtüğümüz tek dört çekirdekli çipte ` +
+        `tahmin ortalama %12, en ağır oyunda %55 yüksek çıktı. Az iş parçacığı ` +
+        `kullanan oyunlar etkilenmiyor.`;
     case "form_factor_mismatch": {
       const [a, b] = note.cpu_form === "laptop"
         ? ["İşlemci", "ekran kartı"] : ["Ekran kartı", "işlemci"];
@@ -433,7 +447,8 @@ export function estimateFpsDetailed(
   rayTracing = false,
   pathTracing = false,
 ): Estimate {
-  const { cpuScore, cpuForm, gpuScore, vram, gpuArch, gpuForm } = extractHardware(cpuData, gpuData);
+  const { cpuScore, cpuForm, cpuCores, gpuScore, vram, gpuArch, gpuForm } =
+    extractHardware(cpuData, gpuData);
   const { gpuCost, cpuCost, vramBase, ramBase } = gameProfile(game);
 
   const quality = resolveQuality(settings, game);
@@ -464,6 +479,12 @@ export function estimateFpsDetailed(
   // LEGACY_GPU_ARCHITECTURES for why no correction is applied.
   if ((bc.LEGACY_GPU_ARCHITECTURES as readonly string[]).includes(gpuArch)) {
     notes.push({ code: "legacy_gpu", architecture: gpuArch });
+  }
+
+  // See FEW_CORES_THRESHOLD: a real effect, measured on one chip, and left
+  // unmodelled rather than fitted from a single processor.
+  if (cpuCores > 0 && cpuCores <= bc.FEW_CORES_THRESHOLD) {
+    notes.push({ code: "few_cores", cores: cpuCores });
   }
 
   // A laptop CPU is soldered to its board and so is a laptop GPU, so these two

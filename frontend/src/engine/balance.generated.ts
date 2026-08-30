@@ -8,6 +8,7 @@ export const CPU_MS_CONST = 2.25 as const;
 export const CPU_PERF_EXPONENT = 1.0 as const;
 export const DEFAULT_QUALITY_TIER = "High" as const;
 export const DEFAULT_UPSCALING_PASS_COST_MS = 0.35 as const;
+export const FEW_CORES_THRESHOLD = 4 as const;
 export const FG_GPU_OVERHEAD = {
     "2x": 0.5,
     "3x": 0.92,

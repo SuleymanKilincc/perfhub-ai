@@ -288,6 +288,18 @@ Visible in the validation output; none of these are hidden.
    answer is the one used — same architecture, same cache, one variable — and
    the disagreement is recorded here rather than folded into a single chip's
    number, because it is a question about the CPU scores, not about that chip.
+5-0d2. **A processor's score does not capture how many threads a game wants.**
+   The measured set holds one four-core chip, an i3-12100F, and the engine
+   reads +11.9% high on it across thirteen games. The average hides the shape:
+   against the i5-12400F one step up, whose score is only 1.13x higher, the
+   measured gap is 1.15x in Assetto Corsa Competizione and 1.17x in Remnant II
+   — four cores are plainly enough there — and 1.44x in Battlefield 6, 1.48x in
+   Cyberpunk 2077, 1.82x in Star Wars Outlaws. Lowering the chip's score would
+   break the first group, so this is a per-game property, not a scoring error.
+   Fitting it from one processor would repeat the identifiability mistake this
+   project already made once, so it is not fitted; 35 of the 222 catalogue CPUs
+   are affected and the estimate carries a note. A second four-core chip in any
+   ladder would make it modellable.
 5-0e. **Catalogue gaps that had nothing to do with the model.** A reader could
    pair a desktop Ryzen 9 with an RTX 4070 Laptop and get a confident number
    for a machine that cannot exist — nothing recorded whether a part was a

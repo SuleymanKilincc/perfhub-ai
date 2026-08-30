@@ -74,7 +74,7 @@ def build_cases(n, seed=20260824):
         gpu = rng.choice(gpus)
         game = rng.choice(games)
         cases.append({
-            "cpu": hw(cpu, "name", "power_score", "form_factor"),
+            "cpu": hw(cpu, "name", "power_score", "form_factor", "cores"),
             "gpu": hw(gpu, "name", "power_score", "vram", "architecture", "form_factor"),
             "game": {k: game.get(k) for k in GAME_KEYS},
             "resolution": rng.choice(RESOLUTIONS),
@@ -99,7 +99,7 @@ def build_cases(n, seed=20260824):
             for res in RESOLUTIONS:
                 for ram in (8, 32):
                     cases.append({
-                        "cpu": hw(cpu, "name", "power_score", "form_factor"),
+                        "cpu": hw(cpu, "name", "power_score", "form_factor", "cores"),
                         "gpu": hw(gpu, "name", "power_score", "vram", "architecture", "form_factor"),
                         "game": {k: game.get(k) for k in GAME_KEYS},
                         "resolution": res, "settings": "Ultra",
