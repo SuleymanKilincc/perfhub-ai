@@ -47,10 +47,17 @@ def main(apply_changes):
             if apply_changes:
                 cur.execute(f"ALTER TABLE games ADD COLUMN {name} {decl}")
 
+    # Gameplay rows are kept: this ratio is about what a reader sees when the
+    # scene fills up, and free play is closer to that than a benchmark loop.
+    # But the two are not interchangeable and nothing here can test whether
+    # they differ, so which source a game's ratio came from is printed rather
+    # than blended out of sight.
     ratios = defaultdict(list)
-    for r in cur.execute("SELECT game, fps_avg, fps_1pct_low FROM benchmarks"
+    scenes = defaultdict(set)
+    for r in cur.execute("SELECT game, fps_avg, fps_1pct_low, scene FROM benchmarks"
                          " WHERE fps_1pct_low IS NOT NULL AND fps_avg > 0"):
         ratios[r["game"]].append(r["fps_1pct_low"] / r["fps_avg"])
+        scenes[r["game"]].add(r["scene"] or "benchmark")
 
     every = [q for v in ratios.values() for q in v]
     global_mean = round(statistics.mean(every), 3)
@@ -63,7 +70,8 @@ def main(apply_changes):
             continue
         q = round(statistics.mean(v), 3)
         fitted[game] = q
-        print(f"  {game[:32]:32s} {len(v):3d} {q:6.3f} {min(v):5.2f}-{max(v):.2f}")
+        src = "+".join(sorted(scenes[game]))
+        print(f"  {game[:32]:32s} {len(v):3d} {q:6.3f} {min(v):5.2f}-{max(v):.2f}  {src}")
 
     total = cur.execute("SELECT COUNT(*) FROM games").fetchone()[0]
     print(f"\n  {len(fitted)} oyun olculdu, {total - len(fitted)} oyun kuresel "

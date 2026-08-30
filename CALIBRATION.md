@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 492 (480 fitted, 12 held out) |
-| Mean absolute error | **6.6%** fitted, **22.4%** on the held-out set |
-| Systematic bias | −0.8% fitted, +10.7% held out |
+| Measurements in `benchmarks` table | 501 (480 fitted, 21 held out) |
+| Mean absolute error | **6.6%** fitted, **19.0%** on the held-out set |
+| Systematic bias | −0.8% fitted, **+12.3%** held out |
 | Within 10% of measured | 79% |
 | Within 20% of measured | 93% |
 
@@ -257,16 +257,29 @@ Open items. All are visible in the validation output; none are hidden.
 9. **Every one of the 492 measurements is on desktop hardware.** Laptop
    predictions are entirely unvalidated. Related: the catalogue holds no Apple
    GPU, so every pairing offered for an M-series chip is wrong.
-10. **The held-out set is 12 rows and all of them are on a GTX 1080 Ti**, which
-   the engine itself flags as outside the validated range. So the 22.4% it
-   reports measures two things at once and cannot separate them. Held-out rows
-   on modern hardware would be worth more than any other single batch.
+10. **The engine predicts a benchmark-loop average; free play runs about 12%
+   below it.** The held-out set can now separate that from everything else,
+   because it finally holds rows on hardware the engine does not flag: twelve
+   on a GTX 1080 Ti (22.4% error, +10.7% bias) and nine on an RTX 5080 with a
+   9800X3D (14.5%, +14.5%). On the second group the mean absolute error and the
+   bias are the same number, meaning every single row is over-predicted — not
+   scatter, a definition. Whether the displayed figure should absorb that is a
+   product question and is not settled by 21 rows from two systems, but the gap
+   is measured now rather than suspected.
 11. **147 of the 176 games carry derived cost profiles**, and 148 have never
    had their feature flags checked in-game. The interface marks both.
-12. **163 games use the global 0.758 for the 1% low ratio** rather than their
-   own. Thirteen are measured. Kingdom Come: Deliverance 2 is the case that
-   showed the cost — its busy-scene drop reads 24% where a source puts it at
-   30-40%.
+12. **162 games use the global 0.762 for the 1% low ratio** rather than their
+   own; fourteen are measured. Kingdom Come: Deliverance 2 was the case that
+   prompted this, on a relayed claim of a 30-40% drop in Kuttenberg. Measured,
+   it is 0.874 — a 13% drop, putting it among the steadiest games in the set
+   next to Hitman 3. The claim is not refuted though: the video holds no city
+   measurements, only rural and indoor, so what is recorded is the ratio
+   *outside* Kuttenberg. If the city really does drop 30-40%, that is a
+   per-location effect one ratio per game cannot express.
+   KCD2 is also the only game whose ratio comes from free gameplay rather than
+   a benchmark loop. Nothing here can test whether the two differ, so
+   calibrate_fps_low.py prints the source per game instead of blending it out
+   of sight.
 13. **The X3D gap may be understated.** Scoring the Ryzen 7 5700X3D off the
    28-CPU ladder gives 60 against its 5800X3D sibling (a stable 0.93-0.96 ratio
    across eight games) but 65 against the non-X3D 5700X, because the ladder
