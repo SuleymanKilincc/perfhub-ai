@@ -61,7 +61,7 @@ of the same GPU. Current standing against that set:
 
 | Metric | Value |
 |---|---|
-| Mean absolute error | **6.8%** |
+| Mean absolute error | **6.6%** |
 | Systematic bias | −0.9% |
 | Within 20% of measured | 93% |
 

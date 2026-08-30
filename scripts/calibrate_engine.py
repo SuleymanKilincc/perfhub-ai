@@ -167,11 +167,21 @@ def fit_game_costs(rows, games, cpus, gpus, verbose=True, use_all_rows=False):
 
     fitted = {}
     for name, rs in sorted(by_game.items()):
-        if len(rs) < 2:
-            continue
         g = games[name]
-        before = err(rs, games, cpus, gpus)
         free = is_identifiable(rs, cpus)
+        # One row cannot separate two costs, but it can set one. When the split
+        # is pinned to the genre prior there is a single parameter to find, and
+        # a single row is enough to find it — so the old blanket "needs two
+        # rows" was turning measured games away.
+        #
+        # Resident Evil Requiem is what it cost. Two path-traced rows, one DLAA
+        # and one DLSS Quality; only the DLAA one counts as a baseline, so the
+        # game fell one short and was never fitted at all — while the interface
+        # showed it as MEASURED · 2 and the engine answered 16 fps against 40
+        # recorded, and 30 against 83.
+        if len(rs) < (2 if free else 1):
+            continue
+        before = err(rs, games, cpus, gpus)
         ratio = GENRE_CPU_RATIO.get(g.get("genre"), DEFAULT_CPU_RATIO)
         weights = config_weights(rs)
         best = None
@@ -186,36 +196,13 @@ def fit_game_costs(rows, games, cpus, gpus, verbose=True, use_all_rows=False):
         _, gc, cc = best
         g["gpu_cost"], g["cpu_cost"] = gc, cc
         after = err(rs, games, cpus, gpus)
-        fitted[name] = (gc, cc, before, after, len(rs))
+        fitted[name] = (gc, cc, before, after, len(rs), free)
         if verbose:
             bound = "CPU" if cc > gc else "GPU"
             note = "" if free else f"  oran prior'da sabit ({ratio:.2f})"
             print(f"    {name[:30]:30s} n={len(rs)}  gpu={gc:5.2f} cpu={cc:5.2f} "
                   f"[{bound}]  {before:5.1f}% -> {after:5.1f}%{note}")
     return fitted
-
-
-def fit_toggle(rows, games, cpus, gpus, flag, const_name, lo, hi):
-    """
-    Fit a multiplier that a subset of rows switches on, by finding the value
-    that minimises error across just those rows.
-    """
-    subset = [r for r in rows if r[flag] and r["frame_gen"] == "Kapalı"]
-    if not subset:
-        return None
-    original = getattr(bc, const_name)
-    before = err(subset, games, cpus, gpus)
-    best = None
-    for v in frange(lo, hi, 0.02):
-        setattr(bc, const_name, v)
-        e = err(subset, games, cpus, gpus)
-        if best is None or e < best[0]:
-            best = (e, v)
-    after, value = best
-    setattr(bc, const_name, value)
-    print(f"    {const_name}: {original} -> {value}   "
-          f"({len(subset)} olcum, {before:5.1f}% -> {after:5.1f}%)")
-    return value
 
 
 def main(apply_changes):
@@ -231,7 +218,23 @@ def main(apply_changes):
     # Path tracing first: those rows also have ray_tracing set, so fitting RT
     # while they are included would blame the RT multiplier for PT's cost.
     print("\n=== ASAMA 2: path tracing carpani ===")
-    pt_rows = [r for r in rows if r["path_tracing"] and r["frame_gen"] == "Kapalı"]
+    # Same rule stage 3 applies to ray tracing, and for the same reason: a game
+    # measured *only* with path tracing on has no base cost of its own, so
+    # fitting the multiplier across it lets that unknown cost masquerade as a
+    # path-tracing effect. Resident Evil Requiem is exactly that — two rows,
+    # both path-traced — and Alan Wake 2 is one baseline row away from it,
+    # which is not enough to pin a profile down either.
+    pt_paired = {g for g in {r["game"] for r in rows}
+                 if sum(1 for r in rows
+                        if r["game"] == g and not r["ray_tracing"]
+                        and not r["path_tracing"] and r["frame_gen"] == "Kapalı") >= 2}
+    pt_rows = [r for r in rows if r["path_tracing"] and r["frame_gen"] == "Kapalı"
+               and r["game"] in pt_paired]
+    dropped = sorted({r["game"] for r in rows
+                      if r["path_tracing"] and r["frame_gen"] == "Kapalı"
+                      and r["game"] not in pt_paired})
+    if dropped:
+        print(f"    temeli yetersiz, haric: {', '.join(dropped)}")
     if pt_rows:
         before = err(pt_rows, games, cpus, gpus)
         best = min(frange(1.5, 5.0, 0.02),
@@ -318,7 +321,14 @@ def main(apply_changes):
     # multipliers are calibrated, fit them through those instead of leaving
     # them on a cloned profile.
     print("\n=== ASAMA 5: sadece RT/FG ile olculmus oyunlar ===")
-    remaining = {r["game"] for r in rows} - set(fitted)
+    # Games whose stage-1 fit could not separate the two costs come back here,
+    # because this pass sees their ray-traced and frame-generated rows too and
+    # may well be able to. Alan Wake 2 is why: relaxing stage 1 to accept a
+    # single row let it claim a fit from one RTX 5090 reading, which then kept
+    # it out of a pass that had four rows across three resolutions for it, and
+    # its held-out row went to +253%.
+    weak = {n for n, v in fitted.items() if not v[5]}
+    remaining = ({r["game"] for r in rows} - set(fitted)) | weak
     if remaining:
         leftover_rows = [r for r in rows if r["game"] in remaining]
         extra = fit_game_costs(leftover_rows, games, cpus, gpus, use_all_rows=True)

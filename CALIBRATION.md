@@ -11,9 +11,9 @@ context.
 |---|---|
 | Engine | Cadence 1.0 |
 | Measurements in `benchmarks` table | 492 (480 fitted, 12 held out) |
-| Mean absolute error | **6.8%** fitted, **22.5%** on the held-out set |
-| Systematic bias | −0.5% fitted, +10.6% held out |
-| Within 10% of measured | 78% |
+| Mean absolute error | **6.6%** fitted, **22.4%** on the held-out set |
+| Systematic bias | −0.8% fitted, +10.7% held out |
+| Within 10% of measured | 79% |
 | Within 20% of measured | 93% |
 
 The set now covers resolution sweeps, GPU and CPU ladders, preset ladders,
@@ -207,193 +207,221 @@ presented as near-flagship for gaming.
 
 ## Known gaps
 
-Visible in the validation output; none of these are hidden.
+Open items. All are visible in the validation output; none are hidden.
 
-1. **Far Cry 6's optional HD texture pack is not modelled.** Published figures
-   put it near 11-12 GB at 1440p where the base game sits far lower, and it is
-   the single worst prediction in the set. Needs a per-game flag.
-2. ~~Forza Horizon 6 has internally inconsistent measurements.~~ **Resolved
-   twice.** The GPU score correction fixed the 4.38x gap the old scale could
-   not reach. The rest was worse than inconsistent: three RTX 5080 rows
-   described the *same* configuration — 4K Ultra, DLAA, no ray tracing — as
-   260, 152 and 89 fps. A second source settled it. An RTX 3080 Ti run scaled
-   by the score ratio (1.45x) predicts 159 / 130 / 87 at 1080p / 1440p / 4K
-   against 175 / 133 / 89 recorded, so the 89 stands and the other two were
-   removed. See scripts/load_benchmarks_3.py.
-3. ~~GPU `power_score` values have never been validated.~~ **Resolved**; see
-   the section above. 118 of the 164 cards still carry unvalidated scores, but
-   they are no longer subject to the systematic error.
-4. **Alan Wake 2 at 8K runs out of VRAM on a 32 GB card** — measured, with
-   ~4 GB spilling to system RAM. The engine predicts 19 fps against 10.
-5. **Ray Reconstruction is not modelled**; the one measurement using it is
+**Model**
+
+1. **One ray-tracing flag, several presets per game.** Forza Horizon 6 on an
+   RTX 3080 Ti at 1440p reads 85 fps at High RT and 40 at Extreme; the engine
+   answers 56 to both, 34% low on one and 40% high on the other.
+   `benchmarks.rt_level` records the preset and the calibration holds Extreme
+   rows out, so `RT_GPU_COST_MULT` means a *typical* preset. Real RT levels
+   need an RT sweep on a second game.
+2. **Frame generation is the weakest part, 18.5% against 6.2% on the base
+   set.** The 3x and 4x steps come from one ladder, in one game, on one card.
+   A second ladder is the whole fix.
+3. **`PT_GPU_COST_MULT` rests on two rows.** Path tracing now fits at 6.6%,
+   but only because everything that could not constrain it was excluded — what
+   is left is Cyberpunk 2077's two rows. A second game measured both with and
+   without path tracing would make it real.
+4. **A processor's score does not capture how many threads a game wants.** The
+   set holds one four-core chip, an i3-12100F, and the engine reads +11.9% high
+   on it across thirteen games. The average hides the shape: against the
+   i5-12400F one step up, whose score is only 1.13x higher, the measured gap is
+   1.15x in Assetto Corsa Competizione and 1.17x in Remnant II, and 1.44x in
+   Battlefield 6, 1.48x in Cyberpunk 2077, 1.82x in Star Wars Outlaws. Lowering
+   the chip would break the first group, so this is a per-game property, not a
+   scoring error. Not fitted, because one processor cannot fit a per-game
+   property; 35 of the 222 CPUs are affected and the estimate carries a note.
+   A second four-core chip makes it modellable.
+5. **Ray Reconstruction is not modelled.** The one measurement using it is
    recorded as RT + DLSS Quality.
-5-0. **We do not know how the engine behaves on pre-2019 GPUs, and the attempt
-   to find out is worth recording because it failed twice.** 79 of the 164
-   catalogue GPUs are on architectures with no measurement at all. Five outside
-   systems on such cards put the engine +110% high, which looked like a clean
-   architectural cliff — no mesh shaders, little of the DX12 Ultimate set newer
-   engines assume. A sixth broke it: the GTX 1080 Ti is the same Pascal
+6. **Far Cry 6's optional HD texture pack is not modelled**, and neither is
+   Space Marine 2's. Needs a per-game flag rather than being folded into the
+   base cost.
+7. **Alan Wake 2 at 8K exhausts VRAM on a 32 GB card** — measured, ~4 GB
+   spilling to system RAM. The engine predicts 14 fps against 10.
+
+**Coverage**
+
+8. **We do not know how the engine behaves on pre-2019 GPUs.** 79 of the 164
+   catalogue cards are on architectures with no measurement at all. Five
+   outside systems put the engine +110% high, which looked like a clean
+   architectural cliff; a sixth broke it — the GTX 1080 Ti is the same Pascal
    generation as the GTX 1070 that read +153%, and across ten current games it
-   comes to +8%, landing within 2% on the title the 1070 missed by 308%.
-   VRAM was the next hypothesis — 11 GB against 8 — and chasing it found a real
-   bug worth fixing on its own terms (see 5-1), but correcting it moved the
-   low-end frame rates by 1.7 points out of 110. So that is not the cause
-   either. What the disagreeing runs have in common is a flagship CPU bolted to
-   a 2016 budget card, a pairing assembled for content rather than for use, and
-   their numbers do not agree with each other. The engine therefore applies no
-   correction and says the card is outside what has been measured — no
-   direction, no magnitude, because the evidence supports neither.
-5-0b. **CPU_PERF_EXPONENT is measured now, and 1.00 was right.** It had been
-   set on principle since the CPU scores became a 1080p gaming index, with the
-   note that nothing in the data could argue either way — 74 of 111 rows sat on
-   an X3D chip and nothing below a 5700X existed. A 27-processor ladder on one
-   RTX 4090, from a 9800X3D down to an i3-12100F, settles it. Fitting the
-   exponent needs each game's level divided out first, or a wrong game cost
-   masquerades as a wrong curve: raw, the scan runs away to 1.60 chasing level
-   errors. With levels normalised the first ladder, reaching score 46, put the
-   optimum at 1.10 with 6.3% at 1.00. A second reaching 30 — a Ryzen 5 2600 —
-   moved it to exactly 1.00 at 5.32% across 369 rows and 13 ladders. More
-   measurement converged the answer rather than moving it. The shape error also
-   says the CPU scores rank these chips well (Spearman 0.67 to 0.91 per game).
-5-0c. **A large batch must not settle questions by headcount.** The same ladder
-   is 27 observations of the CPU axis and one of everything else, and counted
-   flat it buried five rows from another source reading 123 fps where it reads
-   208 on the same processor and preset. `config_weights` groups rows by
-   everything except the CPU and weights them 1/sqrt(n). The measured effect is
-   small — non-batch rows improve 11.1% to 10.7%, the batch itself gives up 0.3
-   — and it is kept for the structure rather than the number.
-5-0c2. **The estimate is a range now, and the range is measured.** A single
-   number invites the complaint it exists to prevent: told "80 fps" and then
-   seeing 65 in a firefight, a reader concludes the estimate was wrong. It was
-   not — it answered the average over a benchmark run. The 1% low is the number
-   people actually judge a build by, and it had been sitting unused in every
-   chart read so far. Across 336 rows the ratio of 1% low to average turns out
-   to be a property of the *game*, not the hardware: flat between 0.744 and
-   0.772 across CPU scores from 50 to 100, but running 0.533 in Counter-Strike 2
-   to 0.878 in Hitman 3. So it is stored per game in `games.fps_low_ratio`,
-   fitted for 12 titles, with the global 0.758 elsewhere and
-   `fps_low_measured` telling the interface which is which.
-5-0d. **One ladder cannot pin down the frame-generation step.** The fit kept
-   running to the edge of its search range: widening it once was real — the
-   step left 0.20 and the error fell 26.0% to 21.9% — but widening it again
-   bought two tenths of a point, which is a flat objective wandering rather
-   than evidence. `calibrate_engine.py` now refuses a boundary value that buys
-   less than a point instead of printing it as an answer. The 3x and 4x steps
-   still come from one game on one card, which is why those rows sit near 22%
-   while everything else is under 8%. A second ladder is the fix.
-5-0e. **The X3D gap may be understated.** Scoring the Ryzen 7 5700X3D off this
-   ladder gives 60 against its 5800X3D sibling (a stable 0.93-0.96 ratio across
-   eight games) but 65 against the non-X3D 5700X, because the ladder puts the
-   5800X3D 1.28x above the 5700X where their scores say 1.19x. The sibling
-   answer is the one used — same architecture, same cache, one variable — and
-   the disagreement is recorded here rather than folded into a single chip's
-   number, because it is a question about the CPU scores, not about that chip.
-5-0d2. **A processor's score does not capture how many threads a game wants.**
-   The measured set holds one four-core chip, an i3-12100F, and the engine
-   reads +11.9% high on it across thirteen games. The average hides the shape:
-   against the i5-12400F one step up, whose score is only 1.13x higher, the
-   measured gap is 1.15x in Assetto Corsa Competizione and 1.17x in Remnant II
-   — four cores are plainly enough there — and 1.44x in Battlefield 6, 1.48x in
-   Cyberpunk 2077, 1.82x in Star Wars Outlaws. Lowering the chip's score would
-   break the first group, so this is a per-game property, not a scoring error.
-   Fitting it from one processor would repeat the identifiability mistake this
-   project already made once, so it is not fitted; 35 of the 222 catalogue CPUs
-   are affected and the estimate carries a note. A second four-core chip in any
-   ladder would make it modellable.
-5-0e. **Catalogue gaps that had nothing to do with the model.** A reader could
-   pair a desktop Ryzen 9 with an RTX 4070 Laptop and get a confident number
-   for a machine that cannot exist — nothing recorded whether a part was a
-   desktop or a laptop one. `form_factor` does now (70 laptop CPUs, 29 laptop
-   GPUs, 6 integrated, read off the naming), the machine type is asked once up
-   front so the pairing cannot be made, and the engine emits
-   `form_factor_mismatch` as a backstop for callers that skip the interface.
-   Worth noting alongside it: every one of the 492 measurements is on desktop
-   hardware, so laptop predictions are unvalidated as well as previously
-   mixable.
-   The upscaling menu offered seven of the twelve modes the engine supports and
-   abbreviated them to fit ("DLSS Q", "FSR P"). Technology and quality tier are
-   separate choices now, which fits all four tiers of each at full width.
-   And 149 of the 176 games have never had their feature flags checked, which
-   is how Resident Evil Requiem came to hide a path-tracing mode it ships. Seven
-   more were corrected from memory and one from observation; the interface now
-   says when a game's flags are derived rather than checked, because a greyed
-   out toggle looks exactly as certain as a verified one.
-5-1. **VRAM working sets were about 18% low**, found by comparing against a
-   GTX 1080 Ti, whose 11 GB means nothing it reports is clamped by capacity.
-   The consequence was concrete: on an 8 GB card the model saw 4 of 12 current
-   games spilling where 7 really do, so the collapse spilling causes was
-   invisible to it. Now −8.4% and 8 of 12. `vram_measured_kind` records whether
-   a figure is allocation or usage, since inverting a usage reading through the
-   allocation model lands ~25% low, and overlays generally report one without
-   labelling it.
-5a. **Measuring only on fast CPUs hid a whole class of error.** 74 of the 111
-   rows use an X3D chip, where the CPU term almost never binds, so a wrong CPU
-   cost changes no prediction and no fit notices. A single outside run on a
-   Ryzen 5 5600 exposed three games whose fitted CPU cost was nonsense — Grand
-   Theft Auto V Enhanced implied that chip could not pass 38 fps, against 125
-   observed. The cause was that `fit_game_costs` required two *rows* rather
-   than two *distinct configurations*: GTA V's four rows are a frame-generation
-   ladder at one resolution on one machine, and the solver was free to park the
-   cost anywhere. `is_identifiable` now requires variation in resolution,
-   preset or CPU before the split is fitted at all, and holds the ratio at the
-   genre prior otherwise. GTA V's ceiling moved to 213 fps and the independent
-   run agrees to within 1%. Cost: 0.2 points of fitted error, for three numbers
-   the data never supported. The gap that remains is the measurement set, not
-   the fit — weak CPUs are what it lacks.
-5b. **The model has one ray-tracing flag where games ship several presets**,
-   and the cost of that is now measured rather than suspected. Forza Horizon 6
-   on an RTX 3080 Ti at 1440p reads 85 fps at High RT and 40 at Extreme; the
-   engine answers 56 to both, so it is 34% low on one and 40% high on the
-   other. `benchmarks.rt_level` records the preset from now on and the
-   calibration holds Extreme rows out, so the multiplier means a *typical*
-   preset. Building real RT levels needs more than the two rows that exist —
-   an RT sweep on a second game would be the thing that makes it possible.
-6. **~155 games remain uncalibrated.** The plan is to derive genre-level
-   corrections from the calibrated twenty rather than measure every title.
-7. **Frame generation is the weakest part of the model**, at 21.7% error over
-   16 measurements against 9.0% overall. The Cyberpunk 4K DLSS Quality + 2x
-   row predicts 174 against 123 measured.
-8. ~~CPU `power_score` has not been validated.~~ **Resolved**; see the section
-   above. 195 of the 220 are modelled rather than measured, and the model's own
-   error against the reference is 3.4 points, so treat individual CPUs outside
-   the reference 25 as estimates.
-9. ~~One benchmark row looks wrong.~~ **Resolved.** The Cyberpunk RTX 4070 row
-   was re-measured: 65 fps, not 52. The re-run also produced an RT Ultra and a
-   path-traced figure with VRAM readings for all three, which is where
-   `PT_GPU_COST_MULT` moved from 2.74 to 2.98 and Cyberpunk's VRAM working set
-   from 6.8 to 4.8 GB. The engine still predicts all three of those rows 12-25%
-   high, so the 4070 is not fully settled — but it is no longer inverted
-   against the cards around it.
+   comes to +8%. VRAM was the next hypothesis and chasing it found a real bug
+   (see Closed 6) but moved the low-end rates by 1.7 points out of 110. The
+   engine applies no correction and says the card is outside what has been
+   measured — no direction, no magnitude, because the evidence supports
+   neither.
+9. **Every one of the 492 measurements is on desktop hardware.** Laptop
+   predictions are entirely unvalidated. Related: the catalogue holds no Apple
+   GPU, so every pairing offered for an M-series chip is wrong.
+10. **The held-out set is 12 rows and all of them are on a GTX 1080 Ti**, which
+   the engine itself flags as outside the validated range. So the 22.4% it
+   reports measures two things at once and cannot separate them. Held-out rows
+   on modern hardware would be worth more than any other single batch.
+11. **147 of the 176 games carry derived cost profiles**, and 148 have never
+   had their feature flags checked in-game. The interface marks both.
+12. **163 games use the global 0.758 for the 1% low ratio** rather than their
+   own. Thirteen are measured. Kingdom Come: Deliverance 2 is the case that
+   showed the cost — its busy-scene drop reads 24% where a source puts it at
+   30-40%.
+13. **The X3D gap may be understated.** Scoring the Ryzen 7 5700X3D off the
+   28-CPU ladder gives 60 against its 5800X3D sibling (a stable 0.93-0.96 ratio
+   across eight games) but 65 against the non-X3D 5700X, because the ladder
+   puts the 5800X3D 1.28x above the 5700X where their scores say 1.19x. The
+   sibling answer is used and the disagreement recorded, because it is a
+   question about the CPU scores rather than about that chip.
+
+## Mistakes in method
+
+Not gaps in the model — errors in how the work was done, found and corrected.
+Kept because the same shapes keep recurring, and because a log of what went
+wrong is worth more than a list of what works.
+
+1. **Counting rows instead of configurations.** `fit_game_costs` required two
+   *rows* before fitting a game's CPU/GPU split, and its own docstring
+   explained why one cannot separate them — but two rows of the same
+   configuration cannot either. Grand Theft Auto V's four rows are a
+   frame-generation ladder at one resolution on one machine, and the solver
+   parked the cost in the CPU term: it implied a Ryzen 5 5600 could not exceed
+   38 fps in a game that really runs past a hundred. `is_identifiable` now asks
+   for variation in resolution, preset or CPU. Ceiling moved to 213 fps against
+   125 measured on hardware the fit never saw.
+2. **Measuring only on fast CPUs hid the class of error above.** 74 of the
+   then-111 rows sat on an X3D chip, where the CPU term barely binds, so a
+   wrong CPU cost changed no prediction and no check noticed. It took a single
+   outside run on a Ryzen 5 5600 to expose it.
+3. **Making the genre labels finer without updating the priors.** 19 of the 34
+   labels then matched nothing and fell to the 1.0 default in silence — a value
+   that reads as a judgement about sixty-odd games and was really an absent key.
+   `check_genre_coverage()` now reports a gap instead of swallowing it.
+4. **A test that stopped covering what it was pointed at, three times.** The
+   conformance runner trims hardware rows to the fields the engines read.
+   `architecture` was missing when the legacy-GPU note landed, so 4768 cases
+   agreed perfectly while never entering the new branch; `form_factor` and
+   `cores` repeated it. Each is now passed through, and each addition is
+   checked by counting how many cases actually reach the branch.
+5. **Callers trimming the same rows.** `predictAll` and the detail panel both
+   cut hardware down to name/score/vram before calling the engine, so the
+   legacy-GPU and laptop-mismatch notes could never have fired in the interface
+   at all.
+6. **Claiming a law from two videos.** "Pre-2019 architectures run +110% high"
+   was asserted, committed, and then withdrawn when a GTX 1080 Ti came in at
+   +8%. The retraction is in the history on purpose.
+7. **Letting a large batch settle a question by headcount.** A 27-CPU ladder is
+   27 observations of the CPU axis and one of everything else; counted flat it
+   outvoted five rows from another source 27 to 5 on The Last of Us Part I,
+   where the two read 208 and 123 fps on the same processor and preset.
+   `config_weights` groups by everything except the CPU and weights 1/sqrt(n).
+8. **Printing a boundary value as if it were a fit.** The frame-generation
+   search kept landing on the edge of its own range. Widening it once was real
+   — the error fell 26.0% to 21.9% — but widening again bought two tenths,
+   which is a flat objective wandering. The script now says when a constant
+   lands on a boundary.
+9. **A circular multiplier fit.** Resident Evil Requiem has two rows, both
+   path-traced and no others, so its unfitted cost leaked straight into
+   `PT_GPU_COST_MULT`. Stage 3 had guarded against exactly this for ray tracing
+   since early on; stage 2 never had the same rule. Worse, the guard was
+   written into `fit_toggle`, a function nothing calls — dead code that looked
+   like a fix for three iterations before anyone checked.
+10. **A guard too strict in the other direction.** With the CPU:GPU ratio
+   pinned to the genre prior there is one parameter to find and one row can
+   find it, but the blanket "needs two rows" turned such games away. Resident
+   Evil Requiem was shown as MEASURED · 2 while never being fitted at all, and
+   the engine answered 16 fps against 40 recorded. Relaxing it then created a
+   third bug — a one-row stage-1 fit kept Alan Wake 2 out of a later pass that
+   had six rows for it, sending its held-out row to +253% — so weakly fitted
+   games are now reconsidered in that pass.
+11. **A mislabelled measurement, found by a flag fix.** Setting Far Cry 6's
+   `supports_dlss` to 0 made the contradiction scan report two of its own rows
+   as using DLAA, which only exists where DLSS does. The rows were wrong: a
+   source's temporal AA had been recorded as DLAA, and in this model that costs
+   an upscaling pass where Native does not.
+12. **An API key committed and then deleted.** Deleting a file does not remove
+   it from git history, and the repository is public. Revoking the key is the
+   only fix; the file removal was not one.
+
+## Closed
+
+1. ~~Forza Horizon 6 has internally inconsistent measurements.~~ Three RTX 5080
+   rows described the *same* configuration as 260, 152 and 89 fps. A second
+   source settled it: an RTX 3080 Ti run scaled by the score ratio predicts
+   159 / 130 / 87 against 175 / 133 / 89 recorded, so 89 stands and the other
+   two were removed.
+2. ~~GPU `power_score` was never validated.~~ The ladder was systematically
+   compressed — all 48 cards checked came out too fast relative to an RTX 5090.
+   118 of the 164 still carry unvalidated scores but no longer share that
+   error.
+3. ~~CPU `power_score` was never validated.~~ Rebuilt as a 1080p gaming index.
+   195 of the 222 are modelled rather than measured, and the model's own error
+   against the reference is 3.4 points.
+4. ~~`CPU_PERF_EXPONENT` was set on principle, not measurement.~~ Two ladders
+   settle it at exactly 1.00. Fitting needs each game's level divided out
+   first, or a wrong game cost masquerades as a wrong curve — raw, the scan
+   runs to 1.60. The first ladder, reaching score 46, put the optimum at 1.10;
+   a second reaching 30 moved it to 1.00 at 5.32% shape error across 369 rows.
+   More measurement converged the answer rather than moving it.
+5. ~~The estimate was a single number.~~ It is a range now, and the range is
+   measured: across 336 rows the ratio of 1% low to average is a property of
+   the *game*, flat between 0.744 and 0.772 across CPU scores from 50 to 100
+   but running 0.533 in Counter-Strike 2 to 0.878 in Hitman 3.
+6. ~~VRAM working sets were about 18% low.~~ Found by comparing against a GTX
+   1080 Ti, whose 11 GB means nothing it reports is clamped. On an 8 GB card
+   the model saw 4 of 12 current games spilling where 7 really do. Now −8.4%
+   and 8 of 12.
+7. ~~Desktop and laptop parts could be mixed.~~ Nothing recorded which was
+   which. `form_factor` does now and the interface asks the machine type before
+   the pickers, so the pairing cannot be made.
+8. ~~One benchmark row looked wrong.~~ The Cyberpunk RTX 4070 row was
+   re-measured at 65 fps, not 52.
 
 ## Next measurements needed
 
-The most valuable shape remains **one game, one system, three resolutions** —
-it is the only thing that separates a game's CPU cost from its GPU cost.
+In order of what each would actually settle. The first three are the ones
+holding the model back; the rest widen coverage.
 
-- **Far Cry 6 without the HD texture pack**, to separate the pack's cost from
-  the base game.
-- **Microsoft Flight Simulator 2024**, which is in the catalogue with costs
-  that are openly a guess. They were derived from the calibrated 2020 profile
-  plus an uplift, because 2024 is a separate and much heavier game that was
-  missing entirely — the catalogue instead had the 2020 release listed twice,
-  once under each of its names. One run at three resolutions settles it.
-- **A frame generation ladder on a second game**, for gap 7 — the overhead is
-  currently fitted from GTA V Enhanced alone.
-- **A CPU ladder at 1080p on a CPU-bound game, reaching the low end** — a
-  Ryzen 5 5600 or an i5-12400F alongside one of the X3D chips already measured.
-  This is the single most valuable CPU measurement: 74 of the 104 rows use a
-  7800X3D or a 9800X3D, which is why `CPU_PERF_EXPONENT` had to be chosen on
-  principle rather than fitted.
-- **Older cards at a fixed setting** — a GTX 1660 Super, RTX 2060 or RX 580
-  against a card in the reference set. The score correction above stops at the
-  RTX 3050 because no data reaches below it.
-- More games from the uncalibrated ~155, prioritising ones whose genre is not
-  yet represented.
+1. **A frame-generation ladder on a second game** — off, 2x, 3x and 4x, same
+   game, same card, same settings. Four numbers. The 3x and 4x steps currently
+   come from Grand Theft Auto V Enhanced alone, which is why those rows sit at
+   18.5% while the base set is at 6.2% (gap 2).
+2. **1% low figures for the sixteen measured games that lack them** — Forza
+   Horizon 5 and 6, Alan Wake 2, The Last of Us Part II, Red Dead Redemption 2,
+   Valorant, Baldur's Gate 3, Kingdom Come: Deliverance 2, Grand Theft Auto V
+   Enhanced, Starfield, Microsoft Flight Simulator, Elden Ring, Far Cry 6,
+   Cities: Skylines II, Black Myth: Wukong, Resident Evil Requiem. The ratio is
+   a property of the game and flat across processors, so **one reliable 1080p
+   chart per game is enough** — matching hardware is not needed (gap 12).
+3. **A second four-core processor in any CPU ladder** — an i3-13100F,
+   i3-14100F or Ryzen 3 4100. One more chip turns the thread-demand effect from
+   something we can only warn about into something we can fit (gap 4).
 
-Record with every measurement: resolution, preset, ray tracing state,
-upscaling mode, frame generation mode, RAM amount, VRAM reading if the overlay
-shows one, and the source. GPU utilisation below ~85% indicates a CPU limit
-and is worth noting.
+Then:
+
+4. **A path-traced game other than Cyberpunk 2077, measured both with and
+   without** — `PT_GPU_COST_MULT` is fitted from two rows (gap 3).
+5. **A ray-tracing sweep on a second game**, ideally Cyberpunk's
+   Low/Medium/High/Ultra/Overdrive, to make RT levels modellable (gap 1).
+6. **Anything at all on modern hardware that we hold out of the fit.** The
+   entire held-out set is one GTX 1080 Ti, which the engine already flags as
+   outside its validated range, so it cannot separate "does the model
+   generalise" from "does it handle Pascal" (gap 10).
+7. **Far Cry 6 without the HD texture pack**, to separate the pack from the
+   base game (gap 6).
+8. **Microsoft Flight Simulator 2024 at three resolutions.** Its costs are
+   openly a guess — derived from the 2020 profile plus an uplift.
+9. **More of the 147 uncalibrated games**, prioritising genres not yet
+   represented.
+
+Record with every measurement: resolution, preset, ray-tracing state *and
+preset name*, upscaling mode, frame-generation mode, RAM amount, VRAM reading
+with whether it is allocated or used, whether the run is a benchmark loop or
+free gameplay, and the source with a timestamp. GPU utilisation below ~85%
+indicates a CPU limit and is worth noting.
+
+The prompt that produces this from a video's AI summary is worth reusing; each
+of its requirements exists because something was lost without it.
 
 ## Tools
 
