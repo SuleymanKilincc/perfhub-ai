@@ -47,9 +47,13 @@ export function predictAll(options: PredictionOptions): GameData[] {
 
   return games
     .map((game) => {
+      // Pass the rows whole. Trimming them to name/score/vram is how the
+      // legacy-GPU and laptop-mismatch notes came to never fire here: a field
+      // the engine reads but the caller drops is a branch that silently never
+      // runs.
       const r = estimateFpsDetailed(
-        { name: cpu.name, power_score: cpu.power_score },
-        { name: gpu.name, power_score: gpu.power_score, vram: gpu.vram ?? 8 },
+        cpu as never,
+        { ...gpu, vram: gpu.vram ?? 8 } as never,
         game, resolution, preset, upscaling, frameGen, ramGb, rayTracing, pathTracing,
       );
       return {

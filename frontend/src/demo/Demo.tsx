@@ -40,6 +40,11 @@ export default function Demo() {
   const [gpu, setGpu] = useState<GPUData | null>(
     () => gpus.find((g) => g.name === initial.gpu) ?? null);
   const [ram, setRam] = useState(initial.ram ?? 16);
+  // Desktop by default: every one of the 492 measurements is on desktop
+  // hardware, so it is both the common case and the only validated one.
+  const [form, setForm] = useState(
+    () => gpus.find((g) => g.name === initial.gpu)?.form_factor === "laptop"
+      ? "laptop" : "desktop");
   const [resolution, setResolution] = useState(initial.res ?? "1440p");
   const [preset, setPreset] = useState(initial.preset ?? "High");
   const [phase, setPhase] = useState<Phase>(cpu && gpu ? "results" : "build");
@@ -118,6 +123,7 @@ export default function Demo() {
             {phase === "build" ? (
               <Builder
                 cpu={cpu} gpu={gpu} ram={ram} resolution={resolution} preset={preset}
+                form={form} onForm={(v) => { setForm(v); setCpu(null); setGpu(null); }}
                 onCpu={setCpu} onGpu={setGpu} onRam={setRam}
                 onResolution={setResolution} onPreset={setPreset}
                 ready={ready} total={games.length} mobile={mobile}
@@ -390,6 +396,7 @@ function Placeholder() {
 
 function Builder(p: {
   cpu: CPUData | null; gpu: GPUData | null; ram: number;
+  form: string; onForm: (v: string) => void;
   resolution: string; preset: string; ready: boolean; total: number;
   onCpu: (c: CPUData | null) => void; onGpu: (g: GPUData | null) => void;
   onRam: (n: number) => void; onResolution: (s: string) => void;
@@ -421,9 +428,27 @@ function Builder(p: {
         </p>
 
         <div style={{ display: "grid", gap: 13 }}>
+          {/* Nothing used to stop a desktop Ryzen 9 being paired with an RTX
+              4070 Laptop, and the engine would answer for a machine that
+              cannot exist — both kinds of part are soldered to their boards.
+              Asking once, up front, prevents the mistake instead of explaining
+              it afterwards, and it says why the list is the length it is.
+              Apple chips appear in both, since the M-series ships in laptops
+              and desktops alike. */}
+          <Field label={t.machineType}>
+            <Segmented
+              value={p.form} onChange={p.onForm}
+              options={[
+                { value: "desktop", label: t.desktop },
+                { value: "laptop", label: t.laptop },
+              ]}
+            />
+          </Field>
           <Field label={t.cpu}>
             <Picker
-              items={cpus.map((c) => ({ value: c.name, label: c.name, meta: String(c.power_score) }))}
+              items={cpus
+                .filter((c) => c.form_factor === p.form || c.form_factor === "apple")
+                .map((c) => ({ value: c.name, label: c.name, meta: String(c.power_score) }))}
               value={p.cpu?.name ?? ""}
               onChange={(v) => p.onCpu(cpus.find((c) => c.name === v) ?? null)}
               placeholder={t.searchCpu}
@@ -432,10 +457,12 @@ function Builder(p: {
           </Field>
           <Field label={t.gpu}>
             <Picker
-              items={gpus.map((g) => ({
-                value: g.name, label: g.name,
-                meta: `${g.power_score}${g.vram ? ` · ${g.vram}GB` : ""}`,
-              }))}
+              items={gpus
+                .filter((g) => g.form_factor === p.form || g.form_factor === "integrated")
+                .map((g) => ({
+                  value: g.name, label: g.name,
+                  meta: `${g.power_score}${g.vram ? ` · ${g.vram}GB` : ""}`,
+                }))}
               value={p.gpu?.name ?? ""}
               onChange={(v) => p.onGpu(gpus.find((g) => g.name === v) ?? null)}
               placeholder={t.searchGpu}
@@ -984,7 +1011,13 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
   const { t, lang } = useT();
   const [res, setRes] = useState(resolution);
   const [set, setSet] = useState(preset);
-  const [ups, setUps] = useState("Native");
+  // Technology and quality tier are separate choices, because flattening them
+  // produced a row of up to nine buttons that had to be abbreviated to fit —
+  // "DLSS Q", "FSR P", "XeSS B" — and three of the four DLSS tiers and half of
+  // FSR's were simply left out to keep it short. Two rows fit every mode at
+  // full width and read as words.
+  const [upsTech, setUpsTech] = useState("Native");
+  const [upsLevel, setUpsLevel] = useState("Quality");
   const [fg, setFg] = useState("Kapalı");
   const [rt, setRt] = useState(false);
   const [pt, setPt] = useState(false);
@@ -993,10 +1026,15 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
   // DLSS mode on every game, so Valorant — which has no upscaler at all —
   // appeared to support DLSS Performance. The engine handled it correctly and
   // computed at native, but the interface was lying about the game.
-  const upscalers: string[] = ["Native"];
-  if (game.supports_dlss) upscalers.push("DLAA", "DLSS Quality", "DLSS Balanced", "DLSS Performance");
-  if (game.supports_fsr) upscalers.push("FSR Quality", "FSR Performance");
-  if (game.supports_xess) upscalers.push("XeSS Quality", "XeSS Balanced");
+  const techs: string[] = ["Native"];
+  if (game.supports_dlss) techs.push("DLAA", "DLSS");
+  if (game.supports_fsr) techs.push("FSR");
+  if (game.supports_xess) techs.push("XeSS");
+  // DLSS, FSR and XeSS all ship the same four tiers. Native and DLAA render at
+  // full resolution, so a tier means nothing for them.
+  const LEVELS = ["Quality", "Balanced", "Performance", "Ultra Performance"];
+  const scaled = upsTech !== "Native" && upsTech !== "DLAA";
+  const ups = scaled ? `${upsTech} ${upsLevel}` : upsTech;
 
   // Frame generation needs both a card that can do it and a game that ships
   // it. DLSS 3 and FSR 3 frame generation come with their respective
@@ -1007,8 +1045,7 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
   const fgLabel = (x: string) => (x === "Kapalı" ? t.fgOff : x);
 
   const r = estimateFpsDetailed(
-    { name: cpu.name, power_score: cpu.power_score },
-    { name: gpu.name, power_score: gpu.power_score, vram: gpu.vram ?? 8 },
+    cpu as never, { ...gpu, vram: gpu.vram ?? 8 } as never,
     game, res, set, ups, fg, ram, rt, pt,
   );
   const target = targetFps(game);
@@ -1101,21 +1138,21 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
             <Segmented value={set} onChange={setSet}
               options={PRESETS.map((x) => ({ value: x, label: x }))} />
           </Field>
-          {upscalers.length > 1 ? (
-            <Field label={t.upscaling}>
-              {/* The technology has to stay in the label. Stripping it left
-                  three separate buttons all reading "Quality" — one each for
-                  DLSS, FSR and XeSS — which is worse than the overflow it was
-                  meant to fix. Only the quality tier is abbreviated. */}
-              <Segmented value={ups} onChange={setUps}
-                options={upscalers.map((x) => ({
-                  value: x,
-                  label: x
-                    .replace(" Quality", " Q")
-                    .replace(" Balanced", " B")
-                    .replace(" Performance", " P"),
-                }))} />
-            </Field>
+          {techs.length > 1 ? (
+            <>
+              <Field label={t.upscaling}>
+                <Segmented value={upsTech} onChange={setUpsTech}
+                  options={techs.map((x) => ({
+                    value: x, label: x === "Native" ? t.nativeRes : x,
+                  }))} />
+              </Field>
+              {scaled && (
+                <Field label={t.upscalingLevel}>
+                  <Segmented value={upsLevel} onChange={setUpsLevel}
+                    options={LEVELS.map((x) => ({ value: x, label: t.upsLevel[x] }))} />
+                </Field>
+              )}
+            </>
           ) : (
             <Unsupported label={t.upscaling} note={t.noUpscaling} />
           )}
@@ -1134,6 +1171,15 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
             <Toggle on={rt} disabled={!game.supports_rt} onClick={() => setRt(!rt)} label={t.rayTracing} />
             <Toggle on={pt} disabled={!game.supports_pt} onClick={() => setPt(!pt)} label={t.pathTracing} />
           </div>
+          {/* Which features a game ships is checked for 27 of the 176. For the
+              rest these switches are showing a derivation, and a greyed-out
+              toggle looks exactly as certain as a verified one — which is how
+              Resident Evil Requiem came to hide a path-tracing mode it has. */}
+          {!game.flags_verified && (
+            <div style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.5 }}>
+              {t.flagsUnverified}
+            </div>
+          )}
         </div>
 
         {r.notes.length > 0 && (

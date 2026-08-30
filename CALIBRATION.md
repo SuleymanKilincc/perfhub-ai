@@ -288,6 +288,24 @@ Visible in the validation output; none of these are hidden.
    answer is the one used — same architecture, same cache, one variable — and
    the disagreement is recorded here rather than folded into a single chip's
    number, because it is a question about the CPU scores, not about that chip.
+5-0e. **Catalogue gaps that had nothing to do with the model.** A reader could
+   pair a desktop Ryzen 9 with an RTX 4070 Laptop and get a confident number
+   for a machine that cannot exist — nothing recorded whether a part was a
+   desktop or a laptop one. `form_factor` does now (70 laptop CPUs, 29 laptop
+   GPUs, 6 integrated, read off the naming), the machine type is asked once up
+   front so the pairing cannot be made, and the engine emits
+   `form_factor_mismatch` as a backstop for callers that skip the interface.
+   Worth noting alongside it: every one of the 492 measurements is on desktop
+   hardware, so laptop predictions are unvalidated as well as previously
+   mixable.
+   The upscaling menu offered seven of the twelve modes the engine supports and
+   abbreviated them to fit ("DLSS Q", "FSR P"). Technology and quality tier are
+   separate choices now, which fits all four tiers of each at full width.
+   And 149 of the 176 games have never had their feature flags checked, which
+   is how Resident Evil Requiem came to hide a path-tracing mode it ships. Seven
+   more were corrected from memory and one from observation; the interface now
+   says when a game's flags are derived rather than checked, because a greyed
+   out toggle looks exactly as certain as a verified one.
 5-1. **VRAM working sets were about 18% low**, found by comparing against a
    GTX 1080 Ti, whose 11 GB means nothing it reports is clamped by capacity.
    The consequence was concrete: on an 8 GB card the model saw 4 of 12 current

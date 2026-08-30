@@ -23,12 +23,13 @@
  */
 import * as bc from "./balance.generated";
 
-export type Cpu = { name?: string; power_score: number };
+export type Cpu = { name?: string; power_score: number; form_factor?: string | null };
 export type Gpu = {
   name?: string;
   power_score: number;
   vram?: number | null;
   architecture?: string | null;
+  form_factor?: string | null;
 };
 
 export type Game = {
@@ -78,6 +79,7 @@ export type Note =
   | { code: "ram_cramped"; ram_gb: number; suggested_ram_gb: number }
   | { code: "upscaling_unsupported" }
   | { code: "legacy_gpu"; architecture: string }
+  | { code: "form_factor_mismatch"; cpu_form: string; gpu_form: string }
   | { code: "fps_cap"; cap: number; uncapped: number };
 
 export type Estimate = {
@@ -168,21 +170,24 @@ function perf(score: number, exponent: number): number {
 }
 
 function extractHardware(cpu: Cpu | number, gpu: Gpu | number) {
-  let cpuScore: number, cpuName: string;
+  let cpuScore: number, cpuName: string, cpuForm: string;
   if (typeof cpu === "object") {
     cpuScore = cpu.power_score ?? 50.0;
     cpuName = cpu.name || "";
+    cpuForm = cpu.form_factor || "";
   } else {
     cpuScore = cpu;
     cpuName = "";
+    cpuForm = "";
   }
 
-  let gpuScore: number, gpuName: string, vram: number, gpuArch: string;
+  let gpuScore: number, gpuName: string, vram: number, gpuArch: string, gpuForm: string;
   if (typeof gpu === "object") {
     gpuScore = gpu.power_score ?? 50.0;
     gpuName = gpu.name || "";
     vram = gpu.vram || 8;
     gpuArch = gpu.architecture || "";
+    gpuForm = gpu.form_factor || "";
   } else {
     // A bare score carries no architecture, so no generation claim can be
     // made about it either way.
@@ -190,13 +195,14 @@ function extractHardware(cpu: Cpu | number, gpu: Gpu | number) {
     gpuName = "";
     vram = 8;
     gpuArch = "";
+    gpuForm = "";
   }
 
   // Apple unified memory: the GPU can address system RAM, so VRAM pressure is
   // not a meaningful constraint here.
   if (gpuName.toLowerCase().includes("apple")) vram = 64;
 
-  return { cpuScore, cpuName, gpuScore, gpuName, vram, gpuArch };
+  return { cpuScore, cpuName, cpuForm, gpuScore, gpuName, vram, gpuArch, gpuForm };
 }
 
 function gameProfile(game: Game) {
@@ -396,6 +402,13 @@ export function renderNote(note: Note): string {
     case "upscaling_unsupported":
       return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
         "native çözünürlükte hesaplandı.";
+    case "form_factor_mismatch": {
+      const [a, b] = note.cpu_form === "laptop"
+        ? ["İşlemci", "ekran kartı"] : ["Ekran kartı", "işlemci"];
+      return `${a} bir laptop parçası, ${b} ise masaüstü. Bu ikisi aynı ` +
+        `bilgisayarda bulunamaz — laptop parçaları anakarta lehimlidir. ` +
+        `Sayı hesaplandı ama var olmayan bir sistemi tarif ediyor.`;
+    }
     case "legacy_gpu":
       return `Bu kart ${note.architecture} nesli ve elimizdeki ölçümlerin ` +
         `tamamı 2019 sonrası mimarilerde. Bu nesilde tahmin doğrulanmadı — ` +
@@ -420,7 +433,7 @@ export function estimateFpsDetailed(
   rayTracing = false,
   pathTracing = false,
 ): Estimate {
-  const { cpuScore, gpuScore, vram, gpuArch } = extractHardware(cpuData, gpuData);
+  const { cpuScore, cpuForm, gpuScore, vram, gpuArch, gpuForm } = extractHardware(cpuData, gpuData);
   const { gpuCost, cpuCost, vramBase, ramBase } = gameProfile(game);
 
   const quality = resolveQuality(settings, game);
@@ -451,6 +464,14 @@ export function estimateFpsDetailed(
   // LEGACY_GPU_ARCHITECTURES for why no correction is applied.
   if ((bc.LEGACY_GPU_ARCHITECTURES as readonly string[]).includes(gpuArch)) {
     notes.push({ code: "legacy_gpu", architecture: gpuArch });
+  }
+
+  // A laptop CPU is soldered to its board and so is a laptop GPU, so these two
+  // never sit in the same machine. Integrated graphics constrain nothing and
+  // pair with either.
+  if ((cpuForm === "desktop" && gpuForm === "laptop") ||
+      (cpuForm === "laptop" && gpuForm === "desktop")) {
+    notes.push({ code: "form_factor_mismatch", cpu_form: cpuForm, gpu_form: gpuForm });
   }
 
   const uncappedFps = Math.max(pyRound(fps), 0);

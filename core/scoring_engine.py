@@ -204,18 +204,20 @@ def _extract_hardware(cpu_data, gpu_data):
     if isinstance(cpu_data, dict):
         cpu_score = cpu_data.get("power_score", 50.0)
         cpu_name = cpu_data.get("name", "") or ""
+        cpu_form = cpu_data.get("form_factor", "") or ""
     else:
-        cpu_score, cpu_name = float(cpu_data), ""
+        cpu_score, cpu_name, cpu_form = float(cpu_data), "", ""
 
     if isinstance(gpu_data, dict):
         gpu_score = gpu_data.get("power_score", 50.0)
         gpu_name = gpu_data.get("name", "") or ""
         vram = gpu_data.get("vram", 8) or 8
         gpu_arch = gpu_data.get("architecture", "") or ""
+        gpu_form = gpu_data.get("form_factor", "") or ""
     else:
         # A bare score carries no architecture, so no generation claim can be
         # made about it either way.
-        gpu_score, gpu_name, vram, gpu_arch = float(gpu_data), "", 8, ""
+        gpu_score, gpu_name, vram, gpu_arch, gpu_form = float(gpu_data), "", 8, "", ""
 
     # Apple unified memory: the GPU can address system RAM, so VRAM pressure
     # is not a meaningful constraint here.
@@ -227,7 +229,7 @@ def _extract_hardware(cpu_data, gpu_data):
     # It does now — the CPU scores are a 1080p gaming index, and the model that
     # fills in the unmeasured chips has its own fitted 1.23x X3D multiplier, so
     # applying it again here counted it twice.
-    return cpu_score, cpu_name, gpu_score, gpu_name, vram, gpu_arch
+    return cpu_score, cpu_name, cpu_form, gpu_score, gpu_name, vram, gpu_arch, gpu_form
 
 
 def _game_profile(game):
@@ -481,6 +483,13 @@ def _render_note(note):
     if c == "upscaling_unsupported":
         return ("Bu oyun seçilen upscaling teknolojisini desteklemiyor; "
                 "native çözünürlükte hesaplandı.")
+    if c == "form_factor_mismatch":
+        laptop, desktop = (("İşlemci", "ekran kartı") if note["cpu_form"] == "laptop"
+                           else ("Ekran kartı", "işlemci"))
+        return (f"{laptop} bir laptop parçası, {desktop} ise masaüstü. Bu ikisi "
+                f"aynı bilgisayarda bulunamaz — laptop parçaları anakarta "
+                f"lehimlidir. Sayı hesaplandı ama var olmayan bir sistemi "
+                f"tarif ediyor.")
     if c == "legacy_gpu":
         return (f"Bu kart {note['architecture']} nesli ve elimizdeki ölçümlerin "
                 f"tamamı 2019 sonrası mimarilerde. Bu nesilde tahmin "
@@ -508,7 +517,8 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
         vram_needed_gb   estimated VRAM working set
         warnings         human-readable notes for the UI
     """
-    cpu_score, _, gpu_score, _, vram, gpu_arch = _extract_hardware(cpu_data, gpu_data)
+    (cpu_score, _, cpu_form, gpu_score, _, vram, gpu_arch,
+     gpu_form) = _extract_hardware(cpu_data, gpu_data)
     gpu_cost, cpu_cost, vram_base, ram_base = _game_profile(game)
 
     quality = _resolve_quality(settings, game)
@@ -542,6 +552,13 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
     # LEGACY_GPU_ARCHITECTURES for why no correction is applied.
     if gpu_arch in bc.LEGACY_GPU_ARCHITECTURES:
         notes.append({"code": "legacy_gpu", "architecture": gpu_arch})
+
+    # A laptop CPU is soldered to its board and so is a laptop GPU, so these
+    # two never sit in the same machine. Integrated graphics constrain nothing
+    # and pair with either.
+    if {cpu_form, gpu_form} == {"desktop", "laptop"}:
+        notes.append({"code": "form_factor_mismatch",
+                      "cpu_form": cpu_form, "gpu_form": gpu_form})
 
     # Some games ship with a hard frame rate limit. Reporting only the capped
     # figure would make every capable GPU look identical, so the uncapped

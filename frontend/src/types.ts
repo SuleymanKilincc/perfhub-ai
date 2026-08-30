@@ -16,6 +16,7 @@ export interface CPUData {
   base_clock?: number
   boost_clock?: number
   architecture?: string
+  form_factor?: string
   power_score: number
 }
 
@@ -26,6 +27,7 @@ export interface GPUData {
   core_clock?: number
   memory_clock?: number
   architecture?: string
+  form_factor?: string
   power_score: number
 }
 

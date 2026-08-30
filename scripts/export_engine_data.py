@@ -40,8 +40,9 @@ GAME_COLUMNS = [
     "supports_dlss", "supports_fsr", "supports_xess",
     "competitive", "target_fps", "cover_url", "flags_verified",
 ]
-CPU_COLUMNS = ["name", "cores", "threads", "boost_clock", "architecture", "power_score"]
-GPU_COLUMNS = ["name", "vram", "architecture", "power_score"]
+CPU_COLUMNS = ["name", "cores", "threads", "boost_clock", "architecture",
+               "power_score", "form_factor"]
+GPU_COLUMNS = ["name", "vram", "architecture", "power_score", "form_factor"]
 
 
 def ts_value(v, indent=2):

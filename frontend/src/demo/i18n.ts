@@ -35,6 +35,19 @@ export const strings = {
 
     back: "← Sistemi değiştir",
     libraryStatus: "KÜTÜPHANE DURUMU",
+    machineType: "BİLGİSAYAR TÜRÜ",
+    flagsUnverified: "Bu oyunun özellik desteği (ray tracing, upscaling) oyun " +
+      "içinde doğrulanmadı — türünden çıkarıldı. Eksik veya fazla gösteriyor olabilir.",
+    nativeRes: "Kapalı",
+    upscalingLevel: "UPSCALING KALİTESİ",
+    upsLevel: {
+      "Quality": "Kalite",
+      "Balanced": "Dengeli",
+      "Performance": "Performans",
+      "Ultra Performance": "Ultra Performans",
+    } as Record<string, string>,
+    desktop: "Masaüstü",
+    laptop: "Laptop",
     busyScenes: (low: number) => `yoğun sahnede ~${low}`,
     fpsRange: (low: number, avg: number) => `${low} – ${avg} fps`,
     lowMeasured: "Alt sınır bu oyunun kendi ölçümlerinden — %1 low / ortalama oranı.",
@@ -118,6 +131,20 @@ export const strings = {
 
     back: "← Change system",
     libraryStatus: "LIBRARY STATUS",
+    machineType: "MACHINE TYPE",
+    flagsUnverified: "This game's feature support (ray tracing, upscaling) has " +
+      "not been checked in-game — it was derived from its genre, so it may be " +
+      "missing something or offering something it does not have.",
+    nativeRes: "Off",
+    upscalingLevel: "UPSCALING QUALITY",
+    upsLevel: {
+      "Quality": "Quality",
+      "Balanced": "Balanced",
+      "Performance": "Performance",
+      "Ultra Performance": "Ultra Performance",
+    } as Record<string, string>,
+    desktop: "Desktop",
+    laptop: "Laptop",
     busyScenes: (low: number) => `~${low} when busy`,
     fpsRange: (low: number, avg: number) => `${low} – ${avg} fps`,
     lowMeasured: "The lower bound is this game's own measured 1% low / average ratio.",
@@ -209,6 +236,14 @@ export function renderNote(note: Note, lang: Lang): string {
       case "upscaling_unsupported":
         return "This game does not support the selected upscaling technology; " +
           "it was calculated at native resolution.";
+      case "form_factor_mismatch": {
+        const [a, b] = note.cpu_form === "laptop"
+          ? ["The processor", "graphics card"] : ["The graphics card", "processor"];
+        return `${a} is a laptop part and the ${b} is a desktop one. These two ` +
+          `cannot sit in the same machine — laptop parts are soldered to their ` +
+          `boards. The number was computed, but it describes a system that ` +
+          `does not exist.`;
+      }
       case "legacy_gpu":
         return `This is a ${note.architecture} generation card, and every ` +
           `measurement we hold is on a 2019-or-later architecture. The ` +
@@ -242,6 +277,13 @@ export function renderNote(note: Note, lang: Lang): string {
     case "upscaling_unsupported":
       return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
         "native çözünürlükte hesaplandı.";
+    case "form_factor_mismatch": {
+      const [a, b] = note.cpu_form === "laptop"
+        ? ["İşlemci", "ekran kartı"] : ["Ekran kartı", "işlemci"];
+      return `${a} bir laptop parçası, ${b} ise masaüstü. Bu ikisi aynı ` +
+        `bilgisayarda bulunamaz — laptop parçaları anakarta lehimlidir. ` +
+        `Sayı hesaplandı ama var olmayan bir sistemi tarif ediyor.`;
+    }
     case "legacy_gpu":
       return `Bu kart ${note.architecture} nesli ve elimizdeki ölçümlerin ` +
         `tamamı 2019 sonrası mimarilerde. Bu nesilde tahmin doğrulanmadı — ` +
