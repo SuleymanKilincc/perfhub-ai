@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 501 (480 fitted, 21 held out) |
-| Mean absolute error | **6.6%** fitted, **19.0%** on the held-out set |
-| Systematic bias | −0.8% fitted, **+12.3%** held out |
+| Measurements in `benchmarks` table | 505 (480 fitted, 25 held out) |
+| Mean absolute error | **6.6%** fitted, **20.2%** on the held-out set |
+| Systematic bias | −0.8% fitted, **+14.6%** held out |
 | Within 10% of measured | 79% |
 | Within 20% of measured | 93% |
 
@@ -257,15 +257,25 @@ Open items. All are visible in the validation output; none are hidden.
 9. **Every one of the 492 measurements is on desktop hardware.** Laptop
    predictions are entirely unvalidated. Related: the catalogue holds no Apple
    GPU, so every pairing offered for an M-series chip is wrong.
-10. **The engine predicts a benchmark-loop average; free play runs about 12%
-   below it.** The held-out set can now separate that from everything else,
-   because it finally holds rows on hardware the engine does not flag: twelve
-   on a GTX 1080 Ti (22.4% error, +10.7% bias) and nine on an RTX 5080 with a
-   9800X3D (14.5%, +14.5%). On the second group the mean absolute error and the
-   bias are the same number, meaning every single row is over-predicted — not
-   scatter, a definition. Whether the displayed figure should absorb that is a
-   product question and is not settled by 21 rows from two systems, but the gap
-   is measured now rather than suspected.
+10. **The engine predicts a benchmark-loop average and free play runs well
+   below it — far enough that the displayed range does not cover it.** This is
+   the largest open problem in the model and the only one a reader would notice
+   unprompted.
+   The held-out set now holds 25 rows, and splits by whether the engine flags
+   the hardware. Twelve on a GTX 1080 Ti read 22.4% error at +10.7% bias.
+   Thirteen on RTX 5080 and 5090 systems — modern, nothing flagged — read 18.2%
+   at **+18.2%**: mean absolute error and bias are the same number, so every
+   single row is over-predicted. Not scatter. A definition.
+   It is worse at low resolution, where the CPU binds: Red Dead Redemption 2 on
+   an RTX 5090 reads +7.1% at 8K, +23.6% at 4K, +33.3% at 1440p and +42.0% at
+   1080p. And the range does not rescue it — only 5 of those 13 free-play
+   averages fall between the predicted 1% low and the predicted average, so a
+   reader is shown a band their machine sits underneath.
+   No correction is applied. 25 rows across three games and two systems is not
+   enough to move every prediction, and applying a blanket shift would break
+   the relationship with the 480 benchmark rows the model is fitted to. What
+   settles it is more held-out gameplay: different games, different hardware,
+   ideally one game measured both ways on the same machine.
 11. **147 of the 176 games carry derived cost profiles**, and 148 have never
    had their feature flags checked in-game. The interface marks both.
 12. **162 games use the global 0.762 for the 1% low ratio** rather than their
@@ -276,8 +286,13 @@ Open items. All are visible in the validation output; none are hidden.
    measurements, only rural and indoor, so what is recorded is the ratio
    *outside* Kuttenberg. If the city really does drop 30-40%, that is a
    per-location effect one ratio per game cannot express.
-   KCD2 is also the only game whose ratio comes from free gameplay rather than
-   a benchmark loop. Nothing here can test whether the two differ, so
+   Red Dead Redemption 2 then tested the location idea directly, on the
+   best-known CPU-heavy city in any open world we hold: Saint Denis reads 0.792
+   across three rows against 0.798 for its rural and forest scenes. No
+   difference. Not proof for every game, but the first real evidence, from the
+   title where the effect should have been easiest to see.
+   KCD2 and RDR2 are the only games whose ratios come from free gameplay rather
+   than a benchmark loop. Nothing here can test whether the two differ, so
    calibrate_fps_low.py prints the source per game instead of blending it out
    of sight.
 13. **The X3D gap may be understated.** Scoring the Ryzen 7 5700X3D off the
