@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 508 (480 fitted, 28 held out) |
-| Mean absolute error | **6.6%** fitted, **22.5%** on the held-out set |
-| Systematic bias | −0.8% fitted, **+17.4%** held out |
+| Measurements in `benchmarks` table | 517 (480 fitted, 37 held out) |
+| Mean absolute error | **6.6%** fitted, **22.0%** on the held-out set |
+| Systematic bias | −0.8% fitted, **+18.1%** held out |
 | Within 10% of measured | 79% |
 | Within 20% of measured | 93% |
 
@@ -297,11 +297,16 @@ Open items. All are visible in the validation output; none are hidden.
    measurements, only rural and indoor, so what is recorded is the ratio
    *outside* Kuttenberg. If the city really does drop 30-40%, that is a
    per-location effect one ratio per game cannot express.
-   Red Dead Redemption 2 then tested the location idea directly, on the
-   best-known CPU-heavy city in any open world we hold: Saint Denis reads 0.792
-   across three rows against 0.798 for its rural and forest scenes. No
-   difference. Not proof for every game, but the first real evidence, from the
-   title where the effect should have been easiest to see.
+   That idea has now been tested twice and failed twice. Red Dead Redemption 2:
+   Saint Denis 0.792, countryside 0.798. Starfield: New Atlantis 0.753, planet
+   surface 0.753, identical to three places across nine rows none of which had
+   to be discarded. Two of the best-known CPU walls in any open world, two
+   studios, two engines, and neither moves the ratio. One ratio per game is the
+   right shape — a conclusion reached first from the ratio being flat across
+   CPU scores, and now confirmed on location as well.
+   It does not follow that location is unimportant: gap 10b shows the frame
+   rate *level* moving enormously with it. What holds is that the distance
+   between the average and the 1% low does not.
    Baldur's Gate 3 lands at 0.707 — beside The Last of Us Part I rather than at
    the bottom of the range, which is where a game with Act 3's reputation was
    expected. Its Act 1 rows were both discarded (one at 0.980, one at 0.409),
