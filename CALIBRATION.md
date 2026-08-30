@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 505 (480 fitted, 25 held out) |
-| Mean absolute error | **6.6%** fitted, **20.2%** on the held-out set |
-| Systematic bias | −0.8% fitted, **+14.6%** held out |
+| Measurements in `benchmarks` table | 508 (480 fitted, 28 held out) |
+| Mean absolute error | **6.6%** fitted, **22.5%** on the held-out set |
+| Systematic bias | −0.8% fitted, **+17.4%** held out |
 | Within 10% of measured | 79% |
 | Within 20% of measured | 93% |
 
@@ -276,6 +276,17 @@ Open items. All are visible in the validation output; none are hidden.
    the relationship with the 480 benchmark rows the model is fitted to. What
    settles it is more held-out gameplay: different games, different hardware,
    ideally one game measured both ways on the same machine.
+10b. **One cost per game cannot describe a game whose areas differ this much.**
+   Baldur's Gate 3 on one machine, at one preset: the engine reads -11.5% and
+   -12.6% in Act 1 and +22.6%, +43.6% and +57.1% in Act 3's Lower City. The
+   sign of the error flips with where the player is standing, because Act 1
+   runs at 200 fps at 1080p where Act 3 runs at 55 at 4K. The four rows the
+   profile was fitted from came from somewhere lighter, so it describes that.
+   No amount of further measurement fixes this without a per-area notion the
+   model does not have, and adding one would need per-area measurements for
+   every affected title. Worth separating from gap 10: this is a *level* that
+   moves with location, where Red Dead Redemption 2 showed the *ratio* does
+   not.
 11. **147 of the 176 games carry derived cost profiles**, and 148 have never
    had their feature flags checked in-game. The interface marks both.
 12. **162 games use the global 0.762 for the 1% low ratio** rather than their
@@ -291,8 +302,13 @@ Open items. All are visible in the validation output; none are hidden.
    across three rows against 0.798 for its rural and forest scenes. No
    difference. Not proof for every game, but the first real evidence, from the
    title where the effect should have been easiest to see.
-   KCD2 and RDR2 are the only games whose ratios come from free gameplay rather
-   than a benchmark loop. Nothing here can test whether the two differ, so
+   Baldur's Gate 3 lands at 0.707 — beside The Last of Us Part I rather than at
+   the bottom of the range, which is where a game with Act 3's reputation was
+   expected. Its Act 1 rows were both discarded (one at 0.980, one at 0.409),
+   so what is recorded is Lower City's ratio and the act comparison could not
+   be made.
+   KCD2, RDR2 and BG3 are the only games whose ratios come from free gameplay
+   rather than a benchmark loop. Nothing here can test whether the two differ, so
    calibrate_fps_low.py prints the source per game instead of blending it out
    of sight.
 13. **The X3D gap may be understated.** Scoring the Ryzen 7 5700X3D off the
