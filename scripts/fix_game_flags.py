@@ -45,6 +45,17 @@ OBSERVED = {
     "Resident Evil Requiem": {"supports_pt": 1},
 }
 
+# Flags our own measurements contradict. These need no judgement at all: if a
+# game was benchmarked with ray tracing on, it has ray tracing. `--check` finds
+# them, and finding one means either the flag or the measurement is wrong —
+# both worth knowing.
+CONTRADICTED = {
+    # Two rows measured with ray_tracing=1 while the flag said the game has
+    # none. It does: ray-traced shadows and global illumination arrived in a
+    # 2023 patch.
+    "A Plague Tale: Requiem": {"supports_rt": 1},
+}
+
 RECALLED = {
     # The Next-Gen update (December 2022) added DLSS 3, FSR 2 and ray tracing.
     "The Witcher 3: Wild Hunt": {"supports_rt": 1, "supports_dlss": 1, "supports_fsr": 1},
@@ -62,6 +73,31 @@ RECALLED = {
 }
 
 
+CHECKS = [
+    ("RT", "supports_rt", "ray_tracing=1"),
+    ("PT", "supports_pt", "path_tracing=1"),
+    ("DLSS", "supports_dlss", "upscaling LIKE 'DLSS%' OR upscaling='DLAA'"),
+    ("FSR", "supports_fsr", "upscaling LIKE 'FSR%'"),
+    ("XeSS", "supports_xess", "upscaling LIKE 'XeSS%'"),
+]
+
+
+def check(cur):
+    """Flags the benchmark table disagrees with. Needs no judgement to read."""
+    found = 0
+    for label, col, cond in CHECKS:
+        for r in cur.execute(
+                f"SELECT b.game, COUNT(*) n FROM benchmarks b"
+                f" JOIN games g ON g.name = b.game"
+                f" WHERE ({cond}) AND COALESCE(g.{col}, 0) = 0"
+                f" GROUP BY b.game"):
+            found += 1
+            print(f"  {label:5s} {r['game'][:36]:36s} {r['n']:3d} olcum var, bayrak kapali")
+    if not found:
+        print("  celiski yok — her olcum kendi oyununun bayraklariyla tutarli")
+    return found
+
+
 def main(apply_changes):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     conn = db_manager.get_connection()
@@ -69,6 +105,7 @@ def main(apply_changes):
     cur = conn.cursor()
 
     for label, table, verified in (("GOZLEMLENDI", OBSERVED, 1),
+                                   ("OLCUMLE CELISEN", CONTRADICTED, 1),
                                    ("HATIRLANAN", RECALLED, 0)):
         print(f"\n=== {label} ===")
         for game, changes in table.items():
@@ -87,6 +124,10 @@ def main(apply_changes):
                 sets = ", ".join(f"{k}=?" for k in diff)
                 cur.execute(f"UPDATE games SET {sets}, flags_verified=? WHERE name=?",
                             (*diff.values(), verified, game))
+
+    print()
+    print("=== OLCUMLERLE CELISKI TARAMASI ===")
+    check(cur)
 
     unchecked = cur.execute(
         "SELECT COUNT(*) FROM games WHERE COALESCE(flags_verified, 0)=0").fetchone()[0]
