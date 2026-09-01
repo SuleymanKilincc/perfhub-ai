@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 544 (480 fitted, 64 held out) |
-| Mean absolute error | **6.5%** fitted, **26.1%** gameplay, **44.3%** texture-pack, **18.5%** ray-reconstruction |
-| Systematic bias | −0.4% fitted, +9.1% gameplay |
+| Measurements in `benchmarks` table | 552 (480 fitted, 72 held out) |
+| Mean absolute error | **6.5%** fitted, **32.4%** gameplay, **44.3%** texture-pack, **18.5%** ray-reconstruction |
+| Systematic bias | −0.4% fitted, +17.7% gameplay |
 | Within 10% of measured | 80% |
 | Within 20% of measured | 94% |
 | Run-to-run noise | **1.1%** (one repeated configuration) |
@@ -332,11 +332,36 @@ Open items. All are visible in the validation output; none are hidden.
    1080p. And the range does not rescue it — only 5 of those 13 free-play
    averages fall between the predicted 1% low and the predicted average, so a
    reader is shown a band their machine sits underneath.
-   No correction is applied. 25 rows across three games and two systems is not
-   enough to move every prediction, and applying a blanket shift would break
-   the relationship with the 480 benchmark rows the model is fitted to. What
-   settles it is more held-out gameplay: different games, different hardware,
-   ideally one game measured both ways on the same machine.
+   **Batch 16 measures it properly for the first time, and it is much larger
+   than +18%.** Batches 15 and 16 are the same card — an RTX 3080 10GB — one
+   running Cyberpunk's internal benchmark, the other free in Night City. Two
+   different videos and two different processors, which turns out not to
+   matter, because the quantity wanted is a ratio of two measurements and the
+   card's own error divides out of a ratio. At 1440p the benchmark reads
+   measured/predicted 0.895 against the city's 0.527: **the benchmark is 1.70x
+   free play**. The cleanest single pair needs no model at all — 1440p Ultra,
+   RT Psycho, full render resolution: 32.88 with DLAA in the benchmark against
+   20 in the city, and DLAA is the more expensive of the two.
+   The three explanations that would have made it an artefact are all ruled
+   out. The gameplay machine has the *faster* processor (5800X3D at 63 against
+   the 5950X at 56). Video memory is the wrong way round — the row the engine
+   flags nothing on reads 0.495 while the benchmark's full-resolution DLAA row,
+   which needs far more memory, reads 0.802. And the benchmark video's "Custom"
+   preset held textures and RT lighting at maximum, so if it differs from Ultra
+   it differs upward, making 1.70x a floor.
+   It is not only the card. At 1080p with Psycho lighting the city goes 50
+   native to 60 with DLSS Quality — a 1.20x gain where 0.667 render scale
+   should give about 1.9x. That flattening is a processor wall at roughly 60-65
+   fps, on a chip Hardware Unboxed measured at 164 fps in the benchmark scene.
+   Both halves of the machine meet a different game.
+   No correction is applied. One title cannot license a global factor when the
+   same document records Baldur's Gate 3 at -12% in one act and +57% in
+   another, and a blanket shift would break the relationship with the 480
+   benchmark rows the model is fitted to. What this changes is that the size of
+   the problem is now known rather than estimated, and the earlier +18.1% is
+   explained: it averaged Night City against Bohemian countryside and lunar
+   surfaces. A second game measured both ways on one card says whether 1.70x is
+   Cyberpunk's number or something wider.
 10b. **One cost per game cannot describe a game whose areas differ this much.**
    Baldur's Gate 3 on one machine, at one preset: the engine reads -11.5% and
    -12.6% in Act 1 and +22.6%, +43.6% and +57.1% in Act 3's Lower City. The
@@ -379,9 +404,20 @@ Open items. All are visible in the validation output; none are hidden.
    so what is recorded is Lower City's ratio and the act comparison could not
    be made.
    KCD2, RDR2 and BG3 are the only games whose ratios come from free gameplay
-   rather than a benchmark loop. Nothing here can test whether the two differ, so
-   calibrate_fps_low.py prints the source per game instead of blending it out
-   of sight.
+   rather than a benchmark loop. calibrate_fps_low.py prints the source per game
+   instead of blending it out of sight.
+   Batch 16 gives the first within-game comparison of the two, and they are not
+   the same: Cyberpunk's 28 benchmark rows give 0.737, its 8 gameplay rows give
+   0.813. The fitted ratio moves to 0.754. Two reasons not to conclude much yet.
+   The gameplay numbers are read off a live overlay and are round — 10 and 9,
+   20 and 15 — so single rows carry several points of quantisation error. And
+   the benchmark rows are a 1080p CPU ladder while these are GPU-bound, which
+   was worth ruling out and now is: across all 423 rows carrying a 1% low the
+   ratio is 0.764 where the engine calls the row CPU-bound and 0.750 where it
+   calls it GPU-bound, and inside the three games holding both it reads
+   0.878/0.881 (Hitman 3), 0.876/0.872 (KCD2) and 0.756/0.749 (Starfield).
+   Bottleneck does not move the ratio. That is the fourth thing it has now
+   survived, after CPU score, location and GPU vendor.
 13. **The X3D gap may be understated.** Scoring the Ryzen 7 5700X3D off the
    28-CPU ladder gives 60 against its 5800X3D sibling (a stable 0.93-0.96 ratio
    across eight games) but 65 against the non-X3D 5700X, because the ladder
@@ -510,19 +546,20 @@ wrong is worth more than a list of what works.
 In order of what each would actually settle. The first four are the ones
 holding the model back; the rest widen coverage.
 
-0. **One video containing both a game's internal benchmark and free gameplay**,
-   on the same machine at the same settings. Five attempts have failed to find
-   one — Kingdom Come: Deliverance 2, Red Dead Redemption 2, Forza Horizon 5,
-   Far Cry 6, and now Cyberpunk 2077, which delivered seven immaculate
-   benchmark-screen captures and no gameplay. This is numbered zero because it
-   is the only item here that affects *every* number the interface shows: the
-   held-out gameplay rows run +9.1% against the fit, and on validated hardware
-   the gap is +18.1%, where the mean absolute error equals the bias because
-   every single row is over-predicted. It cannot be corrected from what we
-   have, because 52 gameplay rows across a handful of games cannot move every
-   prediction — only a matched pair on one machine can say what the offset is.
-   Reviewers usually record both and simply present them apart, so this is a
-   search problem, not a rare-hardware problem.
+0. **A second game measured both ways on one graphics card** — its internal
+   benchmark and free gameplay, any two videos, as long as the card matches.
+   Cyberpunk 2077 now has this (batches 15 and 16, both RTX 3080 10GB) and it
+   says the benchmark reads 1.70x free play at 1440p, against the +18.1% that
+   mismatched sources had suggested. That is the largest correction waiting in
+   the model and it currently rests on one title.
+   Note what the requirement turned out to be. Five batches were spent hunting
+   one video containing both, on the grounds that the machine had to be held
+   constant. It does not: the answer is a ratio of two measurements, so the
+   card's own error divides out, and even the processor may differ as long as
+   neither side is CPU-bound. Any second game with a built-in benchmark whose
+   card we can also find gameplay for will do — Shadow of the Tomb Raider,
+   Assassin's Creed, Metro Exodus, Horizon Zero Dawn, Hitman 3. That is a far
+   easier search than the one that failed five times.
 1. **A frame-generation ladder on a second game** — off, 2x, 3x and 4x, same
    game, same card, same settings. Four numbers. The 3x and 4x steps currently
    come from Grand Theft Auto V Enhanced alone, which is why those rows sit at
