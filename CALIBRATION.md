@@ -10,11 +10,17 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 538 (478 fitted, 60 held out) |
-| Mean absolute error | **6.5%** fitted, **26.1%** gameplay, **44.3%** texture-pack |
-| Systematic bias | −0.7% fitted, +9.1% gameplay |
-| Within 10% of measured | 79% |
-| Within 20% of measured | 93% |
+| Measurements in `benchmarks` table | 544 (480 fitted, 64 held out) |
+| Mean absolute error | **6.5%** fitted, **26.1%** gameplay, **44.3%** texture-pack, **18.5%** ray-reconstruction |
+| Systematic bias | −0.4% fitted, +9.1% gameplay |
+| Within 10% of measured | 80% |
+| Within 20% of measured | 94% |
+| Run-to-run noise | **1.1%** (one repeated configuration) |
+
+The noise figure is new and it bounds everything above it. Cyberpunk 2077's
+internal benchmark was run twice at one setting and returned 58.67 and 59.30.
+No difference smaller than about a percent anywhere in this document is a
+result.
 
 The set now covers resolution sweeps, GPU and CPU ladders, preset ladders,
 ray tracing and path tracing, a full frame-generation ladder, 8K, and
@@ -34,9 +40,14 @@ Fitted in `core/balance_config.py` from the batches noted below.
 | `CPU_MS_CONST` | 2.65 | 2.25 | CPU ladder |
 | `VRAM_SPILL_SEVERITY` | 2.6 | 0.50 | 8GB vs 16GB pairs |
 | `VRAM_SPILL_FLOOR` | 0.22 | 0.80 | 8GB vs 16GB pairs |
-| `RT_GPU_COST_MULT` | 1.80 | 1.68 | RT on/off pairs, Extreme presets held out |
-| `PT_GPU_COST_MULT` | 3.10 | 3.30 | Alan Wake 2 and Cyberpunk, PT on and off |
-| `FG_GPU_OVERHEAD` | .22/.31/.38 | .35/.55/.75 | GTA V Enhanced 2x/3x/4x ladder |
+| `RT_GPU_COST_MULT` | 1.80 | 1.70 | 7 RT on/off pairs, Extreme presets held out |
+| `PT_GPU_COST_MULT` | 3.10 | 3.54 | 2 rows, both Cyberpunk 2077, PT on and off |
+| `FG_GPU_OVERHEAD` | .22/.31/.38 | .40/.76/1.12 | GTA V Enhanced 2x/3x/4x ladder |
+
+The last three rows were themselves wrong until batch 15 — they recorded 1.68,
+3.30 and .35/.55/.75, values the code had moved past. Same failure as mistake
+13 and found by the same fix; `python scripts/calibrate_engine.py` now prints
+what the constants actually hold, so this table can be checked against it.
 
 Three findings worth remembering:
 
@@ -238,8 +249,19 @@ Open items. All are visible in the validation output; none are hidden.
    scoring error. Not fitted, because one processor cannot fit a per-game
    property; 35 of the 222 CPUs are affected and the estimate carries a note.
    A second four-core chip makes it modellable.
-5. **Ray Reconstruction is not modelled.** The one measurement using it is
-   recorded as RT + DLSS Quality.
+5. **Ray Reconstruction is not modelled**, and as of batch 15 it is at least
+   recorded. `benchmarks.ray_reconstruction` marks the four rows that use it
+   and they are excluded from every fit, the same treatment as texture packs.
+   What forced it: three of the seven rows in the RTX 3080 batch use it, and
+   one of those three is path traced — and `PT_GPU_COST_MULT` is fitted from
+   two rows. A third row differing by an unmodelled denoiser would not have
+   been measuring path tracing.
+   The cost is still unknown. No source has run it on and off at otherwise
+   identical settings. Looking for a signal in the batch finds none — the
+   three rows using it read 0.79, 0.93 and 1.10 against prediction where the
+   four without read 0.80 to 0.87 — but each of the three carries its own
+   confound, so that test could not have detected a moderate effect. Held out
+   they read 18.5%. One on/off pair settles it.
 6. **Optional high-resolution texture packs are not modelled**, and the cost of
    that is now measured: rows using one read 44.3% error against 6.5% for the
    fitted set. Far Cry 6 is the case — an RTX 4060 Ti 8GB with its 38 GB pack
@@ -257,6 +279,27 @@ Open items. All are visible in the validation output; none are hidden.
    level up — one boolean averaging implementations that are not comparable —
    and the fix is the same shape: a per-game notion of how much ray tracing a
    title actually does.
+6c. **One system reads +20.6% and the fit will not absorb it.** Batch 15 is an
+   RTX 3080 with a Ryzen 9 5950X, and both had *zero* measurements before it —
+   every component in that machine was untested. Its three fitted Cyberpunk
+   rows read +20.6% where the game's other 44 read +1.9%, and recalibration
+   left the profile exactly where it was: 45 rows outvote 3.
+   What has been ruled out. Not the game — Cyberpunk is the best-fitted title
+   in the set. Not the architecture — the RTX 3080 Ti reads −4.4% across 7
+   rows, and lowering the 3080 below a validated sibling would break the one
+   Ampere card that works. Not the preset — scored as High the batch reads
+   +39.4%, and Extreme is not available to it (`tier_max` is Ultra, which is
+   correct: Cyberpunk ships no Extreme).
+   What it narrows to. The DLAA row runs at 32.88 fps, far below any processor
+   ceiling, and still reads +24.7%, so the CPU cannot be the cause of that one.
+   The error is also consistently larger with ray tracing on (+22 to +26%)
+   than off (+15%), which points at RT Lighting: Psycho costing more than the
+   global 1.70. That is gap 6b again, from the other direction.
+   Not acted on. One system cannot say which of its two untested parts is
+   wrong — the identifiability trap, and this project already published a
+   hardware law from one generation once and had to retract it. Any RTX 3080
+   measurement in a second game separates the card from the game; an RT preset
+   ladder on one card separates Psycho from the card.
 7. **Alan Wake 2 at 8K exhausts VRAM on a 32 GB card** — measured, ~4 GB
    spilling to system RAM. The engine predicts 14 fps against 10.
 
@@ -414,6 +457,19 @@ wrong is worth more than a list of what works.
 12. **An API key committed and then deleted.** Deleting a file does not remove
    it from git history, and the repository is public. Revoking the key is the
    only fix; the file removal was not one.
+13. **Three rounds of calibration output never reached the code.** The
+   calibrator writes game profiles to the database but prints the global
+   constants for a human to copy, and two of those print statements announced
+   the *previous* value as a literal: `PT_GPU_COST_MULT: 3.10 -> 3.54` every
+   run, when the constant had actually been sitting at 3.40 since the last
+   time anyone updated it. It looked like a fit moving and it was a fit
+   standing still, so `balance_config.py` went untouched from commit `c83f2bc`
+   while three batches landed. `PT_GPU_COST_MULT` and `FG_GPU_OVERHEAD` were
+   both stale. Both stages now capture the real value before the search
+   mutates it — which is what stage 4 had been doing all along, with a comment
+   explaining the trap the other two were falling into.
+   Worth naming the general shape: a message that never changes is not
+   verification, and this one was reassuring for months.
 
 ## Closed
 
@@ -451,9 +507,22 @@ wrong is worth more than a list of what works.
 
 ## Next measurements needed
 
-In order of what each would actually settle. The first three are the ones
+In order of what each would actually settle. The first four are the ones
 holding the model back; the rest widen coverage.
 
+0. **One video containing both a game's internal benchmark and free gameplay**,
+   on the same machine at the same settings. Five attempts have failed to find
+   one — Kingdom Come: Deliverance 2, Red Dead Redemption 2, Forza Horizon 5,
+   Far Cry 6, and now Cyberpunk 2077, which delivered seven immaculate
+   benchmark-screen captures and no gameplay. This is numbered zero because it
+   is the only item here that affects *every* number the interface shows: the
+   held-out gameplay rows run +9.1% against the fit, and on validated hardware
+   the gap is +18.1%, where the mean absolute error equals the bias because
+   every single row is over-predicted. It cannot be corrected from what we
+   have, because 52 gameplay rows across a handful of games cannot move every
+   prediction — only a matched pair on one machine can say what the offset is.
+   Reviewers usually record both and simply present them apart, so this is a
+   search problem, not a rare-hardware problem.
 1. **A frame-generation ladder on a second game** — off, 2x, 3x and 4x, same
    game, same card, same settings. Four numbers. The 3x and 4x steps currently
    come from Grand Theft Auto V Enhanced alone, which is why those rows sit at
@@ -475,15 +544,18 @@ Then:
    without** — `PT_GPU_COST_MULT` is fitted from two rows (gap 3).
 5. **A ray-tracing sweep on a second game**, ideally Cyberpunk's
    Low/Medium/High/Ultra/Overdrive, to make RT levels modellable (gap 1).
-6. **Anything at all on modern hardware that we hold out of the fit.** The
-   entire held-out set is one GTX 1080 Ti, which the engine already flags as
-   outside its validated range, so it cannot separate "does the model
-   generalise" from "does it handle Pascal" (gap 10).
-7. **Far Cry 6 without the HD texture pack**, to separate the pack from the
+6. **DLSS Ray Reconstruction on and off at otherwise identical settings** —
+   two runs. Four rows now sit outside every fit because nobody has measured
+   what it costs (gap 5).
+7. **Any RTX 3080 measurement in a second game**, to say whether that card's
+   +20.6% is the card or the Cyberpunk RT preset it was measured at. A Ryzen 9
+   5950X anywhere does the same job from the other side — both parts of that
+   machine are untested (gap 6c).
+8. **Far Cry 6 without the HD texture pack**, to separate the pack from the
    base game (gap 6).
-8. **Microsoft Flight Simulator 2024 at three resolutions.** Its costs are
+9. **Microsoft Flight Simulator 2024 at three resolutions.** Its costs are
    openly a guess — derived from the 2020 profile plus an uplift.
-9. **More of the 147 uncalibrated games**, prioritising genres not yet
+10. **More of the 147 uncalibrated games**, prioritising genres not yet
    represented.
 
 Record with every measurement: resolution, preset, ray-tracing state *and
@@ -494,6 +566,14 @@ indicates a CPU limit and is worth noting.
 
 The prompt that produces this from a video's AI summary is worth reusing; each
 of its requirements exists because something was lost without it.
+
+Batch 15 suggests a better source where one exists. Photographs of a game's own
+benchmark result screen carry the settings the summaries keep losing — both
+frame-generation switches, the upscaler *and* its sharpness, every ray-tracing
+sub-option, the preset name — and they cannot round a number or invent a range.
+The two guards that batch still needed were of a different kind: a "Min FPS"
+that is neither a minimum nor a 1% low, and a denoiser the model has no term
+for. Where a game has an internal benchmark, ask for the result screens.
 
 ## Tools
 

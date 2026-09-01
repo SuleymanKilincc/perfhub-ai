@@ -43,15 +43,19 @@ def load():
     # Free-gameplay rows measure a different thing — see
     # scripts/migrate_measurement_kind.py — so they are held out of every fit
     # and used only to check it.
-    # Two exclusions, for the same reason: a row that uses something the model
+    # Three exclusions, for the same reason: a row that uses something the model
     # cannot represent should not set the model's numbers. Free gameplay
-    # measures a different quantity than a benchmark loop, and an optional
+    # measures a different quantity than a benchmark loop; an optional
     # high-resolution texture pack changes a game's memory footprint in a way
-    # nothing here expresses. Far Cry 6's whole profile came from two HD-pack
-    # rows, which is why it read -31% against an ordinary install.
+    # nothing here expresses — Far Cry 6's whole profile came from two HD-pack
+    # rows, which is why it read -31% against an ordinary install; and DLSS Ray
+    # Reconstruction replaces the denoiser with something whose cost we have
+    # never measured, which matters most on exactly the path-traced rows that
+    # PT_GPU_COST_MULT is fitted from.
     rows = [dict(r) for r in conn.execute(
         "SELECT * FROM benchmarks WHERE COALESCE(scene, 'benchmark') = 'benchmark'"
-        " AND COALESCE(texture_pack, 0) = 0")]
+        " AND COALESCE(texture_pack, 0) = 0"
+        " AND COALESCE(ray_reconstruction, 0) = 0")]
     conn.close()
 
     # A genre with no prior silently becomes 1.0, which is indistinguishable
@@ -251,11 +255,17 @@ def main(apply_changes):
         print(f"    temeli yetersiz, haric: {', '.join(dropped)}")
     if pt_rows:
         before = err(pt_rows, games, cpus, gpus)
+        # Captured before the search, for the same reason stage 4 spells out:
+        # the search mutates the live constant on every iteration, so reading
+        # it afterwards returns the last value tried, not the starting one.
+        # This line used to print a literal, which meant it reported a move
+        # the constant had not made for several calibration rounds.
+        previous = bc.PT_GPU_COST_MULT
         best = min(frange(1.5, 5.0, 0.02),
                    key=lambda v: (setattr(bc, "PT_GPU_COST_MULT", v),
                                   err(pt_rows, games, cpus, gpus))[1])
         bc.PT_GPU_COST_MULT = best
-        print(f"    PT_GPU_COST_MULT: 3.10 -> {best}   "
+        print(f"    PT_GPU_COST_MULT: {previous} -> {best}   "
               f"({len(pt_rows)} olcum, {before:5.1f}% -> {err(pt_rows, games, cpus, gpus):5.1f}%)")
 
     print("\n=== ASAMA 3: ray tracing carpani ===")
@@ -282,11 +292,12 @@ def main(apply_changes):
     print(f"    kullanilan oyunlar: {sorted(paired) or 'yok'}")
     if rt_rows:
         before = err(rt_rows, games, cpus, gpus)
+        previous = bc.RT_GPU_COST_MULT
         best = min(frange(1.1, 3.0, 0.02),
                    key=lambda v: (setattr(bc, "RT_GPU_COST_MULT", v),
                                   err(rt_rows, games, cpus, gpus))[1])
         bc.RT_GPU_COST_MULT = best
-        print(f"    RT_GPU_COST_MULT: 1.80 -> {best}   "
+        print(f"    RT_GPU_COST_MULT: {previous} -> {best}   "
               f"({len(rt_rows)} olcum, {before:5.1f}% -> {err(rt_rows, games, cpus, gpus):5.1f}%)")
 
     print("\n=== ASAMA 4: frame generation ek yuku ===")

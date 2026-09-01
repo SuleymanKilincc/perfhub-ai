@@ -169,6 +169,8 @@ def validate(only_verified=False):
         keys = b.keys()
         if "texture_pack" in keys and b["texture_pack"]:
             return "doku paketi"
+        if "ray_reconstruction" in keys and b["ray_reconstruction"]:
+            return "ray recon"
         return b["scene"] if "scene" in keys else "benchmark"
 
     by_scene = {}
@@ -179,7 +181,8 @@ def validate(only_verified=False):
         for scene, rs in sorted(by_scene.items()):
             label = {"benchmark": "fit edilmis",
                      "gameplay": "HARIC — serbest oyun",
-                     "doku paketi": "HARIC — modellenmemis"}.get(scene, "HARIC TUTULAN")
+                     "doku paketi": "HARIC — modellenmemis",
+                     "ray recon": "HARIC — modellenmemis"}.get(scene, "HARIC TUTULAN")
             print(f"  {scene:10s} ({label:13s}) : n={len(rs):3d}  "
                   f"hata {sum(x[0] for x in rs)/len(rs):5.1f} %  "
                   f"sapma {sum(x[1] for x in rs)/len(rs):+5.1f} %")

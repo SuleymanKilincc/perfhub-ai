@@ -121,7 +121,11 @@ QUALITY_ORDER = ["Very Low", "Low", "Medium", "High", "Ultra", "Extreme"]
 # (benchmarks.rt_level) and the calibration holds Extreme rows out, so a single
 # maxed-out run cannot drag this toward a setting most players never pick.
 RT_GPU_COST_MULT = 1.70
-PT_GPU_COST_MULT = 3.40
+# 3.40 for three calibration rounds after the fit had moved to 3.54, because
+# calibrate_engine.py printed a hardcoded "3.10 ->" as the previous value and
+# nobody could see the constant standing still. The script now prints what it
+# actually read. Still two rows, both Cyberpunk 2077 — see the open gaps.
+PT_GPU_COST_MULT = 3.54
 RT_VRAM_ADD_GB = 1.10
 PT_VRAM_ADD_GB = 1.90
 # RT also adds BVH build/update work on the CPU.
@@ -223,9 +227,9 @@ FG_OUTPUT_MULTIPLIER = {
 # What that means: one ladder cannot pin the 3x/4x step down. A second one, on
 # a different game and card, is the measurement that would.
 FG_GPU_OVERHEAD = {
-    "2x": 0.50,
-    "3x": 0.92,
-    "4x": 1.34,
+    "2x": 0.40,
+    "3x": 0.76,
+    "4x": 1.12,
 }
 FG_VRAM_ADD_GB = {
     "2x": 1.0,
