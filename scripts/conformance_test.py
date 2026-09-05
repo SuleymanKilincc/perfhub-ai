@@ -49,8 +49,14 @@ FIELDS = ["fps", "fps_low", "fps_low_measured", "capped_fps", "rendered_fps",
           "vram_needed_gb", "vram_alloc_gb", "vram_available_gb", "quality",
           "notes", "warnings"]
 
+# Every key an engine reads. Trimming one out does not fail the test — it
+# makes the test pass while covering nothing, because both engines then take
+# the same fallback. That has happened four times now: architecture,
+# form_factor and cores each agreed perfectly across thousands of cases while
+# never entering the branch they were added for, and rt_gpu_mult was the
+# fourth. Anything added here is checked by counting the cases that reach it.
 GAME_KEYS = ["name", "gpu_cost", "cpu_cost", "vram_base_gb", "ram_base_gb",
-             "fps_low_ratio", "fps_low_measured",
+             "fps_low_ratio", "fps_low_measured", "rt_gpu_mult",
              "tier_min", "tier_max", "fps_cap", "supports_rt", "supports_pt",
              "supports_dlss", "supports_fsr", "supports_xess"]
 

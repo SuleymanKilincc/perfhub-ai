@@ -33,6 +33,16 @@ from core import scoring_engine as se
 from migrate_game_profiles import (DEFAULT_CPU_RATIO, GENRE_CPU_RATIO,
                                    check_genre_coverage)
 
+# Ray-tracing rows a game needs before it is trusted with its own multiplier
+# instead of the global average. Three is enough to see a slope rather than a
+# point, and low enough that Cyberpunk's four qualify — but a game with one or
+# two is a game whose ray tracing we have glanced at, not measured.
+MIN_RT_ROWS_FOR_OWN = 3
+# And what the *global* needs before it may move. It is the fallback for 147
+# games with no ray-tracing measurement of their own, so it should change only
+# on evidence spanning more than one title.
+MIN_RT_ROWS_FOR_GLOBAL = 4
+
 
 def load():
     conn = db_manager.get_connection()
@@ -335,15 +345,57 @@ def main(apply_changes):
                and r["frame_gen"] == "Kapalı"
                and (r.get("rt_level") or "") != "Extreme"]
     print(f"    kullanilan oyunlar: {sorted(paired) or 'yok'}")
-    if rt_rows:
-        before = err(rt_rows, games, cpus, gpus)
+
+    # A game with enough of its own ray-tracing rows gets its own multiplier.
+    # One constant cannot cover Far Cry 6's 1.10x and Hitman's 3.46x: fitted
+    # across both it lands at 2.72, the whole-model error rises 6.5% to 7.4%,
+    # and the ray-tracing rows stay at 26% because it fits neither. The global
+    # remains for the 147 games nothing has measured, which is what an average
+    # is for — so it is fitted from the games that did *not* get their own,
+    # and left alone rather than invented when none remain.
+    own, per_game = {}, {}
+    for g in sorted(paired):
+        g_rows = [r for r in rt_rows if r["game"] == g]
+        if len(g_rows) < MIN_RT_ROWS_FOR_OWN:
+            continue
+        before_g = err(g_rows, games, cpus, gpus)
+        best_g = min(frange(0.8, 5.0, 0.02),
+                     key=lambda v: (games[g].__setitem__("rt_gpu_mult", v),
+                                    err(g_rows, games, cpus, gpus))[1])
+        games[g]["rt_gpu_mult"] = best_g
+        own[g] = best_g
+        per_game[g] = (len(g_rows), before_g, err(g_rows, games, cpus, gpus))
+    for g, v in own.items():
+        n, b, a = per_game[g]
+        print(f"    {g[:30]:30s} rt_gpu_mult = {v:.2f}   "
+              f"({n} olcum, {b:5.1f}% -> {a:5.1f}%)")
+
+    # The global is what 147 unmeasured games read, so it must not be refitted
+    # from whatever the per-game pass left behind. Giving the well-measured
+    # titles their own multiplier strips the global's basis down to two rows,
+    # and two rows from one game is not an average across games.
+    rest = [r for r in rt_rows if r["game"] not in own]
+    rest_games = {r["game"] for r in rest}
+    if rest and (len(rest) < MIN_RT_ROWS_FOR_GLOBAL or len(rest_games) < 2):
+        print(f"    RT_GPU_COST_MULT: {bc.RT_GPU_COST_MULT} degismedi — geriye "
+              f"{len(rest)} olcum / {len(rest_games)} oyun kaldi,")
+        print(f"    esik {MIN_RT_ROWS_FOR_GLOBAL} olcum ve 2 oyun. 147 oyunun")
+        print("    okudugu sayiyi bu kadar veriden oynatmak dogru degil.")
+        rest = None          # distinct from [], which means "none were left"
+    if rest:
+        before = err(rest, games, cpus, gpus)
         previous = bc.RT_GPU_COST_MULT
         best = min(frange(1.1, 3.0, 0.02),
                    key=lambda v: (setattr(bc, "RT_GPU_COST_MULT", v),
-                                  err(rt_rows, games, cpus, gpus))[1])
+                                  err(rest, games, cpus, gpus))[1])
         bc.RT_GPU_COST_MULT = best
         print(f"    RT_GPU_COST_MULT: {previous} -> {best}   "
-              f"({len(rt_rows)} olcum, {before:5.1f}% -> {err(rt_rows, games, cpus, gpus):5.1f}%)")
+              f"({len(rest)} olcum, {before:5.1f}% -> {err(rest, games, cpus, gpus):5.1f}%)")
+    elif rest == [] and own:
+        print(f"    RT_GPU_COST_MULT: {bc.RT_GPU_COST_MULT} degismedi — kendi")
+        print("    carpani olmayan esli oyun kalmadi. Olculmemis 147 oyunun")
+        print("    yedegi olarak duruyor; 3 oyundan ortalama uydurmak, hicbiri")
+        print("    icin kanit olmayan bir sayiyi 147 oyuna yazmak olurdu.")
 
     print("\n=== ASAMA 4: frame generation ek yuku ===")
     fg_rows = [r for r in rows if r["frame_gen"] in ("2x", "3x", "4x")]
@@ -423,6 +475,12 @@ def main(apply_changes):
         for name, (gc, cc, *_rest) in fitted.items():
             cur.execute("UPDATE games SET gpu_cost=?, cpu_cost=? WHERE name=?",
                         (round(gc, 4), round(cc, 4), name))
+        # Written only for games that earned one. Everything else stays NULL
+        # and reads the global, so a later batch that measures a game's ray
+        # tracing changes that game and nothing else.
+        for name, v in own.items():
+            cur.execute("UPDATE games SET rt_gpu_mult=? WHERE name=?",
+                        (round(v, 4), name))
         conn.commit()
         conn.close()
         print(f"\n  {len(fitted)} oyun profili yazildi. "

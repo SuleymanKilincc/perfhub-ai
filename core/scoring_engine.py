@@ -306,9 +306,25 @@ def _upscaling_profile(upscaling, game):
     return scale, pass_cost, True
 
 
+def _rt_gpu_mult(game):
+    """A game's own ray-tracing cost, or the global average when unmeasured.
+
+    One boolean was averaging implementations that are not comparable. Far Cry
+    6 measured on and off at matched settings costs 1.10x; Hitman's own
+    Dartmoor benchmark, both sides GPU-bound, costs 3.46x, and two further
+    measurements of it on other hardware agree at 3.25x and 3.67x. Fitting a
+    single constant across those pulls it to 2.72 and makes the whole model
+    worse — 6.5% to 7.4% — while still leaving the ray-tracing rows at 26%.
+
+    NULL keeps the global, which is what the 147 games with no ray-tracing
+    measurement need and what that average is for.
+    """
+    return float(game.get("rt_gpu_mult") or bc.RT_GPU_COST_MULT)
+
+
 def _frame_times(gpu_cost, cpu_cost, gpu_score, cpu_score, resolution, quality,
                  ray_tracing, path_tracing, render_scale, upscale_pass_ms,
-                 frame_gen_mode):
+                 frame_gen_mode, rt_gpu_mult=None):
     """Per-frame GPU and CPU cost in milliseconds, before memory effects."""
     q_gpu, q_cpu, _ = bc.quality_multipliers(quality)
 
@@ -321,7 +337,8 @@ def _frame_times(gpu_cost, cpu_cost, gpu_score, cpu_score, resolution, quality,
         pixels *= (pixel_work * (1 - bc.UPSCALING_UNSCALED_FRACTION)
                    + bc.UPSCALING_UNSCALED_FRACTION)
 
-    rt_gpu = bc.PT_GPU_COST_MULT if path_tracing else (bc.RT_GPU_COST_MULT if ray_tracing else 1.0)
+    rt_on = rt_gpu_mult if rt_gpu_mult is not None else bc.RT_GPU_COST_MULT
+    rt_gpu = bc.PT_GPU_COST_MULT if path_tracing else (rt_on if ray_tracing else 1.0)
     rt_cpu = bc.PT_CPU_COST_MULT if path_tracing else (bc.RT_CPU_COST_MULT if ray_tracing else 1.0)
 
     ft_gpu = bc.GPU_MS_CONST * gpu_cost * pixels * q_gpu * rt_gpu / _perf(gpu_score, bc.GPU_PERF_EXPONENT)
@@ -541,6 +558,7 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
     ft_gpu, ft_cpu = _frame_times(
         gpu_cost, cpu_cost, gpu_score, cpu_score, resolution, quality,
         ray_tracing, path_tracing, render_scale, upscale_pass_ms, fg_mode,
+        _rt_gpu_mult(game),
     )
     rendered_fps = 1000.0 / _blend_frame_time(ft_gpu, ft_cpu)
 

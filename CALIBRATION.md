@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 566 (480 fitted, 86 held out) |
-| Mean absolute error | **6.5%** fitted, **33.3%** gameplay, **44.3%** texture-pack, **18.5%** ray-reconstruction |
-| Systematic bias | −0.4% fitted, +16.6% gameplay |
+| Measurements in `benchmarks` table | 577 (491 fitted, 86 held out) |
+| Mean absolute error | **6.8%** fitted, **31.4%** gameplay, **44.3%** texture-pack, **18.5%** ray-reconstruction |
+| Systematic bias | −0.2% fitted, +12.3% gameplay |
 | Within 10% of measured | 80% |
 | Within 20% of measured | 94% |
 | Run-to-run noise | **1.1%** (one repeated configuration) |
@@ -43,6 +43,11 @@ Fitted in `core/balance_config.py` from the batches noted below.
 | `RT_GPU_COST_MULT` | 1.80 | 1.70 | 7 RT on/off pairs, Extreme presets held out |
 | `PT_GPU_COST_MULT` | 3.10 | 3.54 | 2 rows, both Cyberpunk 2077, PT on and off |
 | `FG_GPU_OVERHEAD` | .22/.31/.38 | .40/.76/1.12 | GTA V Enhanced 2x/3x/4x ladder |
+| `games.rt_gpu_mult` | — | 2.92 / 1.68 | per game, where RT was measured on and off |
+
+`rt_gpu_mult` is NULL for 174 of the 176 games and they read `RT_GPU_COST_MULT`.
+Only Hitman 3 and Forza Horizon 6 have enough of their own ray-tracing rows to
+earn one; see gap 6b for why a single constant stopped working.
 
 The last three rows were themselves wrong until batch 15 — they recorded 1.68,
 3.30 and .35/.55/.75, values the code had moved past. Same failure as mistake
@@ -308,6 +313,19 @@ Open items. All are visible in the validation output; none are hidden.
    runs 1.10x to 3.25x, a factor of three, between two games whose ray tracing
    is described the same way — reflections and shadows in both. One boolean
    cannot hold that, and this is no longer an argument from principle.
+   **Fixed in batch 19.** Hitman's own benchmark confirmed it a third time —
+   Dartmoor, both sides GPU-bound at 99%, 3.46x — and loading those rows made
+   the consequence unavoidable: the single constant fitted to 2.72, the
+   whole-model error went 6.5% to 7.4%, and the ray-tracing rows stayed at 26%
+   because 2.72 fits neither end. `games.rt_gpu_mult` now holds a per-game
+   value where one has been measured and NULL everywhere else, which is what
+   the 174 unmeasured games need and what the global average is for.
+   Fitted: Hitman 3 at **2.92** (its rows 71.1% → 11.9%) and Forza Horizon 6
+   at **1.68**. `RT_GPU_COST_MULT` stays 1.70 — after the measured games take
+   their own, two rows from one game remain, and `MIN_RT_ROWS_FOR_GLOBAL`
+   refuses to move a number 174 games read on that. The held-out gameplay rows
+   improved at the same time, 33.3% to 31.4% and +16.6% to +12.3% bias, which
+   is the part that says this is a better model rather than a closer fit.
 6d. **What ray tracing costs depends on the scene; what rasterising costs does
    not.** The same batch, same machine and settings, three locations:
    with ray tracing on it reads 43 in Sapienza, 70 in Miami and 72 in
@@ -367,13 +385,27 @@ Open items. All are visible in the validation output; none are hidden.
    returns 249 and 234. The inference is unusually safe, because those are
    gameplay rows and gameplay runs *below* a benchmark loop, so the true figure
    is higher still and the error can only be larger than it looks.
-   Not corrected, because fitting a cost to held-out gameplay is the discipline
-   that has kept this model honest and one video does not buy an exception.
    `calibrate_engine.py` now names these games at the end of every run instead
    of letting a genre prior pass for a fit. The measurement that fixes them is
    the same in every case: high resolution on a mid-range card, where the GPU
    is what binds. A processor ladder cannot open this side no matter how long
    it gets.
+   Batch 19 supplied exactly that for Hitman — its own benchmark at 1440p on an
+   RTX 3070 — and the game left the thin list. Its `gpu_cost` still did not
+   move, which is the next finding rather than a failure: see 10c.
+10c. **Hitman's two benchmark scenes are 1.33x apart and it has one profile.**
+   Dubai reads 103.80 fps native where Dartmoor reads 78.00, on the same
+   machine at the same settings, and the processor ceilings differ far more —
+   roughly 165 in Dubai against 92 in Dartmoor, from the size of the DLSS step
+   each one allows. That is why the fit did not move when the GPU-bound rows
+   arrived: no single (`gpu_cost`, `cpu_cost`) pair describes both, and the
+   28 existing rows anchor it to Dubai. Which scene those 28 measured was never
+   recorded and had to be inferred — Hardware Unboxed's 5800X3D at 213 fps is
+   consistent with Dubai's ceiling and not with Dartmoor's.
+   This is gap 10b — Baldur's Gate 3's acts — in a game where the *benchmark
+   tool itself* offers two scenes. It is also the first such case where the
+   evidence is in the table rather than a docstring, because `location` now
+   records it.
 7. **Alan Wake 2 at 8K exhausts VRAM on a 32 GB card** — measured, ~4 GB
    spilling to system RAM. The engine predicts 14 fps against 10.
 
@@ -534,12 +566,18 @@ wrong is worth more than a list of what works.
    labels then matched nothing and fell to the 1.0 default in silence — a value
    that reads as a judgement about sixty-odd games and was really an absent key.
    `check_genre_coverage()` now reports a gap instead of swallowing it.
-4. **A test that stopped covering what it was pointed at, three times.** The
-   conformance runner trims hardware rows to the fields the engines read.
-   `architecture` was missing when the legacy-GPU note landed, so 4768 cases
-   agreed perfectly while never entering the new branch; `form_factor` and
-   `cores` repeated it. Each is now passed through, and each addition is
-   checked by counting how many cases actually reach the branch.
+4. **A test that stopped covering what it was pointed at, four times.** The
+   conformance runner trims hardware and game rows to the fields the engines
+   read. `architecture` was missing when the legacy-GPU note landed, so 4768
+   cases agreed perfectly while never entering the new branch; `form_factor`
+   and `cores` repeated it; `rt_gpu_mult` made it four, passing 4384 cases in
+   13 fields while both engines quietly took the same fallback.
+   Counting the cases that reach a branch was the fix after the third, and it
+   is necessary but not sufficient — it says the branch runs, not that running
+   it differently would be caught. So the fourth was closed with a positive
+   control instead: the TypeScript side was broken on purpose to ignore
+   `rt_gpu_mult`, the run was confirmed to fail, and only then restored. Ten of
+   the 4384 cases reach that branch and ten is enough, because the test failed.
 5. **Callers trimming the same rows.** `predictAll` and the detail panel both
    cut hardware down to name/score/vram before calling the engine, so the
    legacy-GPU and laptop-mismatch notes could never have fired in the interface

@@ -48,6 +48,8 @@ export type Game = {
   fps_cap?: number | null;
   fps_low_ratio?: number | null;
   fps_low_measured?: number | null;
+  // A game's own ray-tracing cost; null falls back to the global average.
+  rt_gpu_mult?: number | null;
   supports_rt?: number | null;
   supports_pt?: number | null;
   supports_dlss?: number | null;
@@ -278,6 +280,7 @@ function frameTimes(
   gpuCost: number, cpuCost: number, gpuScore: number, cpuScore: number,
   resolution: string, quality: string, rayTracing: boolean, pathTracing: boolean,
   renderScale: number, upscalePassMs: number, frameGenMode: string | null,
+  rtGpuMult: number,
 ) {
   const [qGpu, qCpu] = bc.qualityMultipliers(quality);
 
@@ -288,7 +291,10 @@ function frameTimes(
     pixels *= pixelWork * (1 - bc.UPSCALING_UNSCALED_FRACTION) + bc.UPSCALING_UNSCALED_FRACTION;
   }
 
-  const rtGpu = pathTracing ? bc.PT_GPU_COST_MULT : rayTracing ? bc.RT_GPU_COST_MULT : 1.0;
+  // A game's own ray-tracing cost when it has been measured on and off, the
+  // global average when it has not. Far Cry 6 costs 1.10x and Hitman 3.46x;
+  // one constant across both pulls to 2.72 and makes every game worse.
+  const rtGpu = pathTracing ? bc.PT_GPU_COST_MULT : rayTracing ? rtGpuMult : 1.0;
   const rtCpu = pathTracing ? bc.PT_CPU_COST_MULT : rayTracing ? bc.RT_CPU_COST_MULT : 1.0;
 
   let ftGpu =
@@ -462,6 +468,7 @@ export function estimateFpsDetailed(
   const { ftGpu, ftCpu } = frameTimes(
     gpuCost, cpuCost, gpuScore, cpuScore, resolution, quality, rt, pt,
     renderScale, passCost, fgMode,
+    Number(game.rt_gpu_mult) || bc.RT_GPU_COST_MULT,
   );
   let renderedFps = 1000.0 / blendFrameTime(ftGpu, ftCpu);
 
