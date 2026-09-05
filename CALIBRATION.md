@@ -409,6 +409,37 @@ Open items. All are visible in the validation output; none are hidden.
 7. **Alan Wake 2 at 8K exhausts VRAM on a 32 GB card** — measured, ~4 GB
    spilling to system RAM. The engine predicts 14 fps against 10.
 
+6f. **The measured set does not span the catalogue, and that invalidates the
+   obvious fix for the 147 derived games.** Measuring how badly a derived
+   profile does is easy — hold each measured game out in turn, derive it as if
+   unmeasured, score it against its own rows. It reads 6.4% fitted against
+   51.6% derived. Whole-catalogue that is roughly 44%.
+   The obvious response is a better derivation, and one looked available.
+   `difficulty_multiplier`, which the current formula rests on, correlates with
+   fitted `gpu_cost` at r=0.097 — nothing. `ram_sensitivity` reaches 0.740
+   (Spearman 0.673). Refitting the transfer onto it takes the held-out figure
+   from 51.6% to 28.9%, which by the same arithmetic is worth measuring about
+   74 more games. It was recommended on that basis and the recommendation was
+   wrong.
+   Two things were missed. First, 70% of that gain is not the new signal at
+   all: assigning *every* game the median measured profile, using no signal
+   whatsoever, already reads 35.8%. Most of the improvement is from ceasing to
+   use a bad predictor, not from having found a good one.
+   Second, and fatally, all 29 measured games sit between 1.05 and 6.82 on
+   `difficulty_multiplier` while the catalogue reaches down to 0.20 — **28 of
+   the 147 are lighter than anything ever measured**. Stardew Valley, Hollow
+   Knight, Terraria, Dota 2, League of Legends. A correlation measured inside a
+   narrow band says little about the range outside it, so r=0.097 is much
+   weaker evidence than it looked. And the transfer's output on those games is
+   visibly wrong: it moves Stardew Valley from 1028 fps to 395 on an RTX 4060,
+   because `ram_sensitivity` takes only about six distinct values and every
+   game sharing one collapses onto the same number.
+   Not applied. What unblocks it is small: **two or three videos on light
+   games** — an esports title, a 2D indie, a fighting game. That extends the
+   measured range downward, tests whether the ordering holds across the whole
+   catalogue rather than inside the AAA band, and anchors the end where every
+   candidate transfer currently breaks. Two videos, not seventy-four.
+
 **Coverage**
 
 8. **We do not know how the engine behaves on pre-2019 GPUs.** 79 of the 164
