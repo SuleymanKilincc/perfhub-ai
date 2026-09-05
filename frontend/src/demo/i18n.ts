@@ -91,10 +91,15 @@ export const strings = {
     estimatedBadge: "Tahmin — bu oyun ölçülmedi",
     estimatedExplain:
       "Bu oyunun maliyet profili ölçülmedi, benzer oyunlardan türetildi. " +
-      "Ölçülen oyunlarda motor %9 hatayla çalışıyor; türetilmiş profillerde " +
-      "aynı test %49 sapma gösterdi.",
+      "Ölçülen oyunlarda motor %6 hatayla çalışıyor; türetilmiş profillerde " +
+      "aynı test %52 sapma gösterdi.",
     bottleneckLine: (b: string, vram: number, q: string) =>
       `${b} sınırlı · ${vram} GB VRAM · ${q}`,
+    loadCpu: "CPU", loadGpu: "GPU", loadMem: "BELLEK",
+    loadHint:
+      "Her parçanın bir karede ne kadar çalıştığı. Dolu olan sınırı koyuyor. " +
+      "Sekiz gerçek oyun içi ölçüme karşı yedisinde 7 puan içinde; sekizincisi " +
+      "Hitman'in ışın izlemesi, orada motor GPU'yu fazla meşgul sanıyor.",
     upscaling: "Upscaling", frameGen: "Frame generation",
     rayTracing: "Ray tracing", pathTracing: "Path tracing",
     noUpscaling: "Bu oyunda upscaling yok",
@@ -186,10 +191,16 @@ export const strings = {
     estimatedBadge: "Estimate — this game has not been measured",
     estimatedExplain:
       "This game's cost profile was derived from similar titles rather than " +
-      "measured. On measured games the engine runs at 9% mean error; on " +
-      "derived profiles the same test showed 49%.",
+      "measured. On measured games the engine runs at 6% mean error; on " +
+      "derived profiles the same test showed 52%.",
     bottleneckLine: (b: string, vram: number, q: string) =>
       `${b}-limited · ${vram} GB VRAM · ${q}`,
+    loadCpu: "CPU", loadGpu: "GPU", loadMem: "MEMORY",
+    loadHint:
+      "How hard each part works in a frame. The full one sets the limit. " +
+      "Checked against eight in-game overlay readings: within 7 points on " +
+      "seven of them; the eighth is Hitman's ray tracing, where the engine " +
+      "thinks the GPU is busier than it is.",
     upscaling: "Upscaling", frameGen: "Frame generation",
     rayTracing: "Ray tracing", pathTracing: "Path tracing",
     noUpscaling: "This game has no upscaling",

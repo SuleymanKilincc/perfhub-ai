@@ -187,6 +187,12 @@ def get_games_fps(req: FPSRequest):
                 # limit, and how much memory the game actually wants.
                 "status": estimate["status"],
                 "bottleneck": estimate["bottleneck"],
+                # How hard each part works in a frame, so a client can draw the
+                # limit rather than only name it. Additive: existing readers
+                # pick keys by name and are unaffected.
+                "gpu_load": estimate["gpu_load"],
+                "cpu_load": estimate["cpu_load"],
+                "mem_load": estimate["mem_load"],
                 "vram_needed_gb": estimate["vram_needed_gb"],
                 "warnings": estimate["warnings"],
             })

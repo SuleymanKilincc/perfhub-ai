@@ -98,6 +98,9 @@ export type Estimate = {
   rendered_fps: number;
   status: "ok" | "ram_short" | "vram_tight" | "vram_spill" | "unplayable";
   bottleneck: "CPU" | "GPU";
+  gpu_load: number;
+  cpu_load: number;
+  mem_load: number;
   vram_needed_gb: number;
   vram_alloc_gb: number;
   vram_available_gb: number;
@@ -526,6 +529,17 @@ export function estimateFpsDetailed(
     rendered_fps: Math.max(pyRound(renderedFps), 0),
     status,
     bottleneck: ftCpu > ftGpu ? "CPU" : "GPU",
+    // Milliseconds each part works, over the milliseconds the frame takes —
+    // the same quantity an overlay's utilisation readout shows, so it can be
+    // checked. Within 7 points on seven of eight live readings; the eighth is
+    // Hitman's Sapienza with ray tracing, where RT_CPU_COST_MULT is too small
+    // (gap 6d).
+    gpu_load: pyRound(Math.min(ftGpu / blendFrameTime(ftGpu, ftCpu), 1.0), 3),
+    cpu_load: pyRound(Math.min(ftCpu / blendFrameTime(ftGpu, ftCpu), 1.0), 3),
+    // Memory is not on the same axis: it does not share the frame, it fits or
+    // it does not. Above 1.0 the game wants more than the card has.
+    mem_load: pyRound(
+      Math.max(vramNeeded / Math.max(vram, 1), ramBase / Math.max(ramGb, 1)), 3),
     vram_needed_gb: pyRound(vramNeeded, 1),
     vram_alloc_gb: pyRound(vramAllocation(vramNeeded, vram), 1),
     vram_available_gb: vram,

@@ -6,7 +6,7 @@ import type { CPUData, GPUData } from "../types";
 import { targetFps, verdict, searchGames, VERDICT_COLOR, VERDICT_KEY, type Verdict } from "./lib";
 import Picker from "./Picker";
 import useIsMobile from "./useIsMobile";
-import { LangContext, strings, useT, renderNote, type Lang } from "./i18n";
+import { LangContext, strings, useT, renderNote, type Lang, type Strings } from "./i18n";
 import { readUrl, useUrlState } from "./urlState";
 
 const RESOLUTIONS = ["1080p", "1440p", "4k"];
@@ -40,7 +40,7 @@ export default function Demo() {
   const [gpu, setGpu] = useState<GPUData | null>(
     () => gpus.find((g) => g.name === initial.gpu) ?? null);
   const [ram, setRam] = useState(initial.ram ?? 16);
-  // Desktop by default: every one of the 492 measurements is on desktop
+  // Desktop by default: every one of the 577 measurements is on desktop
   // hardware, so it is both the common case and the only validated one.
   const [form, setForm] = useState(
     () => gpus.find((g) => g.name === initial.gpu)?.form_factor === "laptop"
@@ -51,10 +51,11 @@ export default function Demo() {
 
   const [query, setQuery] = useState("");
   const [onlyProblems, setOnlyProblems] = useState(false);
-  // Measured games predict at 9.1% mean error; the derived costs the rest
-  // carry were 49.2% out against the same benchmarks. Showing both by
-  // default would present a coin flip with the same confidence as a
-  // measurement, so the trustworthy set is what you see first.
+  // Measured games predict at 6.4% mean error; the derived costs the rest
+  // carry read 51.6% against the same benchmarks, measured leave-one-game-out
+  // — every measured game held out in turn and derived as if it were not.
+  // Showing both by default would present a coin flip with the same
+  // confidence as a measurement, so the trustworthy set is what you see first.
   const [onlyMeasured, setOnlyMeasured] = useState(true);
   const [sort, setSort] = useState<Sort>("struggling");
   const [openId, setOpenId] = useState<number | null>(initial.game ?? null);
@@ -504,6 +505,62 @@ function Builder(p: {
           {p.ready ? t.calculate(p.total) : t.needParts}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Which part of the machine is the limit, drawn rather than named.
+ *
+ * The two frame-time bars are the milliseconds each part works divided by the
+ * milliseconds a frame takes — the same quantity an overlay's utilisation
+ * readout shows. That is deliberate: it is checkable, and it was checked.
+ * Against eight live-gameplay overlay readings the engine lands within seven
+ * points on seven of them. The eighth is Hitman's Sapienza with ray tracing,
+ * where the overlay recorded 61% GPU and the engine says 100%, because the
+ * model charges ray tracing a flat 1.08x on the processor and that game's
+ * costs far more.
+ *
+ * Memory is a third bar and not a third slice: it does not share the frame,
+ * it either fits or it does not, so it is scaled against the card's capacity
+ * and turns red when the game wants more than there is.
+ */
+function LoadBars(p: { t: Strings; gpu: number; cpu: number; mem: number }) {
+  const { t } = p;
+  const bars = [
+    { key: "CPU", label: t.loadCpu, v: p.cpu },
+    { key: "GPU", label: t.loadGpu, v: p.gpu },
+    { key: "MEM", label: t.loadMem, v: p.mem },
+  ];
+  return (
+    <div title={t.loadHint} style={{
+      display: "flex", justifyContent: "center", gap: 20, marginTop: 18,
+    }}>
+      {bars.map((b) => {
+        const over = b.v >= 0.995;
+        const colour = over ? "var(--red)" : b.v >= 0.85 ? "var(--amber)" : "var(--text-3)";
+        return (
+          <div key={b.key} style={{ display: "grid", justifyItems: "center", gap: 5 }}>
+            <div style={{
+              width: 9, height: 46, borderRadius: 5, background: "var(--raised)",
+              border: "1px solid var(--border)", display: "flex",
+              alignItems: "flex-end", overflow: "hidden",
+            }}>
+              <div style={{
+                width: "100%", height: `${Math.min(b.v, 1) * 100}%`,
+                background: colour, transition: "height 240ms var(--ease)",
+              }} />
+            </div>
+            <div style={{
+              fontSize: 9.5, letterSpacing: 0.4, color: colour,
+              fontFamily: "var(--mono)",
+            }}>{b.label}</div>
+            <div style={{
+              fontSize: 10, color: "var(--text-3)", fontFamily: "var(--mono)",
+            }}>{Math.round(b.v * 100)}%</div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1119,6 +1176,7 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
           <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 7 }}>
             {t.bottleneckLine(r.bottleneck, r.vram_needed_gb, r.quality)}
           </div>
+          <LoadBars t={t} gpu={r.gpu_load} cpu={r.cpu_load} mem={r.mem_load} />
           {!measured && (
             <div style={{
               fontSize: 12.5, color: "var(--text-3)", marginTop: 12,

@@ -618,6 +618,22 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
         "rendered_fps": max(int(round(rendered_fps)), 0),
         "status": status,
         "bottleneck": "CPU" if ft_cpu > ft_gpu else "GPU",
+        # How busy each part is: the milliseconds it works divided by the
+        # milliseconds the frame takes. This is what an overlay's utilisation
+        # readout measures, so it can be checked rather than asserted — against
+        # eight live-gameplay readings it lands within 7 points on seven of
+        # them. The eighth is Hitman's Sapienza with ray tracing, where the
+        # overlay recorded 61% and this says 100%, because RT_CPU_COST_MULT is
+        # a flat 1.08 and that engine's ray tracing costs the processor far
+        # more (gap 6d). One scene cannot fit that, so the gap is reported
+        # rather than papered over.
+        "gpu_load": round(min(ft_gpu / _blend_frame_time(ft_gpu, ft_cpu), 1.0), 3),
+        "cpu_load": round(min(ft_cpu / _blend_frame_time(ft_gpu, ft_cpu), 1.0), 3),
+        # Memory is a third limiter and does not belong on the same axis: it
+        # does not share the frame, it either fits or it does not. Above 1.0
+        # the game wants more than the card has.
+        "mem_load": round(max(vram_needed / max(vram, 1),
+                              ram_base / max(ram_gb, 1)), 3),
         # What a frame needs, versus what the game will reserve on this card.
         "vram_needed_gb": round(vram_needed, 1),
         "vram_alloc_gb": round(_vram_allocation(vram_needed, vram), 1),
