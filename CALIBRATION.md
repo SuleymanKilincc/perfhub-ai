@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 552 (480 fitted, 72 held out) |
-| Mean absolute error | **6.5%** fitted, **32.4%** gameplay, **44.3%** texture-pack, **18.5%** ray-reconstruction |
-| Systematic bias | −0.4% fitted, +17.7% gameplay |
+| Measurements in `benchmarks` table | 566 (480 fitted, 86 held out) |
+| Mean absolute error | **6.5%** fitted, **33.3%** gameplay, **44.3%** texture-pack, **18.5%** ray-reconstruction |
+| Systematic bias | −0.4% fitted, +16.6% gameplay |
 | Within 10% of measured | 80% |
 | Within 20% of measured | 94% |
 | Run-to-run noise | **1.1%** (one repeated configuration) |
@@ -100,6 +100,29 @@ Starfield 11.3 → 4.3 GB, Alan Wake 2 13.4 → 6.8, The Last of Us Part I
 
 Cross-check: the fitted 6.3 GB base for The Last of Us Part I predicts a
 10.5 GB allocation at 1440p Ultra, against 10.2 GB measured.
+
+**The first paired readings arrived in batch 17**, and they confirm the
+warning the inversion has always carried. 63 of the 72 VRAM measurements are
+allocations alone; nothing had ever reported both numbers at once. A Hitman
+overlay on an RTX 5060 shows DEDICATED and ALLOCATED side by side across nine
+configurations:
+
+| dedicated | 4.72 | 4.68 | 5.00 | 4.92 | 5.02 | 5.51 | 6.00 | 6.52 | 6.46 |
+|---|---|---|---|---|---|---|---|---|---|
+| allocated | 5.02 | 5.01 | 5.32 | 5.24 | 5.34 | 5.83 | 6.32 | 6.84 | 6.77 |
+
+Two things follow. Inverting the 5.02 allocation as though it were one gives
+(5.02 − 0.8) / 1.12 = 3.77 GB against the 4.72 actually resident — 20% low,
+against the "about 25%" `calibrate_vram.py` has claimed from reasoning alone.
+Loading the dedicated column as `used` instead lands Hitman's base at 4.3 GB
+where the mistaken kind gave 3.4 and the old derivation guessed 4.5.
+
+And the ratio is 1.049–1.069 across all nine, where the model says
+`working × 1.12 + 0.8 GB` — 6.09 predicted against 5.02 measured, 21% high.
+That does not make the constants wrong so much as the *shape*: this is an 8 GB
+card with almost nothing spare, and Alan Wake 2 reported 28 GB at 8K on a
+32 GB one. A flat appetite plus a flat reserve cannot describe both. The
+measurement that settles it is a paired reading on a large card.
 
 ## GPU power_score
 
@@ -279,6 +302,31 @@ Open items. All are visible in the validation output; none are hidden.
    level up — one boolean averaging implementations that are not comparable —
    and the fix is the same shape: a per-game notion of how much ray tracing a
    title actually does.
+   Batch 18 puts a number on the far end. Hitman World of Assassination on an
+   RTX 5090 at 4K native, ray tracing on and off in the same place with both
+   sides GPU-bound at 99% and 96%, costs **3.25x**. So the measured spread now
+   runs 1.10x to 3.25x, a factor of three, between two games whose ray tracing
+   is described the same way — reflections and shadows in both. One boolean
+   cannot hold that, and this is no longer an argument from principle.
+6d. **What ray tracing costs depends on the scene; what rasterising costs does
+   not.** The same batch, same machine and settings, three locations:
+   with ray tracing on it reads 43 in Sapienza, 70 in Miami and 72 in
+   Chongqing — a 1.67x spread. With it off, the two locations measured both
+   ways agree to within 6%, 249 against 234.
+   This reframes every earlier location finding. Saint Denis against the
+   countryside, New Atlantis against a planet surface, Act 1 against Act 3 —
+   each asked whether a game's cost is one number and got a different answer.
+   It looks like the question was aimed slightly wrong: base rendering is
+   steady across a game's areas, and it is the ray tracing that is not,
+   because its cost depends on what is in front of the player. That is a
+   mechanism rather than an observation, and `benchmarks.location` now exists
+   so the next batch can test it instead of arguing it from a docstring.
+   Sapienza also shows the cost is not only on the card. With ray tracing on
+   its GPU utilisation is 61% against 96% with it off — the card idles a third
+   of the time, so something else sets the pace. `RT_CPU_COST_MULT` is a flat
+   1.08 and is plainly too small for this engine. That is why Sapienza reads
+   5.79x where Chongqing reads 3.25x: the second is the card, the first is the
+   card plus a wall.
 6c. **One system reads +20.6% and the fit will not absorb it.** Batch 15 is an
    RTX 3080 with a Ryzen 9 5950X, and both had *zero* measurements before it —
    every component in that machine was untested. Its three fitted Cyberpunk
@@ -300,6 +348,32 @@ Open items. All are visible in the validation output; none are hidden.
    hardware law from one generation once and had to retract it. Any RTX 3080
    measurement in a second game separates the card from the game; an RT preset
    ladder on one card separates Psycho from the card.
+6e. **Thirteen of the 28 fitted games have a `gpu_cost` no measurement
+   constrains, and the calibration reported them as fitted.** `is_identifiable`
+   asks whether a game's rows vary in resolution, preset or processor, and
+   answers whether *something* can be separated. It never asked whether *both*
+   halves can. A 28-processor ladder at 1080p on an RTX 4090 varies 28 ways in
+   the CPU and pins the CPU cost well, while every row sits against the
+   processor — so the GPU cost is never tested and arrives from the genre prior
+   wearing a "n=28" label.
+   Seven games have no GPU-bound row at all: Assetto Corsa Competizione,
+   Battlefield 6, Remnant II, Star Wars Jedi: Survivor, The Last of Us Part II,
+   Valorant, Watch Dogs Legion. Six more rest on three rows or fewer —
+   A Plague Tale: Requiem 2/30, Counter-Strike 2 3/38, Hitman 3 3/28, Hogwarts
+   Legacy 3/33, Star Wars Outlaws 1/28, Space Marine 2 1/28.
+   Hitman is the case that exposed it, and it is not a small error: two
+   independent cards measured in free play read roughly twice the frame rate
+   the fitted cost predicts — the engine says 118 at 4K where an RTX 5090
+   returns 249 and 234. The inference is unusually safe, because those are
+   gameplay rows and gameplay runs *below* a benchmark loop, so the true figure
+   is higher still and the error can only be larger than it looks.
+   Not corrected, because fitting a cost to held-out gameplay is the discipline
+   that has kept this model honest and one video does not buy an exception.
+   `calibrate_engine.py` now names these games at the end of every run instead
+   of letting a genre prior pass for a fit. The measurement that fixes them is
+   the same in every case: high resolution on a mid-range card, where the GPU
+   is what binds. A processor ladder cannot open this side no matter how long
+   it gets.
 7. **Alan Wake 2 at 8K exhausts VRAM on a 32 GB card** — measured, ~4 GB
    spilling to system RAM. The engine predicts 14 fps against 10.
 
@@ -418,6 +492,18 @@ Open items. All are visible in the validation output; none are hidden.
    0.878/0.881 (Hitman 3), 0.876/0.872 (KCD2) and 0.756/0.749 (Starfield).
    Bottleneck does not move the ratio. That is the fourth thing it has now
    survived, after CPU score, location and GPU vendor.
+   Batch 17 forced a fifth test and a sharper one. Hitman's two sources
+   disagree by 0.199 — 0.878 from 28 Dartmoor benchmark rows, the steadiest
+   figure in the set, against 0.679 from nine crowded-hotel gameplay rows —
+   and Cyberpunk's equivalent gap ran the *other* way. A ratio that moves in
+   both directions with the source looks like measurement tooling rather than
+   games. It is not: inside the single b10-hub source, eight games measured by
+   one reviewer with one tool spread from 0.533 in Counter-Strike 2 to 0.847
+   in Star Wars Jedi: Survivor, a range of 0.314, while the means of all ten
+   sources span 0.167. Games separate further than sources do.
+   What the disagreement does mean is that one ratio per game has the same
+   limit one cost per game has. Hitman lands at 0.827 from 42 rows, and no
+   single number describes both a quiet English manor and a crowded hotel.
 13. **The X3D gap may be understated.** Scoring the Ryzen 7 5700X3D off the
    28-CPU ladder gives 60 against its 5800X3D sibling (a stable 0.93-0.96 ratio
    across eight games) but 65 against the non-X3D 5700X, because the ladder
@@ -574,6 +660,13 @@ holding the model back; the rest widen coverage.
 3. **A second four-core processor in any CPU ladder** — an i3-13100F,
    i3-14100F or Ryzen 3 4100. One more chip turns the thread-demand effect from
    something we can only warn about into something we can fit (gap 4).
+3b. **Any of the thirteen GPU-blind games measured where the card binds** —
+   1440p or 4K on a mid-range GPU, internal benchmark, one resolution sweep
+   each. Seven of them have no GPU-bound row at all and their `gpu_cost` is a
+   genre prior with 28 measurements standing behind the wrong half of the
+   model (gap 6e). Hitman 3 is the one we know is wrong and by how much, so it
+   is the place to start: its own Dubai or Dartmoor benchmark at 1440p or 4K,
+   on any card, in one video.
 
 Then:
 

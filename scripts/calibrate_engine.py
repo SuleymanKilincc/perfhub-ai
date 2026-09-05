@@ -68,6 +68,51 @@ def load():
     return games, cpus, gpus, rows
 
 
+def report_gpu_identifiability(rows, games, cpus, gpus):
+    """Say which games were fitted without a single GPU-bound measurement.
+
+    `is_identifiable` asks whether a game's rows vary in resolution, preset or
+    CPU, and answers whether *something* can be separated. It does not ask
+    whether *both* halves can. A 28-processor ladder at one resolution on an
+    RTX 4090 varies in CPU 28 ways and pins the CPU cost well — while every
+    row sits against the processor, so the GPU cost is never tested and comes
+    out of the genre prior wearing a "fitted from 28 measurements" label.
+
+    Hitman 3 is the case that exposed it: 3 of its 28 rows are GPU-bound, and
+    two independent cards measured in free play read roughly twice the frame
+    rate the fitted GPU cost predicts at 4K.
+
+    Nothing is changed here. A game with no GPU-bound row is not wrong, it is
+    unmeasured on one axis, and the honest response is to say so rather than
+    to invent a correction from rows that cannot support one.
+    """
+    per_game = {}
+    for r in rows:
+        d = se.estimate_fps_detailed(
+            cpus[r["cpu"]], gpus[r["gpu"]], games[r["game"]], r["resolution"],
+            r["settings"], r["upscaling"], r["frame_gen"], r["ram_gb"],
+            ray_tracing=bool(r["ray_tracing"]), path_tracing=bool(r["path_tracing"]))
+        per_game.setdefault(r["game"], []).append(d["bottleneck"])
+
+    blind = sorted((g, len(v)) for g, v in per_game.items()
+                   if not any(b == "GPU" for b in v))
+    thin = sorted((g, sum(1 for b in v if b == "GPU"), len(v))
+                  for g, v in per_game.items()
+                  if 0 < sum(1 for b in v if b == "GPU") <= 3 and len(v) >= 10)
+    if blind:
+        print(f"\n  UYARI: {len(blind)} oyunun hicbir olcumu GPU-bound degil —")
+        print("  gpu_cost'lari olculmedi, tur prior'indan geliyor:")
+        for g, n in blind:
+            print(f"    {g[:38]:38s} {n:3d} satir, 0 tanesi GPU-bound")
+    if thin:
+        print("  zayif: GPU tarafi 3 veya daha az satirla kisitlanmis:")
+        for g, ng, n in thin:
+            print(f"    {g[:38]:38s} {ng}/{n} GPU-bound")
+    if blind or thin:
+        print("  -> cozum: bu oyunlari yuksek cozunurlukte, orta sinif bir")
+        print("     kartta olcmek. Islemci merdiveni bu tarafi acmiyor.")
+
+
 def predict(row, games, cpus, gpus):
     return se.estimate_fps(
         cpus[row["cpu"]], gpus[row["gpu"]], games[row["game"]],
@@ -365,6 +410,7 @@ def main(apply_changes):
 
     print("\n=== SONUC ===")
     print(f"  toplam hata: {err(rows, games, cpus, gpus):5.1f}%")
+    report_gpu_identifiability(rows, games, cpus, gpus)
 
     print("\n=== balance_config.py icin ===")
     print(f"  RT_GPU_COST_MULT = {bc.RT_GPU_COST_MULT}")
