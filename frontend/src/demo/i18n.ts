@@ -88,6 +88,10 @@ export const strings = {
     detailTargetLine: (genre: string, comp: boolean, t: number) =>
       `${genre}${comp ? " · rekabetçi" : ""} · hedef ${t} fps`,
     measuredBadge: (n: number) => `✓ ${n} gerçek ölçüme dayanıyor`,
+    cpuOnlyMeasured:
+      "Ama bu ölçümlerin hepsinde sınırı işlemci koyuyor — ekran kartı " +
+      "maliyeti hiç sınanmadı. Yüksek çözünürlükte ve upscaling ile bu " +
+      "oyunun sayıları güvenilmez.",
     estimatedBadge: "Tahmin — bu oyun ölçülmedi",
     estimatedExplain:
       "Bu oyunun maliyet profili ölçülmedi, benzer oyunlardan türetildi. " +
@@ -96,6 +100,10 @@ export const strings = {
     bottleneckLine: (b: string, vram: number, q: string) =>
       `${b} sınırlı · ${vram} GB VRAM · ${q}`,
     loadCpu: "CPU", loadGpu: "GPU", loadMem: "BELLEK",
+    balanceBanner: (side: string, pct: number, n: number, res: string) =>
+      `Bu sistemde ${res} çözünürlükte ölçülmüş ${n} oyunun %${pct}'inde sınırı ` +
+      `${side} koyuyor — makine dengesiz.`,
+    balanceFix: (name: string) => `Dengeye getiren en düşük parça: ${name}.`,
     loadHint:
       "Her parçanın bir karede ne kadar çalıştığı. Dolu olan sınırı koyuyor. " +
       "Sekiz gerçek oyun içi ölçüme karşı yedisinde 7 puan içinde; sekizincisi " +
@@ -188,6 +196,10 @@ export const strings = {
     detailTargetLine: (genre: string, comp: boolean, t: number) =>
       `${genre}${comp ? " · competitive" : ""} · target ${t} fps`,
     measuredBadge: (n: number) => `✓ Backed by ${n} real measurements`,
+    cpuOnlyMeasured:
+      "But the processor is the limit in every one of them, so the graphics " +
+      "cost was never tested. At high resolution and with upscaling, this " +
+      "game's numbers are not reliable.",
     estimatedBadge: "Estimate — this game has not been measured",
     estimatedExplain:
       "This game's cost profile was derived from similar titles rather than " +
@@ -196,6 +208,10 @@ export const strings = {
     bottleneckLine: (b: string, vram: number, q: string) =>
       `${b}-limited · ${vram} GB VRAM · ${q}`,
     loadCpu: "CPU", loadGpu: "GPU", loadMem: "MEMORY",
+    balanceBanner: (side: string, pct: number, n: number, res: string) =>
+      `At ${res}, the ${side} sets the limit in ${pct}% of the ${n} measured ` +
+      `games on this system — the machine is lopsided.`,
+    balanceFix: (name: string) => `The smallest part that evens it out: ${name}.`,
     loadHint:
       "How hard each part works in a frame. The full one sets the limit. " +
       "Checked against eight in-game overlay readings: within 7 points on " +

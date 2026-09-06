@@ -78,6 +78,73 @@ export default function Demo() {
   const problemCount = scored.filter((r) => r.v === "poor" || r.v === "bad").length;
   const measuredCount = scored.filter((r) => (r.game.measurements ?? 0) > 0).length;
 
+  /**
+   * Whether the machine is lopsided, and by how much — counted only over games
+   * whose cost profile was measured.
+   *
+   * The derived 147 read 51.6% against their own benchmarks, so counting them
+   * would be counting noise with the confidence of a diagnosis. The measured
+   * 29 read 6.4%, and a share across 29 games is far steadier than any single
+   * title: the engine's per-game limiter call was checked against eight
+   * in-game overlay readings and agreed within seven points on seven of them.
+   *
+   * Resolution matters and is meant to. At 4K almost everything is the card;
+   * at 1080p almost everything is the processor. A banner that ignored the
+   * setting would be describing a different machine than the one on screen.
+   */
+  const balance = useMemo(() => {
+    const m = scored.filter((r) => (r.game.measurements ?? 0) > 0);
+    if (m.length < 8) return null;
+    const cpuBound = m.filter((r) => r.bottleneck === "CPU").length;
+    const share = cpuBound / m.length;
+    if (share < 0.65 && share > 0.35) return null;
+    const side: "CPU" | "GPU" = share >= 0.65 ? "CPU" : "GPU";
+    return { side, pct: Math.round((side === "CPU" ? share : 1 - share) * 100), n: m.length };
+  }, [scored]);
+
+  /**
+   * The smallest part that would even the machine out.
+   *
+   * Lowest score rather than best: the useful answer to "my processor is
+   * holding this back" is where the problem stops, not what the fastest chip
+   * is. Binary search over the distinct scores above the current one, each
+   * probe re-running the measured games — about eight passes, not two hundred.
+   *
+   * Returns nothing when no part in the catalogue fixes it, which is the
+   * honest outcome for a machine whose other half is simply very fast.
+   */
+  const fix = useMemo(() => {
+    if (!balance || !cpu || !gpu) return null;
+    const measuredGames = games.filter((g) => (g.measurements ?? 0) > 0);
+    if (!measuredGames.length) return null;
+    const upgradingCpu = balance.side === "CPU";
+    const pool = (upgradingCpu ? cpus : gpus)
+      .filter((p) => p.power_score > (upgradingCpu ? cpu.power_score : gpu.power_score))
+      .sort((a, b) => a.power_score - b.power_score);
+    if (!pool.length) return null;
+
+    const stillLopsided = (candidate: CPUData | GPUData) => {
+      const c = upgradingCpu ? (candidate as CPUData) : cpu;
+      const g = upgradingCpu ? gpu : (candidate as GPUData);
+      let bad = 0;
+      for (const game of measuredGames) {
+        const r = estimateFpsDetailed(
+          c as never, { ...g, vram: g.vram ?? 8 } as never,
+          game, resolution, preset, "Native", "Kapalı", ram, false, false);
+        if (r.bottleneck === balance.side) bad++;
+      }
+      return bad / measuredGames.length >= 0.5;
+    };
+
+    if (stillLopsided(pool[pool.length - 1])) return null;
+    let lo = 0, hi = pool.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (stillLopsided(pool[mid])) lo = mid + 1; else hi = mid;
+    }
+    return pool[lo];
+  }, [balance, cpu, gpu, ram, resolution, preset]);
+
   const rows = useMemo(() => {
     const hits = query.trim() ? new Map(searchGames(query).map((h) => [h.id, h.score])) : null;
     let list = [...scored];
@@ -135,6 +202,7 @@ export default function Demo() {
                 cpu={cpu!} gpu={gpu!} ram={ram} resolution={resolution} preset={preset}
                 rows={rows} summary={summary} total={scored.length}
                 problemCount={problemCount}
+                balance={balance} fix={fix}
                 query={query} onQuery={setQuery}
                 onlyProblems={onlyProblems} onToggleProblems={setOnlyProblems}
                 onlyMeasured={onlyMeasured} onToggleMeasured={setOnlyMeasured}
@@ -575,8 +643,11 @@ type Row = {
 
 const WIDTH = 1180;
 
+type Balance = { side: "CPU" | "GPU"; pct: number; n: number } | null;
+
 function Results(p: {
   cpu: CPUData; gpu: GPUData; ram: number; resolution: string; preset: string;
+  balance: Balance; fix: CPUData | GPUData | null;
   rows: Row[]; total: number; problemCount: number;
   summary: { good: number; close: number; poor: number; bad: number };
   query: string; onQuery: (s: string) => void;
@@ -685,6 +756,36 @@ function Results(p: {
           }}>
             <span style={{ color: "var(--orange)", flexShrink: 0 }}>▲</span>
             <span style={{ color: "var(--text-2)" }}>{t.legacyGpuBanner(p.gpu.architecture ?? "")}</span>
+          </div>
+        </div>
+      )}
+
+      {/* One line about the machine rather than about a game. Counted over the
+          measured titles only — the derived ones read 51.6% against their own
+          benchmarks, and a diagnosis assembled from those would be a guess
+          wearing a banner. The named part is the *smallest* that evens things
+          out, because the question behind "my CPU is holding this back" is
+          where the problem stops, not what the fastest chip is. */}
+      {p.balance && (
+        <div style={{
+          padding: p.mobile ? "12px 16px" : "14px 36px",
+          background: "color-mix(in oklab, var(--amber) 10%, var(--bg))",
+          borderBottom: "1px solid color-mix(in oklab, var(--amber) 30%, var(--border))",
+        }}>
+          <div style={{
+            maxWidth: WIDTH, margin: "0 auto", display: "flex", gap: 12,
+            alignItems: "flex-start", fontSize: p.mobile ? 13 : 14, lineHeight: 1.5,
+          }}>
+            <span style={{ color: "var(--amber)", flexShrink: 0 }}>◧</span>
+            <span style={{ color: "var(--text-2)" }}>
+              {t.balanceBanner(p.balance.side, p.balance.pct, p.balance.n, p.resolution)}
+              {p.fix && (
+                <>
+                  {" "}
+                  <span style={{ color: "var(--text)" }}>{t.balanceFix(p.fix.name)}</span>
+                </>
+              )}
+            </span>
           </div>
         </div>
       )}
@@ -1146,6 +1247,20 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
             }}>
               {measured ? t.measuredBadge(game.measurements ?? 0) : t.estimatedBadge}
             </div>
+            {/* Measured on one axis is not measured. Assetto Corsa
+                Competizione's 28 rows are all 1080p on an RTX 4090, where the
+                processor is the limit in every one — so its graphics cost is a
+                genre prior, upscaling changes nothing because the card is
+                never the limit, and an RTX 4060 and an RTX 4090 come out 126
+                against 140. The number stays, because inventing a better one
+                from rows that cannot support it is how this project got the
+                number it has. The claim is what gets corrected. */}
+            {measured && game.gpu_measured === 0 && (
+              <div style={{
+                marginTop: 8, fontSize: 12, color: "var(--amber)",
+                maxWidth: 420, lineHeight: 1.5,
+              }}>{t.cpuOnlyMeasured}</div>
+            )}
           </div>
           <button onClick={onClose} style={{
             background: "var(--raised)", border: "1px solid var(--border)", borderRadius: 9,

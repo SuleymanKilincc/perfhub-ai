@@ -50,6 +50,9 @@ export type Game = {
   fps_low_measured?: number | null;
   // A game's own ray-tracing cost; null falls back to the global average.
   rt_gpu_mult?: number | null;
+  // 0 when every benchmark row for this game is processor-limited, so the
+  // graphics cost was never tested. See scripts/migrate_gpu_measured.py.
+  gpu_measured?: number | null;
   supports_rt?: number | null;
   supports_pt?: number | null;
   supports_dlss?: number | null;

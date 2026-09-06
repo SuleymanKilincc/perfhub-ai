@@ -58,7 +58,14 @@ def main(apply_changes):
             discarded += 1
             continue
 
-        if (r.get("vram_measured_kind") or "allocated") == "used":
+        kind = r.get("vram_measured_kind") or "allocated"
+        # A reading taken on a card with a lot of spare memory includes cache
+        # the game would drop, and how much depends on the capacity — which
+        # nothing here models. See scripts/migrate_cached_vram.py.
+        if kind == "cached":
+            discarded += 1
+            continue
+        if kind == "used":
             # Usage is the working set, near enough: it is what the frame
             # actually touches, which is the quantity the model calls for.
             working = measured

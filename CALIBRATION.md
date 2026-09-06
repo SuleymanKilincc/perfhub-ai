@@ -440,6 +440,31 @@ Open items. All are visible in the validation output; none are hidden.
    catalogue rather than inside the AAA band, and anchors the end where every
    candidate transfer currently breaks. Two videos, not seventy-four.
 
+6g. **Twelve VRAM readings were taken for working sets and were caches.**
+   Batch 4 loaded overlay figures from a GTX 1080 Ti and argued them through
+   as usage: "at 11 GB nothing is clamped by capacity, so its overlay numbers
+   are the games' own appetite". The property is backwards — not being clamped
+   means the number is not a ceiling, not that it is a floor, and 11 GB is
+   precisely the spare room a game caches into. The VRAM section above says so
+   in its first line.
+   The table contradicted the label and nobody looked: Alan Wake 2 at 1080p
+   *Medium* read 9.2 GB, and Cyberpunk read 9.5 GB "used" at 1080p High
+   against 7.3 GB "allocated" at 1440p Ultra — a usage figure above an
+   allocation, at a lower resolution and a lower preset, both orderings
+   violated at once.
+   It reached the site. Red Dead Redemption 2's base came from one of those
+   rows and put 11.6 GB on screen for 4K Ultra where the game wants about 6.7;
+   the user who reported it also identified the likely cause, that 10 GB is
+   what RDR2 takes with 8x MSAA, which the model has no term for.
+   Relabelling them `allocated` and inverting was tried and left RDR2 at 9.4.
+   The inversion assumes a fixed 1.12x plus 0.8 GB, and the only paired
+   reading we hold — batch 17, an 8 GB card — measures 1.05; an 11 GB card
+   caches more and nothing here knows how much. So they are marked `cached`
+   and excluded, the same treatment texture packs and ray reconstruction get.
+   Seven games lose their only VRAM evidence and fall back to derivation,
+   which puts RDR2 at 7.4 GB against ~6.7 measured. Still high, no longer 73%
+   out. A paired reading on a large card is what would fix it properly.
+
 **Coverage**
 
 8. **We do not know how the engine behaves on pre-2019 GPUs.** 79 of the 164
@@ -597,6 +622,14 @@ wrong is worth more than a list of what works.
    labels then matched nothing and fell to the 1.0 default in silence — a value
    that reads as a judgement about sixty-odd games and was really an absent key.
    `check_genre_coverage()` now reports a gap instead of swallowing it.
+3b. **A fix that passed every test and never shipped.** `rt_gpu_mult` was
+   added to both engines, agreed on across 4384 conformance cases, and
+   confirmed by a positive control — and the site kept using the global 1.70,
+   because `export_engine_data.py` has its own list of game columns and
+   nothing added the new one to it. The conformance test cannot catch this: it
+   builds its cases straight from the database, so both engines agree
+   perfectly on data the browser never receives. Two separate lists have to
+   agree for a game field to reach a user, and only one of them is tested.
 4. **A test that stopped covering what it was pointed at, four times.** The
    conformance runner trims hardware and game rows to the fields the engines
    read. `architecture` was missing when the legacy-GPU note landed, so 4768

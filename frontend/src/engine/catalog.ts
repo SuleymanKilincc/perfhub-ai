@@ -65,6 +65,12 @@ export function predictAll(options: PredictionOptions): GameData[] {
         fps_low_measured: r.fps_low_measured,
         status: r.status,
         bottleneck: r.bottleneck,
+        // How hard each part works in a frame. Carried per game so the shell
+        // can say something about the machine as a whole rather than only
+        // about one title.
+        gpu_load: r.gpu_load,
+        cpu_load: r.cpu_load,
+        mem_load: r.mem_load,
         vram_needed_gb: r.vram_needed_gb,
         warnings: r.warnings,
       };

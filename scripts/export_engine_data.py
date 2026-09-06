@@ -34,9 +34,17 @@ OUT_DIR = os.path.join("frontend", "src", "engine")
 
 # Columns the browser needs. Everything else in the database is either legacy
 # or only used by the calibration scripts, and shipping it would just be bytes.
+# A column the engine reads and this list omits is a fix that never ships. The
+# conformance test cannot catch it, because it builds its cases straight from
+# the database rather than from what gets exported — so both engines agree
+# perfectly on data the site never receives. `rt_gpu_mult` spent its first day
+# exactly there: Hitman's measured 2.92 was in the database, honoured by both
+# implementations, and absent from the catalogue the browser loads, so every
+# page view used the global 1.70.
 GAME_COLUMNS = [
     "id", "name", "genre", "gpu_cost", "cpu_cost", "vram_base_gb", "ram_base_gb",
-    "tier_min", "tier_max", "fps_cap", "fps_low_ratio", "fps_low_measured", "supports_rt", "supports_pt",
+    "tier_min", "tier_max", "fps_cap", "fps_low_ratio", "fps_low_measured",
+    "rt_gpu_mult", "gpu_measured", "supports_rt", "supports_pt",
     "supports_dlss", "supports_fsr", "supports_xess",
     "competitive", "target_fps", "cover_url", "flags_verified",
 ]
