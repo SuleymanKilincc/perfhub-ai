@@ -21,6 +21,20 @@ export const gpus: GPUData[] = (raw.gpus as GPUData[])
 
 export const games = raw.games as CatalogGame[];
 
+/**
+ * Accuracy figures measured by scripts/export_engine_data.py at export time.
+ * The interface quotes these instead of typing numbers in by hand — every
+ * hand-typed figure it used to show had gone stale.
+ */
+export const stats = raw.stats as {
+  measurements: number;
+  fitted_rows: number;
+  fitted_error_pct: number;
+  measured_games: number;
+  measured_error_pct: number;
+  derived_error_pct: number;
+};
+
 export type PredictionOptions = {
   cpu: CPUData;
   gpu: GPUData;

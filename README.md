@@ -1,243 +1,245 @@
-# 🚀 PerfHub AI
+# PerfHub
 
-Hardware analysis and FPS prediction for PC gaming — pick a CPU, GPU and RAM
-configuration and see what frame rates to expect across 176 games.
+Frame-rate estimates for a CPU, GPU and RAM combination across 176 PC games,
+computed in the browser and checked against 577 recorded benchmark results.
 
-[![Live Demo](https://img.shields.io/badge/live%20demo-perfhub.suleymankilinc.com-66FCF1)](https://perfhub.suleymankilinc.com)
-![Version](https://img.shields.io/badge/version-5.1.0-blue)
-![Python](https://img.shields.io/badge/python-3.11-green)
-![License](https://img.shields.io/badge/license-MIT-yellow)
+[![Live site](https://img.shields.io/badge/live-perfhub.suleymankilinc.com-2ea44f)](https://perfhub.suleymankilinc.com)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-## 🌐 Try it now
+**[perfhub.suleymankilinc.com](https://perfhub.suleymankilinc.com)** — no
+install, no account. Choose a processor, a graphics card, RAM, resolution and
+preset, and every game in the catalogue is scored for that machine.
 
-**[perfhub.suleymankilinc.com](https://perfhub.suleymankilinc.com)** — no install,
-no download. The previous interface is still at `/classic.html`; it is the one
-that carries the AI assistant. Choose your parts and get FPS estimates for every game in the
-database, along with warnings when a build is going to run into trouble.
+![Results for a Ryzen 5 7600 with an RTX 4070 at 1440p](screenshots/results.png)
 
-Predictions run **in the browser**, not on a server. The engine is a pure
-function over an 84 KB catalogue, so it ships with the page and answers
-instantly — no request, no cold start, and nothing to be down. Only the AI
-assistant needs a backend.
+## What it is, and what it is not
 
-A Windows desktop build is also available with automatic hardware detection —
-see [Desktop application](#-desktop-application).
+PerfHub predicts the **average frame rate of a benchmark run** and the range a
+player should expect when a scene gets busy. It is a model fitted to
+measurements, not a lookup table and not a language model. How much to trust a
+given number depends on whether that game has been measured, and the interface
+says which:
 
-## ⚙️ Cadence — the prediction engine
+- **29 games are measured.** Their cost profiles are fitted to recorded
+  benchmarks, and on those rows the engine is within 6.9% on average.
+- **147 games are derived** from a hand-built profile and a genre prior. Tested
+  by holding each measured game out and deriving it as if it had never been
+  measured, that method is about 52% out. These games are labelled as
+  estimates, and the results list shows only measured games by default.
 
-Most estimators multiply one "difficulty" number by a chain of correction
-factors. **Cadence** models frame time instead: a game costs the CPU some
-milliseconds per frame and the GPU some milliseconds per frame, and the slower
-of the two is what you actually get. It is named for frame cadence because
-that is literally the quantity it computes — frames per second is the output,
-not the model.
+The full accounting — what has been fitted, what has been held out, every
+known gap and every mistake along the way — is in
+[CALIBRATION.md](CALIBRATION.md).
+
+## Accuracy
+
+Every figure here is produced by `scripts/validate_engine.py` and
+`scripts/export_engine_data.py` against the recorded data.
+
+| Set | Rows | Mean error | Bias |
+|---|---|---|---|
+| Fitted benchmark runs | 491 | **6.9%** | +0.1% |
+| Held out: free gameplay | 74 | 32.0% | +13.3% |
+| Held out: optional HD texture packs (not modelled) | 8 | 44.3% | +14.4% |
+| Held out: DLSS Ray Reconstruction (not modelled) | 4 | 16.9% | 0.0% |
+
+On the fitted set, 80% of predictions land within 10% of the measured value and
+94% within 20%.
+
+The held-out rows are the ones the fit never sees, and they are reported
+separately because they answer a different question. Free gameplay reads
+lower than a benchmark loop — the model predicts benchmark averages, and
+measured on one graphics card, Cyberpunk 2077's built-in benchmark runs 1.7x
+faster than free play in its city at 1440p. That gap is measured but not yet
+corrected; see gap 10 in the calibration log.
+
+One configuration, shown with its error rather than chosen for it — Cyberpunk
+2077 at Ultra, native, no ray tracing, RTX 4090 with a Ryzen 7 7800X3D:
+
+| Resolution | Predicted | Measured | Error |
+|---|---|---|---|
+| 1080p | 165 fps | 140 fps | +18% |
+| 1440p | 127 fps | 125 fps | +2% |
+| 4K | 69 fps | 60 fps | +15% |
+
+## How the engine works
+
+The engine, Cadence, models frame time rather than frame rate. A game costs
+the processor some milliseconds per frame and the graphics card some
+milliseconds per frame, and the slower of the two sets the pace:
 
 ```
 ft = (ft_cpu^k + ft_gpu^k)^(1/k)        fps = 1000 / ft
 ```
 
-Working this way means the interesting behaviour is a consequence of the model
-rather than a special case bolted on:
+Most of the behaviour people care about follows from that one equation instead
+of being added as a special case:
 
 | Behaviour | Why it happens |
 |---|---|
-| CPU-limited games stop scaling with a bigger GPU | the CPU term stops shrinking |
-| Higher resolutions shift the limit back to the GPU | only the GPU term grows with pixel count |
+| A faster GPU stops helping in CPU-limited games | the CPU term stops shrinking |
+| Higher resolutions move the limit back to the GPU | only the GPU term grows with pixel count |
+| Upscaling gains shrink once the CPU is the limit | upscaling only reduces rendered pixels |
 | Frame generation helps most when the CPU is the wall | generated frames need no CPU simulation |
-| Upscaling gains shrink once the CPU becomes the limit | it only reduces rendered pixels |
 
-**Memory is modelled explicitly.** VRAM demand is estimated per game, preset and
-resolution, then compared against the card. Anything that does not fit spills
-across PCIe into system RAM, and if system RAM cannot absorb the spill either,
-the result is reported as unplayable instead of being given an optimistic
-number. An 8 GB card running a heavy title at 1440p Ultra will warn about a
-crash risk on 16 GB of RAM, and report a playable-but-badly-degraded result on
-32 GB — which is the difference a buyer actually needs to know about.
+**Memory is modelled separately.** VRAM demand is estimated per game, preset
+and resolution and compared with the card. What does not fit spills across
+PCIe into system RAM, and if system RAM cannot absorb it either the result is
+reported as unplayable rather than given an optimistic number.
 
-Accuracy is measured, not asserted. The engine is fitted against 480 recorded
-benchmark results covering resolution sweeps, GPU and CPU ladders, preset
-ladders, ray tracing, upscaling, frame generation and 8GB-vs-16GB VRAM pairs
-of the same GPU. Current standing against that set:
+**Ray tracing is per game where it has been measured.** Turning it on costs
+Far Cry 6 a factor of 1.10 in frame rate and Hitman a factor of 3.25 to 3.67
+across three independent measurements; one global multiplier cannot describe
+both. Games measured with ray tracing on and off carry their own cost, and the
+rest fall back to a global average.
 
-| Metric | Value |
-|---|---|
-| Mean absolute error | **6.5%** |
-| Systematic bias | −0.9% |
-| Within 20% of measured | 93% |
+**Hardware scores were rebuilt against published data.** The GPU ladder was
+checked against a 1440p performance hierarchy and found systematically
+compressed; the CPU scores ranked all-core throughput and were rebuilt as a
+1080p gaming index.
 
-A further 60 measurements are held out of the fit entirely — free gameplay
-rather than benchmark loops, on hardware nothing else covers — and the engine
-answers those to 26.1%. That is the number that says whether it generalises,
-so it is reported separately rather than averaged in. Predictions on
-pre-2019 graphics architectures are unvalidated, and the interface says so
-rather than presenting them at the same confidence.
+## Known limitations
 
-RTX 4090 + Ryzen 7 7800X3D in Cyberpunk 2077 at Ultra, native, no ray tracing:
+- 147 of 176 games are estimates, as above.
+- 8 of the 29 measured games have only processor-limited measurements, so
+  their graphics cost has never been tested; the interface flags this.
+- AMD graphics cards have very few measurements; laptop hardware has none.
+- Pre-2019 GPU architectures are unvalidated, and the interface says so.
+- Not modelled: MSAA, optional high-resolution texture packs, DLSS Ray
+  Reconstruction, and how much a game's cost varies between areas of the same
+  game.
 
-| Resolution | Predicted | Measured |
-|---|---|---|
-| 1080p | 142 fps | 140 fps |
-| 1440p | 117 fps | 125 fps |
-| 4K | 66 fps | 60 fps |
+The most useful single contribution is one game on one system at three
+resolutions — see [Contributing](#contributing).
 
-Hardware scores are held to the same standard. Checking the 164 GPUs against a
-published performance hierarchy found the ladder systematically compressed —
-every one of the 48 cards covered was predicted too fast relative to an
-RTX 5090 — and correcting it resolved a measurement contradiction that had been
-logged as unexplained. The 220 CPUs were worse: they ranked all-core
-throughput, so a Core Ultra 9 285K outscored a Ryzen 7 9800X3D, which is the
-reverse of how they behave in games. They are now a 1080p gaming index.
-`scripts/calibrate_gpu_scores.py` and `scripts/calibrate_cpu_scores.py` re-run
-both checks.
+## Features
 
-`scripts/validate_engine.py` reports that error on demand and
-`scripts/calibrate_engine.py` refits the constants, so a tuning change can be
-judged rather than argued about.
+- Frame-rate estimates with an expected range; for 19 games the lower bound
+  comes from that game's own measured 1%-low ratio
+- A per-game breakdown of how busy the CPU, GPU and memory are, and a
+  machine-level note when a build is lopsided, naming the smallest part that
+  would even it out
+- DLSS, FSR and XeSS upscaling, 2x/3x/4x frame generation, ray tracing and
+  path tracing, applied only where the game supports them
+- VRAM and system-RAM pressure, including spill and out-of-memory conditions
+- 222 CPUs and 164 GPUs, desktop and laptop kept separate
+- Turkish and English interface; shareable result links
 
-## ✨ Features
+![Detail panel for Cyberpunk 2077](screenshots/detail.png)
 
-### Gaming & performance
-- **FPS prediction** across 176 games, from Very Low to Extreme presets
-  (clamped per game — a title only offers the tiers it really ships)
-- **Upscaling** — DLSS, FSR and XeSS, applied to rendered pixels, with a
-  warning when the selected game does not support the chosen technology
-- **Frame generation** — 2x/3x/4x, including the VRAM cost and the GPU
-  overhead of producing the extra frames
-- **Ray tracing / path tracing** — modelled against GPU frame time and VRAM
-  separately, for the games that support each
-- **VRAM and system RAM pressure** — spill, thrashing and crash conditions
-- **Bottleneck analysis** — reports whether the CPU or the GPU binds first
+## How this project was built
 
-### Hardware database
-- **222 CPUs** — Intel Core / Core Ultra / Xeon, AMD Ryzen & Threadripper,
-  Apple Silicon, scored on 1080p gaming rather than all-core throughput
-- **164 GPUs** — NVIDIA GTX 700 through RTX 50, AMD Polaris through RDNA 4,
-  Intel Arc, plus integrated graphics
-- **176 games** — per-title CPU and GPU cost, VRAM and RAM working sets,
-  RT/PT and DLSS/FSR/XeSS support flags
-- Laptop and desktop parts are distinguished, and a laptop chip is never
-  allowed to outscore the desktop part it is named after
+PerfHub is built by two contributors, and the split is deliberate.
 
-### AI assistance
-- Hardware consulting and upgrade suggestions in Turkish or English
-- Web backend uses Google Gemini; the desktop app uses a Groq-hosted Llama
-  model
+**Süleyman Kılınç** — product direction and the measurement programme. That
+means sourcing the 577 benchmark results from published reviews and benchmark
+videos, supplying and checking them, deciding what to measure next, and using
+the site against real hardware. Several defects in the log were found that
+way: an inflated VRAM figure for Red Dead Redemption 2 traced to MSAA, upscaling
+having no effect in Assetto Corsa Competizione, laptop and desktop parts being
+mixable in one build.
 
-## 🏗️ Architecture
+**Claude (Anthropic), through Claude Code** — the code and the analysis: the
+engine and its calibration, both implementations, the web interface, the data
+scripts and the reasoning recorded in CALIBRATION.md. Commits Claude wrote carry
+a `Co-Authored-By` line.
+
+None of the accuracy claims depend on taking either of our words for it. They
+are regenerated by the scripts in `scripts/` from the recorded measurements, and
+the calibration log includes the claims that turned out to be wrong.
+
+## Architecture
 
 ```
 perfhub-ai/
-├── core/                      # Shared engine — used by both frontends
-│   ├── scoring_engine.py      # Frame-time FPS model
-│   ├── balance_config.py      # Tuning constants (calibration lives here)
-│   ├── db_manager.py          # SQLite access
-│   ├── hardware_detector.py   # WMI hardware detection (Windows only)
-│   └── ai_assistant.py        # AI integration
-├── backend/                   # FastAPI service — AI assistant only
-├── frontend/                  # React + Vite web interface
-│   └── src/engine/            # Cadence in TypeScript, runs in the browser
-│       ├── cadence.ts             # Hand-ported model
-│       ├── balance.generated.ts   # Generated from balance_config.py
-│       └── catalog.generated.json # Generated from the database
-├── data/hardware_db.sqlite    # CPU / GPU / game database
-├── scripts/
-│   ├── calibrate_gpu_scores.py   # Validate GPU scores against a reference
-│   ├── calibrate_cpu_scores.py   # Rebuild CPU scores as a gaming index
-│   ├── calibrate_engine.py       # Fit per-game costs and multipliers
-│   ├── validate_engine.py        # Benchmark accuracy harness
-│   ├── export_engine_data.py     # Push constants + catalogue to the web build
-│   └── conformance_test.py       # Prove the two engines agree
-└── modern_desktop_app.py      # PyQt6 desktop application
+├── core/                         Engine used by every front end
+│   ├── scoring_engine.py         Frame-time model
+│   ├── balance_config.py         Fitted constants
+│   ├── db_manager.py             SQLite access
+│   └── hardware_detector.py      Hardware detection for the desktop app
+├── frontend/                     React + Vite web interface
+│   └── src/engine/
+│       ├── cadence.ts            The engine, ported to TypeScript
+│       ├── balance.generated.ts  Generated from balance_config.py
+│       └── catalog.generated.json Generated from the database
+├── backend/                      FastAPI service for the chat assistant
+├── data/hardware_db.sqlite       Hardware, games and benchmark results
+└── scripts/
+    ├── validate_engine.py        Accuracy against the recorded benchmarks
+    ├── calibrate_engine.py       Fits per-game costs and multipliers
+    ├── calibrate_vram.py         Fits VRAM working sets
+    ├── calibrate_fps_low.py      Fits per-game 1%-low ratios
+    ├── export_engine_data.py     Generates the web engine's data and figures
+    ├── conformance_test.py       Checks the two engines agree
+    └── load_benchmarks_*.py      One script per batch of measurements
 ```
 
-`core/` is the single source of truth. The desktop app calls it directly; the
-website runs a TypeScript port so a prediction needs no server round trip.
+`core/` is the source of truth. The website runs a TypeScript port so that a
+prediction needs no server: the engine and a ~140 KB catalogue ship with the
+page. Two implementations can drift, so every constant and the catalogue are
+generated rather than edited by hand, and `scripts/conformance_test.py` runs
+both engines over 4,384 generated cases and fails on any difference across 16
+output fields.
 
-Two implementations can drift, so the split is deliberate: every constant and
-the whole catalogue are **generated** from the Python source and never edited
-by hand, which leaves only the model logic hand-written — and
-`scripts/conformance_test.py` runs both over ~25,000 cases and fails on any
-disagreement, down to the warning strings. It caught a real one during the
-port: Python rounds half to even and `Math.round` does not, so a frame rate
-landing exactly on a half disagreed by one.
-
-## 🚀 Running locally
-
-### Backend + web frontend
+## Running locally
 
 ```bash
 git clone https://github.com/SuleymanKilincc/perfhub-ai.git
 cd perfhub-ai
 
-# Backend (http://localhost:8000)
-pip install -r backend/requirements.txt
-uvicorn backend.main:app --reload
-
-# Frontend (http://localhost:3000), in a second terminal
+# Web interface (http://localhost:3000)
 cd frontend
 npm install
 npm run dev
 ```
 
-Set `VITE_API_URL` in `frontend/.env` to point the interface at a different
-backend — see `frontend/.env.example`.
+The prediction engine needs nothing else. The chat assistant on the previous
+interface (`/classic.html`) needs the backend and a `GEMINI_API_KEY`:
 
-AI features need a `GEMINI_API_KEY` environment variable. Never commit keys to
-the repository; the `.gitignore` blocks the usual filenames.
+```bash
+pip install -r backend/requirements.txt
+uvicorn backend.main:app --reload
+```
 
-### Desktop application
+To check or refit the model:
 
-Requires Windows — hardware detection uses WMI.
+```bash
+python scripts/validate_engine.py            # accuracy report
+python scripts/calibrate_engine.py --apply   # refit costs and multipliers
+python scripts/export_engine_data.py         # regenerate the web data
+python scripts/conformance_test.py           # confirm both engines agree
+```
+
+## Desktop application
+
+A Windows build with automatic hardware detection calls the same `core/`
+engine; its interface predates the current website. Requires Windows, since
+detection uses WMI.
 
 ```bash
 pip install -r backend/requirements.txt
 pip install PyQt6 wmi pywin32
-python modern_desktop_app.py     # or: start_desktop.bat
+python modern_desktop_app.py
 ```
 
-Prebuilt releases are on the
-[Releases page](https://github.com/SuleymanKilincc/perfhub-ai/releases).
-Windows will show an "Unknown publisher" warning for unsigned builds —
-choose **More info → Run anyway**.
+Builds are on the [Releases page](https://github.com/SuleymanKilincc/perfhub-ai/releases).
+They are unsigned, so Windows shows an "Unknown publisher" warning.
 
-## 🔬 Improving accuracy
+## Contributing
 
-Twenty-nine of the 176 games have cost profiles fitted to real measurements. The
-rest still carry values derived from the previous model and blended with genre
-priors — reasonable starting points, not measurements — so the accuracy figure
-above describes the measured set rather than the whole catalog.
+Measurements are worth as much as code. The most useful one is a single game on
+a single system at 1080p, 1440p and 4K — that is what separates a game's CPU
+cost from its GPU cost. Useful details: the exact CPU and GPU (including the
+memory variant), RAM, preset, upscaling mode, whether frame generation and ray
+tracing were on, and whether the numbers come from the game's built-in
+benchmark or from free play. [CALIBRATION.md](CALIBRATION.md) lists what is
+most needed.
 
-```bash
-python scripts/validate_engine.py          # report mean error
-python scripts/validate_engine.py --add    # record a measurement
-python scripts/calibrate_vram.py --apply   # fit VRAM working sets
-python scripts/calibrate_engine.py --apply # fit costs and multipliers
-```
-
-The most valuable single contribution is one game on one system across all
-three resolutions: that is the only thing that separates a game's CPU cost
-from its GPU cost. See [CALIBRATION.md](CALIBRATION.md) for current standing,
-known gaps and what is worth measuring next.
-
-## 🤝 Contributing
-
-Contributions are welcome. Benchmark measurements are as useful as code —
-every verified anchor makes the model measurably better.
-
-## 📝 License
+## License
 
 MIT — see [LICENSE](LICENSE).
 
-## 👨‍💻 Author
+## Author
 
-**Süleyman Kılınç**
-- Website: [suleymankilinc.com](https://suleymankilinc.com)
-- GitHub: [@SuleymanKilincc](https://github.com/SuleymanKilincc)
-
-## 📸 Screenshots
-
-### Dashboard
-![Dashboard](screenshots/dashboard.png)
-
-### FPS Prediction
-![FPS Prediction](screenshots/results.png)
+Süleyman Kılınç — [suleymankilinc.com](https://suleymankilinc.com) ·
+[@SuleymanKilincc](https://github.com/SuleymanKilincc)

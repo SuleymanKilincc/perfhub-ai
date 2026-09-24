@@ -18,7 +18,7 @@ export const strings = {
     brand: "Performans",
     navGaming: "Oyun", navGamingHint: "FPS tahmini",
     navWorkstation: "İş istasyonu", navWorkstationHint: "Render, derleme",
-    engineFoot: (m: number, e: string) => `Cadence 1.0\n${m} ölçüm · %${e} hata`,
+    engineFoot: (m: number, e: string) => `Cadence 1.0\n${m} benchmark · %${e} hata`,
 
     buildTitleA: "Donanımını seç,",
     buildTitleB: (n: number) => `${n} oyunun kaç kare vereceğini gör.`,
@@ -93,10 +93,10 @@ export const strings = {
       "maliyeti hiç sınanmadı. Yüksek çözünürlükte ve upscaling ile bu " +
       "oyunun sayıları güvenilmez.",
     estimatedBadge: "Tahmin — bu oyun ölçülmedi",
-    estimatedExplain:
+    estimatedExplain: (m: number, d: number) =>
       "Bu oyunun maliyet profili ölçülmedi, benzer oyunlardan türetildi. " +
-      "Ölçülen oyunlarda motor %6 hatayla çalışıyor; türetilmiş profillerde " +
-      "aynı test %52 sapma gösterdi.",
+      `Ölçülen oyunlarda motor %${Math.round(m)} hatayla çalışıyor; türetilmiş ` +
+      `profillerde aynı test %${Math.round(d)} sapma gösterdi.`,
     bottleneckLine: (b: string, vram: number, q: string) =>
       `${b} sınırlı · ${vram} GB VRAM · ${q}`,
     loadCpu: "CPU", loadGpu: "GPU", loadMem: "BELLEK",
@@ -127,7 +127,7 @@ export const strings = {
     brand: "Performance",
     navGaming: "Gaming", navGamingHint: "Frame rate estimates",
     navWorkstation: "Workstation", navWorkstationHint: "Render, compile",
-    engineFoot: (m: number, e: string) => `Cadence 1.0\n${m} measurements · ${e}% error`,
+    engineFoot: (m: number, e: string) => `Cadence 1.0\n${m} benchmarks · ${e}% error`,
 
     buildTitleA: "Pick your hardware,",
     buildTitleB: (n: number) => `see what ${n} games will run at.`,
@@ -201,10 +201,10 @@ export const strings = {
       "cost was never tested. At high resolution and with upscaling, this " +
       "game's numbers are not reliable.",
     estimatedBadge: "Estimate — this game has not been measured",
-    estimatedExplain:
+    estimatedExplain: (m: number, d: number) =>
       "This game's cost profile was derived from similar titles rather than " +
-      "measured. On measured games the engine runs at 6% mean error; on " +
-      "derived profiles the same test showed 52%.",
+      `measured. On measured games the engine runs at ${Math.round(m)}% mean ` +
+      `error; on derived profiles the same test showed ${Math.round(d)}%.`,
     bottleneckLine: (b: string, vram: number, q: string) =>
       `${b}-limited · ${vram} GB VRAM · ${q}`,
     loadCpu: "CPU", loadGpu: "GPU", loadMem: "MEMORY",

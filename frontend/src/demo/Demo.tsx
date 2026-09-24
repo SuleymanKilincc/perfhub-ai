@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { cpus, gpus, games, predictAll } from "../engine/catalog";
+import { cpus, gpus, games, predictAll, stats } from "../engine/catalog";
 import { estimateFpsDetailed, getFgOptions } from "../engine/cadence";
 import { LEGACY_GPU_ARCHITECTURES } from "../engine/balance.generated";
 import type { CPUData, GPUData } from "../types";
@@ -318,7 +318,9 @@ function Sidebar({ mobile, section, onSection, lang, onLang, onHome }: {
         <div style={{
           fontFamily: "var(--mono)", fontSize: 12, color: "var(--text-3)", lineHeight: 1.8,
         }}>
-          {t.engineFoot(106, "9.0").split("\n").map((line, i) => (
+          {/* Measured at export time, not typed in: this line read "106
+              measurements · 9.0% error" for months after both had moved. */}
+          {t.engineFoot(stats.fitted_rows, stats.fitted_error_pct.toFixed(1)).split("\n").map((line, i) => (
             <span key={i}>{line}<br /></span>
           ))}
         </div>
@@ -1236,8 +1238,9 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
               {t.detailTargetLine(game.genre, !!game.competitive, target)}
             </div>
             {/* The single most important thing on this panel: whether the big
-                number below is worth trusting. Measured rows sit at 8.9% mean
-                error, derived ones were 49.2% out against the same set. */}
+                number below is worth trusting. The gap between measured and
+                derived profiles is roughly an order of magnitude; the current
+                figures are in `stats`, measured at export time. */}
             <div style={{
               marginTop: 10, display: "inline-flex", alignItems: "center", gap: 7,
               fontSize: 12.5, borderRadius: 8, padding: "6px 10px",
@@ -1297,7 +1300,7 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
               fontSize: 12.5, color: "var(--text-3)", marginTop: 12,
               maxWidth: 330, marginLeft: "auto", marginRight: "auto", lineHeight: 1.55,
             }}>
-              {t.estimatedExplain}
+              {t.estimatedExplain(stats.measured_error_pct, stats.derived_error_pct)}
             </div>
           )}
         </div>

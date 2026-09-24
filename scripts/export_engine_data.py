@@ -109,6 +109,77 @@ def export_balance():
     return path, len(names)
 
 
+def engine_stats(conn):
+    """The accuracy figures the interface quotes, measured at export time.
+
+    They used to be typed into the interface by hand, and every one of them
+    went stale: the footer claimed 106 measurements at 9.0% error long after
+    the set had grown past 570, and the note under an unmeasured game quoted
+    9% and 49% after both had moved. A number written by hand is a claim about
+    the day it was written. Computing it here ties it to the same data the
+    catalogue ships with, so the two cannot disagree.
+
+    Two figures, measured two ways, because they answer different questions:
+
+      fitted_error_pct    mean error per row over the benchmark rows the fit
+                          uses — the headline accuracy on measured games
+      derived_error_pct   leave-one-game-out: every measured game in turn has
+                          its profile thrown away and re-derived the way an
+                          unmeasured game's is, then scored against its own
+                          rows. Averaged per game, alongside measured_error_pct
+                          on the same per-game basis so the pair is comparable.
+    """
+    import statistics
+    from migrate_game_profiles import (BLEND_K, DEFAULT_CPU_RATIO,
+                                       GENRE_CPU_RATIO, _solve_cpu_gpu_ratio)
+
+    games = {g["name"]: dict(g) for g in db_manager.get_all_games()}
+    cpus = {c["name"]: c for c in db_manager.get_all_cpus()}
+    gpus = {g["name"]: g for g in db_manager.get_all_gpus()}
+    fitted = [dict(r) for r in conn.execute(
+        "SELECT * FROM benchmarks WHERE COALESCE(scene,'benchmark')='benchmark'"
+        " AND COALESCE(texture_pack,0)=0 AND COALESCE(ray_reconstruction,0)=0")]
+
+    def err(row, game):
+        p = se.estimate_fps(
+            cpus[row["cpu"]], gpus[row["gpu"]], game, row["resolution"],
+            row["settings"], row["upscaling"], row["frame_gen"], row["ram_gb"],
+            ray_tracing=bool(row["ray_tracing"]),
+            path_tracing=bool(row["path_tracing"]))
+        return abs(p - row["fps_avg"]) / row["fps_avg"] * 100
+
+    def derived(g):
+        r1 = g["res_1080p_scaling"] or 1.0
+        n4 = (g["res_4k_scaling"] or 0.25) / r1
+        total = (g["difficulty_multiplier"] or 1.0) / r1
+        prior = GENRE_CPU_RATIO.get(g["genre"], DEFAULT_CPU_RATIO)
+        w = 0.85 if n4 <= 0.27 else 0.70
+        ratio = _solve_cpu_gpu_ratio(n4) * (1 - w) + prior * w
+        gpu = total / ((ratio ** BLEND_K + 1.0) ** (1.0 / BLEND_K))
+        out = dict(g)
+        out.update(gpu_cost=gpu, cpu_cost=gpu * ratio, rt_gpu_mult=None)
+        return out
+
+    per_row, meas_g, der_g = [], [], []
+    for name in sorted({r["game"] for r in fitted}):
+        rs = [r for r in fitted if r["game"] == name]
+        e_fit = [err(r, games[name]) for r in rs]
+        per_row += e_fit
+        meas_g.append(statistics.mean(e_fit))
+        d = derived(games[name])
+        der_g.append(statistics.mean(err(r, d) for r in rs))
+
+    total_rows = conn.execute("SELECT COUNT(*) FROM benchmarks").fetchone()[0]
+    return {
+        "measurements": total_rows,
+        "fitted_rows": len(per_row),
+        "fitted_error_pct": round(statistics.mean(per_row), 1),
+        "measured_games": len(meas_g),
+        "measured_error_pct": round(statistics.mean(meas_g), 1),
+        "derived_error_pct": round(statistics.mean(der_g), 1),
+    }
+
+
 def export_catalog():
     conn = db_manager.get_connection()
     conn.row_factory = sqlite3.Row
@@ -122,10 +193,7 @@ def export_catalog():
 
     # How many benchmark rows stand behind each game. This is the difference
     # between a row the interface can state with confidence and one it should
-    # hedge: measured games sit at 8.9% mean error, and the derived costs the
-    # rest carry were 49.2% out when tested against the same measurements.
-    # Presenting both in the same weight would be dishonest, so the count ships
-    # with the catalogue and the UI marks the difference.
+    # hedge, so the count ships with the catalogue and the UI marks it.
     measured = {r["game"]: r["n"] for r in conn.execute(
         "SELECT game, COUNT(*) AS n FROM benchmarks GROUP BY game")}
 
@@ -137,6 +205,7 @@ def export_catalog():
         "cpus": rows("cpus", CPU_COLUMNS),
         "gpus": rows("gpus", GPU_COLUMNS),
         "games": games,
+        "stats": engine_stats(conn),
     }
     conn.close()
 

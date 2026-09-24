@@ -11,8 +11,9 @@ context.
 |---|---|
 | Engine | Cadence 1.0 |
 | Measurements in `benchmarks` table | 577 (491 fitted, 86 held out) |
-| Mean absolute error | **6.8%** fitted, **31.4%** gameplay, **44.3%** texture-pack, **18.5%** ray-reconstruction |
-| Systematic bias | −0.2% fitted, +12.3% gameplay |
+| Mean absolute error | **6.9%** fitted, **32.0%** gameplay, **44.3%** texture-pack, **16.9%** ray-reconstruction |
+| Systematic bias | +0.1% fitted, +13.3% gameplay |
+| Derived profiles, leave-one-game-out | **51.5%** per game, against 6.5% for the same games fitted |
 | Within 10% of measured | 80% |
 | Within 20% of measured | 94% |
 | Run-to-run noise | **1.1%** (one repeated configuration) |
@@ -70,18 +71,21 @@ Three findings worth remembering:
 
 ## Games with calibrated cost profiles
 
-Twenty-one of the catalog's 175 games now have `gpu_cost`, `cpu_cost` and
-`vram_base_gb` fitted to measurements. The remaining ~154 still carry values
-derived from the old model's hand-tuned scalings, or in one case an openly
-stated guess, and should be treated as rough — the accuracy figure above applies to the measured set, not to the
-whole catalog.
+Twenty-nine of the catalog's 176 games have measurements behind them. The
+remaining 147 carry values derived from the old model's hand-tuned scalings
+and genre priors, and measured leave-one-game-out that derivation is 51.5%
+out per game — the accuracy figure above applies to the measured set, not to
+the whole catalog. Eight of the 29 are measured on one axis only: every row is
+processor-limited, so their graphics cost is still a prior (gap 6e).
 
-A Plague Tale: Requiem · Alan Wake 2 · Baldur's Gate 3 · Black Myth: Wukong ·
-Cities: Skylines II · Counter-Strike 2 · Cyberpunk 2077 · Elden Ring ·
-Far Cry 6 · Forza Horizon 5 · Forza Horizon 6 · Grand Theft Auto V Enhanced ·
+A Plague Tale: Requiem · Alan Wake 2 · Assetto Corsa Competizione ·
+Baldur's Gate 3 · Battlefield 6 · Black Myth: Wukong · Cities: Skylines II ·
+Counter-Strike 2 · Cyberpunk 2077 · Elden Ring · Far Cry 6 ·
+Forza Horizon 5 · Forza Horizon 6 · Grand Theft Auto V Enhanced · Hitman 3 ·
 Hogwarts Legacy · Kingdom Come: Deliverance 2 · Microsoft Flight Simulator ·
-Red Dead Redemption 2 · Resident Evil Requiem · Starfield ·
-The Last of Us Part I & II · Valorant
+Red Dead Redemption 2 · Remnant II · Resident Evil Requiem · Starfield ·
+Star Wars Jedi: Survivor · Star Wars Outlaws · The Last of Us Part I & II ·
+Valorant · Warhammer 40K: Space Marine 2 · Watch Dogs Legion
 
 ## VRAM: working set vs allocation
 
