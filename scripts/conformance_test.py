@@ -45,7 +45,7 @@ RAM_SIZES = [8, 16, 24, 32, 64]
 # longer fails the run. `warnings` stays in the list because the desktop app
 # reads it and the two renderers have to agree character for character.
 FIELDS = ["fps", "fps_low", "fps_low_measured", "capped_fps", "rendered_fps",
-          "status", "bottleneck", "gpu_load", "cpu_load", "mem_load",
+          "status", "bottleneck", "gpu_load", "cpu_load", "vram_load", "ram_load", "mem_load",
           "vram_needed_gb", "vram_alloc_gb", "vram_available_gb", "quality",
           "notes", "warnings"]
 

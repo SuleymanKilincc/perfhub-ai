@@ -1,3 +1,4 @@
+import { compatible } from './demo/lib'
 import type { CPUData, GPUData, FPSParams } from './types'
 import type { Translations } from './i18n'
 
@@ -43,7 +44,10 @@ function SystemBuilder({
             onChange={(e) => onSelectCpu(cpus.find((c) => c.name === e.target.value) ?? null)}
           >
             <option value="">{t.cpuPlaceholder}</option>
-            {cpus.map((cpu) => (
+            {/* Same rule as the main builder: see compatible() in demo/lib.ts.
+                This list used to offer every part, so an Apple M4 Max with an
+                RTX 4090 was one click away here too. */}
+            {cpus.filter((c) => c.form_factor !== 'apple' && (!selectedGpu || compatible(c, selectedGpu))).map((cpu) => (
               <option key={cpu.name} value={cpu.name}>
                 {cpu.name} ({cpu.power_score.toFixed(0)})
               </option>
@@ -60,7 +64,7 @@ function SystemBuilder({
             onChange={(e) => onSelectGpu(gpus.find((g) => g.name === e.target.value) ?? null)}
           >
             <option value="">{t.gpuPlaceholder}</option>
-            {gpus.map((gpu) => (
+            {gpus.filter((g) => !selectedCpu || compatible(selectedCpu, g)).map((gpu) => (
               <option key={gpu.name} value={gpu.name}>
                 {gpu.name} ({gpu.power_score.toFixed(0)}{gpu.vram ? `, ${gpu.vram}GB` : ''})
               </option>

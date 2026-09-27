@@ -41,6 +41,7 @@ export const strings = {
     nativeRes: "Kapalı",
     upscalingLevel: "UPSCALING KALİTESİ",
     upsLevel: {
+      "DLAA": "DLAA (yerli)",
       "Quality": "Kalite",
       "Balanced": "Dengeli",
       "Performance": "Performans",
@@ -99,7 +100,8 @@ export const strings = {
       `profillerde aynı test %${Math.round(d)} sapma gösterdi.`,
     bottleneckLine: (b: string, vram: number, q: string) =>
       `${b} sınırlı · ${vram} GB VRAM · ${q}`,
-    loadCpu: "CPU", loadGpu: "GPU", loadMem: "BELLEK",
+    loadCpu: "CPU", loadGpu: "GPU", loadMem: "BELLEK", loadVram: "VRAM", loadRam: "RAM",
+    noRtGpu: "Bu ekran kartında ışın izleme donanımı yok",
     balanceBanner: (side: string, pct: number, n: number, res: string) =>
       `Bu sistemde ${res} çözünürlükte ölçülmüş ${n} oyunun %${pct}'inde sınırı ` +
       `${side} koyuyor — makine dengesiz.`,
@@ -151,6 +153,7 @@ export const strings = {
     nativeRes: "Off",
     upscalingLevel: "UPSCALING QUALITY",
     upsLevel: {
+      "DLAA": "DLAA (native)",
       "Quality": "Quality",
       "Balanced": "Balanced",
       "Performance": "Performance",
@@ -207,7 +210,8 @@ export const strings = {
       `error; on derived profiles the same test showed ${Math.round(d)}%.`,
     bottleneckLine: (b: string, vram: number, q: string) =>
       `${b}-limited · ${vram} GB VRAM · ${q}`,
-    loadCpu: "CPU", loadGpu: "GPU", loadMem: "MEMORY",
+    loadCpu: "CPU", loadGpu: "GPU", loadMem: "MEMORY", loadVram: "VRAM", loadRam: "RAM",
+    noRtGpu: "This graphics card has no ray-tracing hardware",
     balanceBanner: (side: string, pct: number, n: number, res: string) =>
       `At ${res}, the ${side} sets the limit in ${pct}% of the ${n} measured ` +
       `games on this system — the machine is lopsided.`,
@@ -263,6 +267,12 @@ export function renderNote(note: Note, lang: Lang): string {
       case "upscaling_unsupported":
         return "This game does not support the selected upscaling technology; " +
           "it was calculated at native resolution.";
+      case "upscaling_unsupported_gpu":
+        return "DLSS runs only on NVIDIA RTX cards, so this was calculated at " +
+          "native resolution. FSR and XeSS run on any card.";
+      case "rt_unsupported_gpu":
+        return "This graphics card has no ray-tracing hardware; it was " +
+          "calculated without ray tracing.";
       case "few_cores":
         return `This processor has ${note.cores} cores. Some current engines ` +
           `want more than four threads and fall behind what the score implies ` +
@@ -316,6 +326,12 @@ export function renderNote(note: Note, lang: Lang): string {
     case "upscaling_unsupported":
       return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
         "native çözünürlükte hesaplandı.";
+    case "upscaling_unsupported_gpu":
+      return "DLSS yalnızca NVIDIA RTX kartlarda çalışır; bu kart için " +
+        "native çözünürlükte hesaplandı. FSR veya XeSS her kartta çalışır.";
+    case "rt_unsupported_gpu":
+      return "Bu ekran kartında ışın izleme donanımı yok; ışın izlemesiz " +
+        "hesaplandı.";
     case "few_cores":
       return `Bu işlemcinin ${note.cores} çekirdeği var. Bazı yeni oyun ` +
         `motorları dörtten fazla iş parçacığı istiyor ve orada puanın ima ` +

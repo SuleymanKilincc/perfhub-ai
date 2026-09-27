@@ -88,6 +88,8 @@ export type Note =
   | { code: "unplayable"; overflow_gb: number; ram_gb: number; suggested_ram_gb: number }
   | { code: "ram_cramped"; ram_gb: number; suggested_ram_gb: number }
   | { code: "upscaling_unsupported" }
+  | { code: "upscaling_unsupported_gpu" }
+  | { code: "rt_unsupported_gpu" }
   | { code: "legacy_gpu"; architecture: string }
   | { code: "form_factor_mismatch"; cpu_form: string; gpu_form: string }
   | { code: "few_cores"; cores: number }
@@ -103,6 +105,8 @@ export type Estimate = {
   bottleneck: "CPU" | "GPU";
   gpu_load: number;
   cpu_load: number;
+  vram_load: number;
+  ram_load: number;
   mem_load: number;
   vram_needed_gb: number;
   vram_alloc_gb: number;
@@ -175,6 +179,23 @@ export function getFgOptions(gpuName: string): string[] {
     }
   }
   return options;
+}
+
+// Radeon RX 6000 and later (RDNA 2+) have ray-tracing hardware.
+const AMD_RT = /\bRX\s*[6-9]\d{3}/;
+
+/**
+ * What a graphics card can switch on, decided from its name. Mirrors
+ * gpu_features() in scoring_engine.py — the interface uses it to decide what
+ * to offer, and the engine uses it so a request it cannot honour (DLSS on a
+ * Radeon, ray tracing on a GTX) renders without the feature instead of being
+ * answered as if it ran.
+ */
+export function gpuFeatures(gpuName: string | undefined): { dlss: boolean; rt: boolean } {
+  if (!gpuName) return { dlss: true, rt: true };
+  const n = gpuName.toUpperCase();
+  const rtx = n.includes("RTX");
+  return { dlss: rtx, rt: rtx || AMD_RT.test(n) || n.includes("ARC") };
 }
 
 // ─── FPS estimation ──────────────────────────────────────────────────────────
@@ -251,7 +272,11 @@ function resolveQuality(settings: string, game: Game): string {
   return order[Math.max(lo, Math.min(hi, i))];
 }
 
-function upscalingProfile(upscaling: string, game: Game) {
+type Blocked = "game" | "gpu" | null;
+
+function upscalingProfile(
+  upscaling: string, game: Game, features: { dlss: boolean; rt: boolean } | null,
+): { scale: number; passCost: number; blocked: Blocked } {
   const up = (upscaling || "native").toLowerCase();
 
   // Matches Python's dict.get(key, 1): a column that is present but NULL means
@@ -261,8 +286,14 @@ function upscalingProfile(upscaling: string, game: Game) {
     fsr: game.supports_fsr === undefined ? 1 : game.supports_fsr,
     xess: game.supports_xess === undefined ? 0 : game.supports_xess,
   };
-  const tech = ["dlss", "fsr", "xess"].find((t) => up.includes(t)) ?? null;
-  if (tech && !supports[tech]) return { scale: 1.0, passCost: 0.0, active: false };
+  // DLAA is a DLSS mode and needs what DLSS needs.
+  const tech = up.includes("dlaa")
+    ? "dlss"
+    : ["dlss", "fsr", "xess"].find((t) => up.includes(t)) ?? null;
+  if (tech && !supports[tech]) return { scale: 1.0, passCost: 0.0, blocked: "game" };
+  if (tech === "dlss" && features !== null && !features.dlss) {
+    return { scale: 1.0, passCost: 0.0, blocked: "gpu" };
+  }
 
   let scale = 1.0;
   for (const [keyword, value] of Object.entries(asRecord<number>(bc.UPSCALING_RENDER_SCALE))) {
@@ -273,13 +304,13 @@ function upscalingProfile(upscaling: string, game: Game) {
   }
 
   if (scale >= 1.0 && !up.includes("dlaa")) {
-    return { scale: 1.0, passCost: 0.0, active: true }; // native, no upscaler
+    return { scale: 1.0, passCost: 0.0, blocked: null }; // native, no upscaler
   }
 
   const costKey = up.includes("dlaa") ? "dlaa" : tech ?? "dlss";
   const passCost =
     asRecord<number>(bc.UPSCALING_PASS_COST_MS)[costKey] ?? bc.DEFAULT_UPSCALING_PASS_COST_MS;
-  return { scale, passCost, active: true };
+  return { scale, passCost, blocked: null };
 }
 
 function frameTimes(
@@ -422,6 +453,12 @@ export function renderNote(note: Note): string {
     case "upscaling_unsupported":
       return "Bu oyun seçilen upscaling teknolojisini desteklemiyor; " +
         "native çözünürlükte hesaplandı.";
+    case "upscaling_unsupported_gpu":
+      return "DLSS yalnızca NVIDIA RTX kartlarda çalışır; bu kart için " +
+        "native çözünürlükte hesaplandı. FSR veya XeSS her kartta çalışır.";
+    case "rt_unsupported_gpu":
+      return "Bu ekran kartında ışın izleme donanımı yok; ışın izlemesiz " +
+        "hesaplandı.";
     case "few_cores":
       return `Bu işlemcinin ${note.cores} çekirdeği var. Bazı yeni oyun ` +
         `motorları dörtten fazla iş parçacığı istiyor ve orada puanın ima ` +
@@ -459,16 +496,21 @@ export function estimateFpsDetailed(
   rayTracing = false,
   pathTracing = false,
 ): Estimate {
-  const { cpuScore, cpuForm, cpuCores, gpuScore, vram, gpuArch, gpuForm } =
+  const { cpuScore, cpuForm, cpuCores, gpuScore, gpuName, vram, gpuArch, gpuForm } =
     extractHardware(cpuData, gpuData);
   const { gpuCost, cpuCost, vramBase, ramBase } = gameProfile(game);
+  const features = gpuFeatures(gpuName);
 
   const quality = resolveQuality(settings, game);
 
-  const pt = Boolean(pathTracing) && Boolean(game.supports_pt);
-  const rt = Boolean(rayTracing) && Boolean(game.supports_rt);
+  // The game has to ship it and the card has to have the hardware for it.
+  let pt = Boolean(pathTracing) && Boolean(game.supports_pt);
+  let rt = Boolean(rayTracing) && Boolean(game.supports_rt);
+  const rtBlocked = (rt || pt) && !features.rt;
+  if (rtBlocked) rt = pt = false;
 
-  const { scale: renderScale, passCost, active: upscaleActive } = upscalingProfile(upscaling, game);
+  const { scale: renderScale, passCost, blocked: upscaleBlocked } =
+    upscalingProfile(upscaling, game, features);
   const fgMode = frameGenMode in asRecord<number>(bc.FG_OUTPUT_MULTIPLIER) ? frameGenMode : null;
 
   const { ftGpu, ftCpu } = frameTimes(
@@ -486,7 +528,9 @@ export function estimateFpsDetailed(
     ? renderedFps * (asRecord<number>(bc.FG_OUTPUT_MULTIPLIER)[fgMode] ?? 1.0)
     : renderedFps;
 
-  if (!upscaleActive) notes.push({ code: "upscaling_unsupported" });
+  if (upscaleBlocked === "game") notes.push({ code: "upscaling_unsupported" });
+  else if (upscaleBlocked === "gpu") notes.push({ code: "upscaling_unsupported_gpu" });
+  if (rtBlocked) notes.push({ code: "rt_unsupported_gpu" });
 
   // No measurement exists on this architecture. See
   // LEGACY_GPU_ARCHITECTURES for why no correction is applied.
@@ -541,8 +585,13 @@ export function estimateFpsDetailed(
     cpu_load: pyRound(Math.min(ftCpu / blendFrameTime(ftGpu, ftCpu), 1.0), 3),
     // Memory is not on the same axis: it does not share the frame, it fits or
     // it does not. Above 1.0 the game wants more than the card has.
+    // VRAM and system RAM are separate limits with separate bars; sharing one
+    // at the larger of the two kept it still on 16 GB while VRAM moved.
+    vram_load: pyRound(vramNeeded / Math.max(vram, 1), 3),
+    ram_load: pyRound((ramBase + bc.OS_RAM_RESERVE_GB) / Math.max(ramGb, 1), 3),
     mem_load: pyRound(
-      Math.max(vramNeeded / Math.max(vram, 1), ramBase / Math.max(ramGb, 1)), 3),
+      Math.max(vramNeeded / Math.max(vram, 1),
+        (ramBase + bc.OS_RAM_RESERVE_GB) / Math.max(ramGb, 1)), 3),
     vram_needed_gb: pyRound(vramNeeded, 1),
     vram_alloc_gb: pyRound(vramAllocation(vramNeeded, vram), 1),
     vram_available_gb: vram,

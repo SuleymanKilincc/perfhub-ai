@@ -715,6 +715,28 @@ wrong is worth more than a list of what works.
    bug was found: every offered pair enumerated (0 of 19,775 impossible), with
    the same check run against the old filters as a positive control to prove
    it would have caught them.
+15. **The same class, one level down: features the card cannot run.** Neither
+   the interface nor the engine checked the graphics card before applying a
+   feature. DLSS was offered on 106 of the 164 cards — every Radeon, every
+   GTX, every integrated chip — across the 127 games that ship it, and ray
+   tracing on 59 cards with no ray-tracing hardware, across 63 games. The
+   engine answered as if the feature ran: an RX 7800 XT with DLSS Quality came
+   back faster than at native. `gpu_features()` now decides it in both engines
+   (DLSS: NVIDIA RTX; ray tracing: RTX, Radeon RX 6000+, Intel Arc); a request
+   the card cannot honour renders without the feature and says why. DLAA had
+   the same hole in a smaller way — matched by keyword it counted as no
+   technology at all and ran in games without DLSS — and is now treated as the
+   DLSS mode it is, which is also where the interface now puts it.
+   The memory bar had a quieter flaw: VRAM and system RAM shared one bar drawn
+   at the larger of the two, and on the default 16 GB the RAM side usually
+   won, so the bar stood still while resolution moved VRAM underneath it.
+   They are separate bars now, and RAM counts the operating system's share as
+   the spill model always did.
+   The previous interface at `/classic.html` had never filtered its part lists
+   at all; it now uses the same `compatible()`. Conformance covers the new
+   branches — 1,385 cases ask a non-RTX card for DLSS and 848 ask a card
+   without ray-tracing hardware for it — and breaking the TypeScript side on
+   purpose makes 1,088 of 4,384 cases diverge.
 
 ## Closed
 

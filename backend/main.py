@@ -192,6 +192,8 @@ def get_games_fps(req: FPSRequest):
                 # pick keys by name and are unaffected.
                 "gpu_load": estimate["gpu_load"],
                 "cpu_load": estimate["cpu_load"],
+                "vram_load": estimate["vram_load"],
+                "ram_load": estimate["ram_load"],
                 "mem_load": estimate["mem_load"],
                 "vram_needed_gb": estimate["vram_needed_gb"],
                 "warnings": estimate["warnings"],

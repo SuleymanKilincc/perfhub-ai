@@ -29,6 +29,8 @@ card's capacity; anything that does not fit spills across PCIe into system
 RAM, which is slow, and if system RAM cannot absorb the spill either the game
 is reported as unplayable rather than given an optimistic number.
 """
+import re
+
 from core import balance_config as bc
 
 ENGINE_NAME = "Cadence"
@@ -190,6 +192,33 @@ def get_fg_options(gpu_name: str) -> list:
     return options
 
 
+# Radeon RX 6000 and later (RDNA 2+) have ray-tracing hardware; RX 5000 and
+# earlier do not. Four digits after "RX", starting 6-9.
+_AMD_RT = re.compile(r"\bRX\s*[6-9]\d{3}")
+
+
+def gpu_features(gpu_name):
+    """What a graphics card can switch on, decided from its name.
+
+    Nothing checked this, so the engine answered for configurations that
+    cannot exist: DLSS was offered on 106 of the 164 cards — every Radeon,
+    every GTX, every integrated chip — across the 127 games that ship it, and
+    ray tracing on 59 cards that have no ray-tracing hardware. The frame rate
+    came back as if the feature were running.
+
+        dlss   NVIDIA RTX only (20-series onward, desktop and laptop)
+        rt     NVIDIA RTX, Radeon RX 6000 and later, Intel Arc
+
+    A card given without a name (a bare score) is not restricted, since there
+    is nothing to decide from.
+    """
+    if not gpu_name:
+        return {"dlss": True, "rt": True}
+    n = gpu_name.upper()
+    rtx = "RTX" in n
+    return {"dlss": rtx, "rt": rtx or bool(_AMD_RT.search(n)) or "ARC" in n}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  FPS ESTIMATION
 # ─────────────────────────────────────────────────────────────────────────────
@@ -272,14 +301,15 @@ def _resolve_quality(settings, game):
     return order[max(lo, min(hi, i))]
 
 
-def _upscaling_profile(upscaling, game):
+def _upscaling_profile(upscaling, game, features=None):
     """
-    Returns (render_scale, pass_cost_ms, active).
+    Returns (render_scale, pass_cost_ms, blocked_by).
 
-    `active` is False when the game doesn't support the requested technology,
-    in which case it renders natively — the old engine's behaviour of bailing
-    out of the whole calculation at that point (skipping frame generation and
-    RAM effects entirely) was a bug, not a feature.
+    `blocked_by` is None when the requested upscaler runs, "game" when the
+    game does not ship it and "gpu" when the card cannot run it (DLSS off an
+    RTX card). Either way the frame renders natively — the old engine's
+    behaviour of bailing out of the whole calculation at that point (skipping
+    frame generation and RAM effects entirely) was a bug, not a feature.
     """
     up = (upscaling or "native").lower()
 
@@ -288,9 +318,14 @@ def _upscaling_profile(upscaling, game):
         "fsr": game.get("supports_fsr", 1),
         "xess": game.get("supports_xess", 0),
     }
-    tech = next((t for t in ("dlss", "fsr", "xess") if t in up), None)
+    # DLAA is a DLSS mode, so it needs what DLSS needs. Checked by keyword
+    # alone it matched none of the three and ran in games without DLSS.
+    tech = "dlss" if "dlaa" in up else next(
+        (t for t in ("dlss", "fsr", "xess") if t in up), None)
     if tech and not supports[tech]:
-        return 1.0, 0.0, False
+        return 1.0, 0.0, "game"
+    if tech == "dlss" and features is not None and not features["dlss"]:
+        return 1.0, 0.0, "gpu"
 
     scale = 1.0
     for keyword, value in bc.UPSCALING_RENDER_SCALE.items():
@@ -299,11 +334,11 @@ def _upscaling_profile(upscaling, game):
             break
 
     if scale >= 1.0 and "dlaa" not in up:
-        return 1.0, 0.0, True          # native, no upscaler running
+        return 1.0, 0.0, None          # native, no upscaler running
 
     cost_key = "dlaa" if "dlaa" in up else (tech or "dlss")
     pass_cost = bc.UPSCALING_PASS_COST_MS.get(cost_key, bc.DEFAULT_UPSCALING_PASS_COST_MS)
-    return scale, pass_cost, True
+    return scale, pass_cost, None
 
 
 def _rt_gpu_mult(game):
@@ -502,6 +537,12 @@ def _render_note(note):
     if c == "upscaling_unsupported":
         return ("Bu oyun seçilen upscaling teknolojisini desteklemiyor; "
                 "native çözünürlükte hesaplandı.")
+    if c == "upscaling_unsupported_gpu":
+        return ("DLSS yalnızca NVIDIA RTX kartlarda çalışır; bu kart için "
+                "native çözünürlükte hesaplandı. FSR veya XeSS her kartta çalışır.")
+    if c == "rt_unsupported_gpu":
+        return ("Bu ekran kartında ışın izleme donanımı yok; ışın izlemesiz "
+                "hesaplandı.")
     if c == "few_cores":
         return (f"Bu işlemcinin {note['cores']} çekirdeği var. Bazı yeni oyun "
                 f"motorları dörtten fazla iş parçacığı istiyor ve orada puanın "
@@ -542,17 +583,24 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
         vram_needed_gb   estimated VRAM working set
         warnings         human-readable notes for the UI
     """
-    (cpu_score, _, cpu_form, cpu_cores, gpu_score, _, vram, gpu_arch,
+    (cpu_score, _, cpu_form, cpu_cores, gpu_score, gpu_name, vram, gpu_arch,
      gpu_form) = _extract_hardware(cpu_data, gpu_data)
     gpu_cost, cpu_cost, vram_base, ram_base = _game_profile(game)
+    features = gpu_features(gpu_name)
 
     quality = _resolve_quality(settings, game)
 
-    # Ray tracing only applies where the game supports it.
+    # Ray tracing only applies where the game supports it — and where the card
+    # has the hardware for it. A GTX 1080 asked for ray tracing used to come
+    # back with a ray-traced frame rate; now it renders without, and says so.
     path_tracing = bool(path_tracing) and bool(game.get("supports_pt", 0))
     ray_tracing = bool(ray_tracing) and bool(game.get("supports_rt", 0))
+    rt_blocked = (ray_tracing or path_tracing) and not features["rt"]
+    if rt_blocked:
+        ray_tracing = path_tracing = False
 
-    render_scale, upscale_pass_ms, upscale_active = _upscaling_profile(upscaling, game)
+    render_scale, upscale_pass_ms, upscale_blocked = _upscaling_profile(
+        upscaling, game, features)
     fg_mode = frame_gen_mode if frame_gen_mode in bc.FG_OUTPUT_MULTIPLIER else None
 
     ft_gpu, ft_cpu = _frame_times(
@@ -571,8 +619,12 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
     # is most effective exactly when the CPU is the limit.
     fps = rendered_fps * bc.FG_OUTPUT_MULTIPLIER.get(fg_mode, 1.0) if fg_mode else rendered_fps
 
-    if not upscale_active:
+    if upscale_blocked == "game":
         notes.append({"code": "upscaling_unsupported"})
+    elif upscale_blocked == "gpu":
+        notes.append({"code": "upscaling_unsupported_gpu"})
+    if rt_blocked:
+        notes.append({"code": "rt_unsupported_gpu"})
 
     # No measurement exists on this architecture. See
     # LEGACY_GPU_ARCHITECTURES for why no correction is applied.
@@ -632,8 +684,17 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
         # Memory is a third limiter and does not belong on the same axis: it
         # does not share the frame, it either fits or it does not. Above 1.0
         # the game wants more than the card has.
+        # Video memory and system memory are separate limits and get separate
+        # bars. They used to share one, drawn at whichever was larger, and on
+        # the builder's default 16 GB the RAM side usually won — Cyberpunk's
+        # 8 GB reads 50% whatever the resolution — so the bar stood still
+        # while the settings that move VRAM changed underneath it. RAM counts
+        # the operating system's share too, as the spill model already does.
+        "vram_load": round(vram_needed / max(vram, 1), 3),
+        "ram_load": round((ram_base + bc.OS_RAM_RESERVE_GB) / max(ram_gb, 1), 3),
+        # Kept for callers that read one memory figure: the larger of the two.
         "mem_load": round(max(vram_needed / max(vram, 1),
-                              ram_base / max(ram_gb, 1)), 3),
+                              (ram_base + bc.OS_RAM_RESERVE_GB) / max(ram_gb, 1)), 3),
         # What a frame needs, versus what the game will reserve on this card.
         "vram_needed_gb": round(vram_needed, 1),
         "vram_alloc_gb": round(_vram_allocation(vram_needed, vram), 1),

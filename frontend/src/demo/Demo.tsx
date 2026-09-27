@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { cpus, gpus, games, predictAll, stats } from "../engine/catalog";
-import { estimateFpsDetailed, getFgOptions } from "../engine/cadence";
+import { estimateFpsDetailed, getFgOptions, gpuFeatures } from "../engine/cadence";
 import { LEGACY_GPU_ARCHITECTURES } from "../engine/balance.generated";
 import type { CPUData, GPUData } from "../types";
 import {
@@ -615,16 +615,24 @@ function Builder(p: {
  * model charges ray tracing a flat 1.08x on the processor and that game's
  * costs far more.
  *
- * Memory is a third bar and not a third slice: it does not share the frame,
- * it either fits or it does not, so it is scaled against the card's capacity
- * and turns red when the game wants more than there is.
+ * Memory is not a slice of the frame: it either fits or it does not, so it is
+ * scaled against capacity and turns red when the game wants more than there
+ * is. Video memory and system memory are separate bars. They used to share
+ * one, drawn at whichever was larger, and on the default 16 GB the RAM side
+ * usually won and the bar stood still while resolution moved VRAM under it.
+ *
+ * Integrated graphics have no video memory of their own — the engine assumes
+ * a figure for them — so that bar is left out rather than drawn from a guess.
  */
-function LoadBars(p: { t: Strings; gpu: number; cpu: number; mem: number }) {
+function LoadBars(p: {
+  t: Strings; gpu: number; cpu: number; vram: number; ram: number; showVram: boolean;
+}) {
   const { t } = p;
   const bars = [
     { key: "CPU", label: t.loadCpu, v: p.cpu },
     { key: "GPU", label: t.loadGpu, v: p.gpu },
-    { key: "MEM", label: t.loadMem, v: p.mem },
+    ...(p.showVram ? [{ key: "VRAM", label: t.loadVram, v: p.vram }] : []),
+    { key: "RAM", label: t.loadRam, v: p.ram },
   ];
   return (
     <div title={t.loadHint} style={{
@@ -1210,20 +1218,27 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
   // DLSS mode on every game, so Valorant — which has no upscaler at all —
   // appeared to support DLSS Performance. The engine handled it correctly and
   // computed at native, but the interface was lying about the game.
+  // And only what this card can run. DLSS was offered on every Radeon, GTX and
+  // integrated chip — 106 of the 164 cards — and the engine answered as if it
+  // ran. DLAA is a DLSS mode, so it lives in DLSS's second row rather than
+  // beside it as if it were a fourth technology.
+  const feats = gpuFeatures(gpu.name);
   const techs: string[] = ["Native"];
-  if (game.supports_dlss) techs.push("DLAA", "DLSS");
+  if (game.supports_dlss && feats.dlss) techs.push("DLSS");
   if (game.supports_fsr) techs.push("FSR");
   if (game.supports_xess) techs.push("XeSS");
-  // DLSS, FSR and XeSS all ship the same four tiers. Native and DLAA render at
-  // full resolution, so a tier means nothing for them.
+  // DLSS, FSR and XeSS share the same four scaling tiers; DLSS adds DLAA,
+  // which renders at full resolution with DLSS's anti-aliasing.
   const LEVELS = ["Quality", "Balanced", "Performance", "Ultra Performance"];
-  const scaled = upsTech !== "Native" && upsTech !== "DLAA";
-  const ups = scaled ? `${upsTech} ${upsLevel}` : upsTech;
+  const levels = upsTech === "DLSS" ? ["DLAA", ...LEVELS] : LEVELS;
+  const level = levels.includes(upsLevel) ? upsLevel : "Quality";
+  const scaled = upsTech !== "Native";
+  const ups = !scaled ? "Native" : level === "DLAA" ? "DLAA" : `${upsTech} ${level}`;
 
   // Frame generation needs both a card that can do it and a game that ships
-  // it. DLSS 3 and FSR 3 frame generation come with their respective
-  // upscalers, so the game side is keyed off those.
-  const gameHasFg = !!(game.supports_dlss || game.supports_fsr);
+  // it. DLSS 3 frame generation needs DLSS in the game and an RTX card; FSR 3
+  // frame generation needs FSR in the game and runs on the rest.
+  const gameHasFg = !!((feats.dlss && game.supports_dlss) || game.supports_fsr);
   const fgOptions = gameHasFg ? getFgOptions(gpu.name) : ["Kapalı"];
   // "Kapalı" stays the value the engine sees; only the label is translated.
   const fgLabel = (x: string) => (x === "Kapalı" ? t.fgOff : x);
@@ -1318,7 +1333,8 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
           <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 7 }}>
             {t.bottleneckLine(r.bottleneck, r.vram_needed_gb, r.quality)}
           </div>
-          <LoadBars t={t} gpu={r.gpu_load} cpu={r.cpu_load} mem={r.mem_load} />
+          <LoadBars t={t} gpu={r.gpu_load} cpu={r.cpu_load}
+            vram={r.vram_load} ram={r.ram_load} showVram={!!gpu.vram} />
           {!measured && (
             <div style={{
               fontSize: 12.5, color: "var(--text-3)", marginTop: 12,
@@ -1348,8 +1364,8 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
               </Field>
               {scaled && (
                 <Field label={t.upscalingLevel}>
-                  <Segmented value={upsLevel} onChange={setUpsLevel}
-                    options={LEVELS.map((x) => ({ value: x, label: t.upsLevel[x] }))} />
+                  <Segmented value={level} onChange={setUpsLevel}
+                    options={levels.map((x) => ({ value: x, label: t.upsLevel[x] }))} />
                 </Field>
               )}
             </>
@@ -1368,9 +1384,16 @@ function Detail({ game, cpu, gpu, ram, resolution, preset, mobile, onClose }: {
             />
           )}
           <div style={{ display: "flex", gap: 12 }}>
-            <Toggle on={rt} disabled={!game.supports_rt} onClick={() => setRt(!rt)} label={t.rayTracing} />
-            <Toggle on={pt} disabled={!game.supports_pt} onClick={() => setPt(!pt)} label={t.pathTracing} />
+            <Toggle on={rt && feats.rt} disabled={!game.supports_rt || !feats.rt}
+              onClick={() => setRt(!rt)} label={t.rayTracing} />
+            <Toggle on={pt && feats.rt} disabled={!game.supports_pt || !feats.rt}
+              onClick={() => setPt(!pt)} label={t.pathTracing} />
           </div>
+          {!feats.rt && (game.supports_rt || game.supports_pt) ? (
+            <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: -6 }}>
+              {t.noRtGpu}
+            </div>
+          ) : null}
           {/* Which features a game ships is checked for 27 of the 176. For the
               rest these switches are showing a derivation, and a greyed-out
               toggle looks exactly as certain as a verified one — which is how

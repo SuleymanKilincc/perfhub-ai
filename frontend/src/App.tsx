@@ -1,3 +1,4 @@
+import { compatible } from './demo/lib'
 import { useState } from 'react'
 import type { CPUData, GPUData, GameData, FPSParams } from './types'
 import { getTranslation, type Language } from './i18n'
@@ -83,8 +84,8 @@ function App() {
                                 ramGb={ramGb}
                                 fpsParams={fpsParams}
                                 t={t}
-                                onSelectCpu={setSelectedCpu}
-                                onSelectGpu={setSelectedGpu}
+                                onSelectCpu={(c) => { setSelectedCpu(c); if (c && selectedGpu && !compatible(c, selectedGpu)) setSelectedGpu(null) }}
+                                onSelectGpu={(g) => { setSelectedGpu(g); if (g && selectedCpu && !compatible(selectedCpu, g)) setSelectedCpu(null) }}
                                 onRamChange={setRamGb}
                                 onFpsParamsChange={setFpsParams}
                                 onCalculate={handleCalculate}
