@@ -698,6 +698,23 @@ wrong is worth more than a list of what works.
    explaining the trap the other two were falling into.
    Worth naming the general shape: a message that never changes is not
    verification, and this one was reassuring for months.
+14. **A fixed bug that came back through the exceptions.** Mixing laptop and
+   desktop parts was reported and fixed with a machine-type toggle. It was
+   reported again: an Apple M4 Max with an RTX 4090 Laptop. The toggle worked;
+   two exceptions let parts through it regardless — Apple chips were offered in
+   both modes, and integrated graphics beside every processor. Enumerating
+   every pair the builder could offer found 3,790 impossible ones out of
+   23,565: 2,890 Apple pairings (the catalogue holds no Apple GPU, so every one
+   was wrong), 570 AMD processors with Intel integrated graphics, 330
+   integrated parts in the wrong machine type. The machine-level upgrade
+   suggestion had the same flaw one step removed, drawing from every part with
+   a higher score, so it could name a laptop card for a desktop or suggest a
+   swap in a laptop, where nothing can be swapped.
+   One `compatible(cpu, gpu)` in `frontend/src/demo/lib.ts` now serves both
+   pickers, shared links and the suggestion. The fix was checked the way the
+   bug was found: every offered pair enumerated (0 of 19,775 impossible), with
+   the same check run against the old filters as a positive control to prove
+   it would have caught them.
 
 ## Closed
 

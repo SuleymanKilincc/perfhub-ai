@@ -3,7 +3,10 @@ import { cpus, gpus, games, predictAll, stats } from "../engine/catalog";
 import { estimateFpsDetailed, getFgOptions } from "../engine/cadence";
 import { LEGACY_GPU_ARCHITECTURES } from "../engine/balance.generated";
 import type { CPUData, GPUData } from "../types";
-import { targetFps, verdict, searchGames, VERDICT_COLOR, VERDICT_KEY, type Verdict } from "./lib";
+import {
+  targetFps, verdict, searchGames, VERDICT_COLOR, VERDICT_KEY, type Verdict,
+  compatible, cpuChoices, gpuChoices, partForm,
+} from "./lib";
 import Picker from "./Picker";
 import useIsMobile from "./useIsMobile";
 import { LangContext, strings, useT, renderNote, type Lang, type Strings } from "./i18n";
@@ -35,16 +38,26 @@ export default function Demo() {
   const t = strings[lang];
   const [section, setSection] = useState<"gaming" | "workstation">("gaming");
 
-  const [cpu, setCpu] = useState<CPUData | null>(
-    () => cpus.find((c) => c.name === initial.cpu) ?? null);
-  const [gpu, setGpu] = useState<GPUData | null>(
-    () => gpus.find((g) => g.name === initial.gpu) ?? null);
+  // A shared link is checked like a click is: if it names a pair that cannot
+  // exist in one machine (an old link, or one typed by hand), the builder opens
+  // asking for the missing part instead of answering for a computer nobody
+  // owns. An Apple chip is dropped outright (none is offered for gaming); of a
+  // mismatched pair, the processor is kept and the card dropped.
+  const [initialPair] = useState(() => {
+    const found = cpus.find((x) => x.name === initial.cpu) ?? null;
+    const c = found?.form_factor === "apple" ? null : found;
+    const g = gpus.find((x) => x.name === initial.gpu) ?? null;
+    return { c, g: c && g && !compatible(c, g) ? null : g };
+  });
+  const [cpu, setCpu] = useState<CPUData | null>(initialPair.c);
+  const [gpu, setGpu] = useState<GPUData | null>(initialPair.g);
   const [ram, setRam] = useState(initial.ram ?? 16);
   // Desktop by default: every one of the 577 measurements is on desktop
   // hardware, so it is both the common case and the only validated one.
-  const [form, setForm] = useState(
-    () => gpus.find((g) => g.name === initial.gpu)?.form_factor === "laptop"
-      ? "laptop" : "desktop");
+  const [form, setForm] = useState(() => {
+    const p = initialPair.c ?? initialPair.g;
+    return p && partForm(p, !initialPair.c) === "laptop" ? "laptop" : "desktop";
+  });
   const [resolution, setResolution] = useState(initial.res ?? "1440p");
   const [preset, setPreset] = useState(initial.preset ?? "High");
   const [phase, setPhase] = useState<Phase>(cpu && gpu ? "results" : "build");
@@ -115,10 +128,20 @@ export default function Demo() {
    */
   const fix = useMemo(() => {
     if (!balance || !cpu || !gpu) return null;
+    // A laptop's processor and graphics are soldered to the board, so there
+    // is no part to swap and naming one would be advice nobody can follow.
+    // The diagnosis still shows; the suggestion does not.
+    if (cpu.form_factor !== "desktop") return null;
     const measuredGames = games.filter((g) => (g.measurements ?? 0) > 0);
     if (!measuredGames.length) return null;
     const upgradingCpu = balance.side === "CPU";
-    const pool = (upgradingCpu ? cpus : gpus)
+    // Only parts that fit the half being kept. The pool used to be every part
+    // in the catalogue with a higher score, which could name a laptop card or
+    // an Apple chip as the upgrade for a desktop. Integrated graphics are
+    // never an upgrade you can buy.
+    const pool = (upgradingCpu
+      ? cpus.filter((c) => compatible(c, gpu))
+      : gpus.filter((g) => g.form_factor !== "integrated" && compatible(cpu, g)))
       .filter((p) => p.power_score > (upgradingCpu ? cpu.power_score : gpu.power_score))
       .sort((a, b) => a.power_score - b.power_score);
     if (!pool.length) return null;
@@ -192,7 +215,9 @@ export default function Demo() {
               <Builder
                 cpu={cpu} gpu={gpu} ram={ram} resolution={resolution} preset={preset}
                 form={form} onForm={(v) => { setForm(v); setCpu(null); setGpu(null); }}
-                onCpu={setCpu} onGpu={setGpu} onRam={setRam}
+                onCpu={(c) => { setCpu(c); if (c && gpu && !compatible(c, gpu)) setGpu(null); }}
+                onGpu={(g) => { setGpu(g); if (g && cpu && !compatible(cpu, g)) setCpu(null); }}
+                onRam={setRam}
                 onResolution={setResolution} onPreset={setPreset}
                 ready={ready} total={games.length} mobile={mobile}
                 onSubmit={() => setPhase("results")}
@@ -504,8 +529,9 @@ function Builder(p: {
               cannot exist — both kinds of part are soldered to their boards.
               Asking once, up front, prevents the mistake instead of explaining
               it afterwards, and it says why the list is the length it is.
-              Apple chips appear in both, since the M-series ships in laptops
-              and desktops alike. */}
+              Each list also narrows to what fits the part already chosen in
+              the other; see compatible() in lib.ts for why Apple chips and
+              integrated graphics needed more than the toggle. */}
           <Field label={t.machineType}>
             <Segmented
               value={p.form} onChange={p.onForm}
@@ -517,8 +543,7 @@ function Builder(p: {
           </Field>
           <Field label={t.cpu}>
             <Picker
-              items={cpus
-                .filter((c) => c.form_factor === p.form || c.form_factor === "apple")
+              items={cpuChoices(cpus, p.form, p.gpu)
                 .map((c) => ({ value: c.name, label: c.name, meta: String(c.power_score) }))}
               value={p.cpu?.name ?? ""}
               onChange={(v) => p.onCpu(cpus.find((c) => c.name === v) ?? null)}
@@ -528,8 +553,7 @@ function Builder(p: {
           </Field>
           <Field label={t.gpu}>
             <Picker
-              items={gpus
-                .filter((g) => g.form_factor === p.form || g.form_factor === "integrated")
+              items={gpuChoices(gpus, p.form, p.cpu)
                 .map((g) => ({
                   value: g.name, label: g.name,
                   meta: `${g.power_score}${g.vram ? ` · ${g.vram}GB` : ""}`,

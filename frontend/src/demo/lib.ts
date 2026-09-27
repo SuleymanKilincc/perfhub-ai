@@ -1,7 +1,55 @@
 /**
- * Frame-rate targets and search.
+ * Frame-rate targets, search, and which parts can share a machine.
  */
 import { games } from "../engine/catalog";
+import type { CPUData, GPUData } from "../types";
+
+// ─── Which parts can exist together ──────────────────────────────────────────
+//
+// The builder used to filter each list on its own: a desktop/laptop toggle for
+// discrete cards, and two exceptions let through everywhere — Apple chips and
+// integrated graphics. Both exceptions produced machines that do not exist.
+//
+//   Apple M-series. The graphics are part of the chip, and the catalogue holds
+//   no Apple GPU, so every card it could be paired with was wrong: an M4 Max
+//   with an RTX 4090 Laptop was one click away. Most of the catalogue's games
+//   do not run on macOS either. So Apple chips are not offered for gaming at
+//   all; the honest alternative, an Apple GPU entry, would need measurements
+//   of games that mostly cannot be measured on a Mac.
+//
+//   Integrated graphics. All six are Intel, and they were offered beside every
+//   processor — a Ryzen 7 7800X3D with Intel UHD 770 — and in both modes, when
+//   Iris is a laptop part and UHD 770/730/630 are desktop parts.
+//
+// One function answers the question so both pickers, the URL loader and the
+// upgrade suggestion cannot disagree about it.
+
+const vendor = (name: string) =>
+  /^intel/i.test(name) ? "intel" : /^amd/i.test(name) ? "amd" : /^apple/i.test(name) ? "apple" : "other";
+
+/** Where an integrated GPU lives: Iris in laptops, UHD in desktops. */
+export const igpuForm = (g: GPUData) => (/iris/i.test(g.name) ? "laptop" : "desktop");
+
+/** The machine type a part belongs to, as the builder's toggle means it. */
+export const partForm = (p: CPUData | GPUData, isGpu: boolean) =>
+  isGpu && p.form_factor === "integrated" ? igpuForm(p as GPUData) : p.form_factor;
+
+/** Whether this processor and this graphics card can be in one computer. */
+export function compatible(cpu: CPUData, gpu: GPUData): boolean {
+  if (cpu.form_factor === "apple") return false;
+  if (gpu.form_factor === "integrated") {
+    return vendor(cpu.name) === "intel" && igpuForm(gpu) === cpu.form_factor;
+  }
+  return gpu.form_factor === cpu.form_factor;
+}
+
+/** Processors the builder offers for a machine type, given the chosen card. */
+export const cpuChoices = (all: CPUData[], form: string, gpu: GPUData | null) =>
+  all.filter((c) => c.form_factor === form && (!gpu || compatible(c, gpu)));
+
+/** Graphics cards the builder offers for a machine type, given the chosen processor. */
+export const gpuChoices = (all: GPUData[], form: string, cpu: CPUData | null) =>
+  all.filter((g) => partForm(g, true) === form && (!cpu || compatible(cpu, g)));
 
 /**
  * What "enough frames" means, per game.
