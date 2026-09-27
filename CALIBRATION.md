@@ -10,10 +10,10 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 577 (491 fitted, 86 held out) |
-| Mean absolute error | **6.9%** fitted, **32.0%** gameplay, **44.3%** texture-pack, **16.9%** ray-reconstruction |
-| Systematic bias | +0.1% fitted, +13.3% gameplay |
-| Derived profiles, leave-one-game-out | **51.5%** per game, against 6.5% for the same games fitted |
+| Measurements in `benchmarks` table | 611 (525 fitted, 86 held out) |
+| Mean absolute error | **6.8%** fitted, **30.7%** gameplay, **44.3%** texture-pack, **17.9%** ray-reconstruction |
+| Systematic bias | −0.2% fitted, +9.8% gameplay |
+| Derived profiles, leave-one-game-out | **52.3%** per game, against 6.4% for the same games fitted |
 | Within 10% of measured | 80% |
 | Within 20% of measured | 94% |
 | Run-to-run noise | **1.1%** (one repeated configuration) |
@@ -42,8 +42,8 @@ Fitted in `core/balance_config.py` from the batches noted below.
 | `VRAM_SPILL_SEVERITY` | 2.6 | 0.50 | 8GB vs 16GB pairs |
 | `VRAM_SPILL_FLOOR` | 0.22 | 0.80 | 8GB vs 16GB pairs |
 | `RT_GPU_COST_MULT` | 1.80 | 1.70 | 7 RT on/off pairs, Extreme presets held out |
-| `PT_GPU_COST_MULT` | 3.10 | 3.54 | 2 rows, both Cyberpunk 2077, PT on and off |
-| `FG_GPU_OVERHEAD` | .22/.31/.38 | .40/.76/1.12 | GTA V Enhanced 2x/3x/4x ladder |
+| `PT_GPU_COST_MULT` | 3.10 | 3.76 | 2 rows, both Cyberpunk 2077, PT on and off |
+| `FG_GPU_OVERHEAD` | .22/.31/.38 | .45/.81/1.17 | GTA V Enhanced 2x/3x/4x ladder |
 | `games.rt_gpu_mult` | — | 2.92 / 1.68 | per game, where RT was measured on and off |
 
 `rt_gpu_mult` is NULL for 174 of the 176 games and they read `RT_GPU_COST_MULT`.
@@ -378,7 +378,13 @@ Open items. All are visible in the validation output; none are hidden.
    the CPU and pins the CPU cost well, while every row sits against the
    processor — so the GPU cost is never tested and arrives from the genre prior
    wearing a "n=28" label.
-   Seven games have no GPU-bound row at all: Assetto Corsa Competizione,
+   Battlefield 6 left the list in batch 20: 34 GPU-bound rows from a
+   17-card comparison moved its `gpu_cost` from the prior's 1.50 to a fitted
+   1.00 and its own error from 19.7% to 6.0%. The prior had it a third too
+   heavy — an RTX 5090 at 1440p was predicted at 105 fps against 192 — and
+   NVIDIA and AMD cards were off by the same amount, which is what a wrong
+   game cost looks like as opposed to wrong card scores. Five games remain.
+   At the time of the audit, seven games had no GPU-bound row at all: Assetto Corsa Competizione,
    Battlefield 6, Remnant II, Star Wars Jedi: Survivor, The Last of Us Part II,
    Valorant, Watch Dogs Legion. Six more rest on three rows or fewer —
    A Plague Tale: Requiem 2/30, Counter-Strike 2 3/38, Hitman 3 3/28, Hogwarts
@@ -849,6 +855,15 @@ sub-option, the preset name — and they cannot round a number or invent a range
 The two guards that batch still needed were of a different kind: a "Min FPS"
 that is neither a minimum nor a 1% low, and a denoiser the model has no term
 for. Where a game has an internal benchmark, ask for the result screens.
+
+**Never load a dense chart through an AI summary.** Batch 20's video came with
+a Gemini summary of a 43-card chart, and it was fabricated in ways that only
+show when checked against the chart itself: two cards that are in the video
+were missing, another appeared twice with different numbers, and its
+1%-low/average ratio held at 0.77 for eleven rows before falling in even
+steps, where real rows wander between 0.71 and 0.83. Summaries are usable for
+a handful of numbers spoken or shown one at a time. For bar charts, take
+screenshots and read them directly.
 
 ## Tools
 
