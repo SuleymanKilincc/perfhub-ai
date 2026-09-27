@@ -55,7 +55,8 @@ def main(apply_changes):
     gpus = {g["name"]: g for g in db_manager.get_all_gpus()}
     rows = [dict(r) for r in cur.execute(
         "SELECT * FROM benchmarks WHERE COALESCE(scene,'benchmark')='benchmark'"
-        " AND COALESCE(texture_pack,0)=0 AND COALESCE(ray_reconstruction,0)=0")]
+        " AND COALESCE(texture_pack,0)=0 AND COALESCE(ray_reconstruction,0)=0"
+        " AND COALESCE(vram_limited,0)=0")]
 
     per = {}
     for r in rows:

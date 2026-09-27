@@ -60,7 +60,8 @@ def main(apply_changes):
         "  SUM(CASE WHEN ray_tracing=0 AND path_tracing=0 THEN 1 ELSE 0 END) AS off_n"
         " FROM benchmarks"
         " WHERE COALESCE(scene,'benchmark')='benchmark' AND COALESCE(texture_pack,0)=0"
-        "   AND COALESCE(ray_reconstruction,0)=0 AND frame_gen='Kapalı'"
+        "   AND COALESCE(ray_reconstruction,0)=0 AND COALESCE(vram_limited,0)=0"
+        "   AND frame_gen='Kapalı'"
         " GROUP BY game HAVING on_n > 0 AND off_n > 0 ORDER BY game"))
     print(f"\n  isin izleme acik VE kapali olculmus {len(rows)} oyun:")
     for r in rows:

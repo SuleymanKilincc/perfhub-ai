@@ -448,7 +448,7 @@ def add_new_gpus():
         ("NVIDIA GeForce RTX 5070", 12, 2512, 1400, "Blackwell", 82.0),
         ("NVIDIA GeForce RTX 5060 Ti", 8, 2338, 1400, "Blackwell", 72.0),
         ("NVIDIA GeForce RTX 5060", 8, 2460, 1400, "Blackwell", 65.0),
-        ("NVIDIA GeForce RTX 5050", 6, 2507, 1400, "Blackwell", 55.0),
+        ("NVIDIA GeForce RTX 5050", 8, 2507, 1400, "Blackwell", 55.0),
         # RX 9000 series desktop
         ("AMD Radeon RX 9070 XT", 16, 2970, 2000, "RDNA 4", 90.0),
         ("AMD Radeon RX 9070", 16, 2502, 2000, "RDNA 4", 85.0),

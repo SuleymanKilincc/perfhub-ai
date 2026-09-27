@@ -42,6 +42,13 @@ MIN_RT_ROWS_FOR_OWN = 3
 # games with no ray-tracing measurement of their own, so it should change only
 # on evidence spanning more than one title.
 MIN_RT_ROWS_FOR_GLOBAL = 4
+# Preset pairs — the same card, system and resolution at two presets, both
+# GPU-bound — a game needs before it gets its own preset spread, and how many
+# different cards they must come from. One card at two presets is one
+# observation of the spread seen through one card's quirks.
+MIN_PRESET_PAIRS = 4
+MIN_PRESET_CARDS = 3
+PRESET_EXP_RANGE = (0.30, 1.60)
 
 
 def load():
@@ -53,7 +60,7 @@ def load():
     # Free-gameplay rows measure a different thing — see
     # scripts/migrate_measurement_kind.py — so they are held out of every fit
     # and used only to check it.
-    # Three exclusions, for the same reason: a row that uses something the model
+    # Four exclusions, for the same reason: a row that uses something the model
     # cannot represent should not set the model's numbers. Free gameplay
     # measures a different quantity than a benchmark loop; an optional
     # high-resolution texture pack changes a game's memory footprint in a way
@@ -61,11 +68,15 @@ def load():
     # rows, which is why it read -31% against an ordinary install; and DLSS Ray
     # Reconstruction replaces the denoiser with something whose cost we have
     # never measured, which matters most on exactly the path-traced rows that
-    # PT_GPU_COST_MULT is fitted from.
+    # PT_GPU_COST_MULT is fitted from. The fourth is rows where the card ran
+    # out of memory: an 8 GB RTX 3070 tying a 12 GB RTX 3060 in Battlefield 6
+    # at Overkill says nothing about the game's GPU cost and everything about
+    # the VRAM model, which is where validate_engine.py reports them.
     rows = [dict(r) for r in conn.execute(
         "SELECT * FROM benchmarks WHERE COALESCE(scene, 'benchmark') = 'benchmark'"
         " AND COALESCE(texture_pack, 0) = 0"
-        " AND COALESCE(ray_reconstruction, 0) = 0")]
+        " AND COALESCE(ray_reconstruction, 0) = 0"
+        " AND COALESCE(vram_limited, 0) = 0")]
     conn.close()
 
     # A genre with no prior silently becomes 1.0, which is indistinguishable
@@ -271,14 +282,107 @@ def fit_game_costs(rows, games, cpus, gpus, verbose=True, use_all_rows=False):
     return fitted
 
 
+def preset_pairs(rs, games, cpus, gpus):
+    """GPU-bound rows of one game that differ only in preset.
+
+    Grouped by everything else a row varies in, source included, so two
+    sources measuring different places in a game never pair up as if a preset
+    had caused their difference.
+    """
+    groups = defaultdict(dict)
+    for r in rs:
+        if r["ray_tracing"] or r["path_tracing"] or r["frame_gen"] != "Kapalı":
+            continue
+        d = se.estimate_fps_detailed(
+            cpus[r["cpu"]], gpus[r["gpu"]], games[r["game"]], r["resolution"],
+            r["settings"], r["upscaling"], r["frame_gen"], r["ram_gb"])
+        if d["bottleneck"] != "GPU":
+            continue
+        k = (r["cpu"], r["gpu"], r["resolution"], r["upscaling"], r["source"],
+             r.get("location"))
+        groups[k][r["settings"]] = r
+    # The spread applies above High only, so only pairs reaching above High
+    # can say anything about it.
+    above = {"Ultra", "Extreme"}
+    return [(k, s) for k, s in groups.items() if len(s) >= 2 and above & set(s)]
+
+
+def fit_preset_spread(rows, games, cpus, gpus, fitted):
+    """Give a game its own preset spread where its measurements show one.
+
+    The spread and the GPU cost are searched together. Fitting them in turn
+    was the first version and it stalls: the two trade off along a diagonal —
+    a smaller spread wants a larger cost — so each step, taken with the other
+    held still, moves them only a little. On Battlefield 6 it stopped at 0.74
+    with every 1080p High row still reading 23% fast. The CPU cost is held
+    where stage 1 put it: the spread does not touch the CPU term, and the
+    processor ladder has already pinned it.
+    """
+    own = {}
+    by_game = defaultdict(list)
+    for r in rows:
+        by_game[r["game"]].append(r)
+    for name, rs in sorted(by_game.items()):
+        pairs = preset_pairs(rs, games, cpus, gpus)
+        n_pairs = sum(len(s) - 1 for _, s in pairs)
+        cards = {k[1] for k, _ in pairs}
+        if n_pairs < MIN_PRESET_PAIRS or len(cards) < MIN_PRESET_CARDS:
+            continue
+        g = games[name]
+        before = err(rs, games, cpus, gpus)
+        lo, hi = PRESET_EXP_RANGE
+        weights = config_weights(rs)
+        gc0 = g["gpu_cost"]
+        search = None
+        for v in frange(lo, hi, 0.02):
+            g["preset_gpu_exp"] = v
+            for gc in frange(round(gc0 * 0.5, 2), round(gc0 * 2.0, 2), 0.05):
+                g["gpu_cost"] = gc
+                e = sum(w * abs(predict(r, games, cpus, gpus) - r["fps_avg"]) / r["fps_avg"]
+                        for r, w in zip(rs, weights))
+                if search is None or e < search[0]:
+                    search = (e, v, gc)
+        _, best, g["gpu_cost"] = search
+        g["preset_gpu_exp"] = best
+        if name in fitted:
+            fitted[name] = (g["gpu_cost"], g["cpu_cost"], *fitted[name][2:])
+        after = err(rs, games, cpus, gpus)
+        # Same rule as the frame-generation stage: a value on the edge of its
+        # range is the search running out of room, not a measurement.
+        if best <= lo + 1e-9 or best >= hi - 1e-9:
+            print(f"    {name[:30]:30s} preset_gpu_exp {best:.2f} arama sinirinda — "
+                  "benimsenmedi")
+            g["preset_gpu_exp"] = None
+            g["gpu_cost"] = gc0
+            if name in fitted:
+                fitted[name] = (gc0, g["cpu_cost"], *fitted[name][2:])
+            continue
+        own[name] = best
+        print(f"    {name[:30]:30s} preset_gpu_exp = {best:.2f}   ({n_pairs} cift, "
+              f"{len(cards)} kart; {before:5.1f}% -> {after:5.1f}%, "
+              f"gpu={g['gpu_cost']:.2f} cpu={g['cpu_cost']:.2f})")
+    if not own:
+        print("    (yeterli preset cifti olan oyun yok)")
+    return own
+
+
 def main(apply_changes):
     games, cpus, gpus, rows = load()
+    # A game's spread is refitted from scratch every run, like its costs.
+    for g in games.values():
+        g["preset_gpu_exp"] = None
 
     print("=== BASLANGIC ===")
     print(f"  {len(rows)} olcum, ortalama hata {err(rows, games, cpus, gpus):5.1f}%")
 
     print("\n=== ASAMA 1: oyun maliyet profilleri ===")
     fitted = fit_game_costs(rows, games, cpus, gpus)
+    print(f"  -> toplam hata: {err(rows, games, cpus, gpus):5.1f}%")
+
+    print("\n=== ASAMA 1b: oyuna ozel preset yayilimi ===")
+    baseline = [r for r in rows if not r["ray_tracing"] and not r["path_tracing"]
+                and r["frame_gen"] == "Kapalı" and r["upscaling"] in ("Native", "DLAA")]
+    preset_own = fit_preset_spread(baseline, games, cpus, gpus, fitted)
     print(f"  -> toplam hata: {err(rows, games, cpus, gpus):5.1f}%")
 
     # Path tracing first: those rows also have ray_tracing set, so fitting RT
@@ -472,6 +576,15 @@ def main(apply_changes):
     if apply_changes:
         conn = db_manager.get_connection()
         cur = conn.cursor()
+        if "preset_gpu_exp" not in {r[1] for r in cur.execute("PRAGMA table_info(games)")}:
+            cur.execute("ALTER TABLE games ADD COLUMN preset_gpu_exp REAL")
+            print("  yeni sutun: games.preset_gpu_exp REAL")
+        # Cleared and rewritten, so a game that loses its evidence loses its
+        # override instead of keeping a stale one.
+        cur.execute("UPDATE games SET preset_gpu_exp=NULL")
+        for name, v in preset_own.items():
+            cur.execute("UPDATE games SET preset_gpu_exp=? WHERE name=?",
+                        (round(v, 4), name))
         for name, (gc, cc, *_rest) in fitted.items():
             cur.execute("UPDATE games SET gpu_cost=?, cpu_cost=? WHERE name=?",
                         (round(gc, 4), round(cc, 4), name))

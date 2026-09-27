@@ -50,6 +50,8 @@ export type Game = {
   fps_low_measured?: number | null;
   // A game's own ray-tracing cost; null falls back to the global average.
   rt_gpu_mult?: number | null;
+  // Exponent on the preset's GPU multiplier; null reads the common ladder.
+  preset_gpu_exp?: number | null;
   // 0 when every benchmark row for this game is processor-limited, so the
   // graphics cost was never tested. See scripts/migrate_gpu_measured.py.
   gpu_measured?: number | null;
@@ -317,9 +319,13 @@ function frameTimes(
   gpuCost: number, cpuCost: number, gpuScore: number, cpuScore: number,
   resolution: string, quality: string, rayTracing: boolean, pathTracing: boolean,
   renderScale: number, upscalePassMs: number, frameGenMode: string | null,
-  rtGpuMult: number,
+  rtGpuMult: number, presetGpuExp: number,
 ) {
-  const [qGpu, qCpu] = bc.qualityMultipliers(quality);
+  const [qLadder, qCpu] = bc.qualityMultipliers(quality);
+  // A game's own preset spread above High, pivoting on High. Battlefield 6
+  // costs 1.25x from High to Overkill where the common ladder says 1.55x.
+  // Below High nothing has measured it, so the common ladder stands.
+  const qGpu = qLadder > 1.0 ? qLadder ** presetGpuExp : qLadder;
 
   let pixels =
     (asRecord<number>(bc.RESOLUTION_PIXELS)[resolution] ?? 1.0) ** bc.RES_PIXEL_EXPONENT;
@@ -517,6 +523,7 @@ export function estimateFpsDetailed(
     gpuCost, cpuCost, gpuScore, cpuScore, resolution, quality, rt, pt,
     renderScale, passCost, fgMode,
     Number(game.rt_gpu_mult) || bc.RT_GPU_COST_MULT,
+    Number(game.preset_gpu_exp) || 1.0,
   );
   let renderedFps = 1000.0 / blendFrameTime(ftGpu, ftCpu);
 

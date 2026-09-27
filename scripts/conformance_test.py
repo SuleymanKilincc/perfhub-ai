@@ -56,7 +56,7 @@ FIELDS = ["fps", "fps_low", "fps_low_measured", "capped_fps", "rendered_fps",
 # never entering the branch they were added for, and rt_gpu_mult was the
 # fourth. Anything added here is checked by counting the cases that reach it.
 GAME_KEYS = ["name", "gpu_cost", "cpu_cost", "vram_base_gb", "ram_base_gb",
-             "fps_low_ratio", "fps_low_measured", "rt_gpu_mult",
+             "fps_low_ratio", "fps_low_measured", "rt_gpu_mult", "preset_gpu_exp",
              "tier_min", "tier_max", "fps_cap", "supports_rt", "supports_pt",
              "supports_dlss", "supports_fsr", "supports_xess"]
 
@@ -112,7 +112,37 @@ def build_cases(n, seed=20260824):
                         "upscaling": "Native", "frame_gen": "Kapalı",
                         "ram_gb": ram, "ray_tracing": True, "path_tracing": True,
                     })
+
+    # Per-game overrides reach only the handful of games that have one, so a
+    # random draw may exercise them a dozen times or not at all. Pin every
+    # such game across every preset, with ray tracing both ways, on a
+    # mid-range card where the GPU term decides the answer.
+    mid_gpu = sorted(gpus, key=lambda g: g["power_score"])[len(gpus) * 3 // 4]
+    for game in games:
+        if not (game.get("preset_gpu_exp") or game.get("rt_gpu_mult")):
+            continue
+        for settings in SETTINGS:
+            for rt in (False, True):
+                cases.append({
+                    "cpu": hw(strongest_cpu, "name", "power_score", "form_factor", "cores"),
+                    "gpu": hw(mid_gpu, "name", "power_score", "vram", "architecture", "form_factor"),
+                    "game": {k: game.get(k) for k in GAME_KEYS},
+                    "resolution": "1440p", "settings": settings,
+                    "upscaling": "Native", "frame_gen": "Kapalı",
+                    "ram_gb": 32, "ray_tracing": rt, "path_tracing": False,
+                })
     return cases
+
+
+def override_reach(cases):
+    """How many cases actually run a per-game override's branch."""
+    return {
+        # Above High only: below it the spread does not apply.
+        "preset_gpu_exp": sum(1 for c in cases if c["game"].get("preset_gpu_exp")
+                              and c["settings"] in ("Ultra", "Extreme")),
+        "rt_gpu_mult": sum(1 for c in cases if c["game"].get("rt_gpu_mult")
+                           and c["ray_tracing"] and not c["path_tracing"]),
+    }
 
 
 def run_python(cases):
@@ -160,6 +190,12 @@ def main(n):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     cases = build_cases(n)
     print(f"  {len(cases)} vaka uretildi")
+    reach = override_reach(cases)
+    print("  per-game overrides exercised: "
+          + ", ".join(f"{k} {v}" for k, v in reach.items()))
+    if not all(reach.values()):
+        print("  FAIL: an override no case reaches is an override this test cannot check")
+        return 1
 
     py = run_python(cases)
     print("  Python motoru calisti")

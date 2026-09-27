@@ -357,11 +357,36 @@ def _rt_gpu_mult(game):
     return float(game.get("rt_gpu_mult") or bc.RT_GPU_COST_MULT)
 
 
+def _preset_gpu_exp(game):
+    """How far apart a game's presets are, relative to the common ladder.
+
+    The quality ladder is one table for every game — Extreme costs 1.70x High
+    on the GPU — and games do not share one. Battlefield 6 measured on eight
+    cards at both High and Overkill, all GPU-bound, costs 1.24-1.26x from one
+    to the other; the ladder said 1.54-1.61x, so every High row read 30-70%
+    too fast once the Overkill rows had set the cost.
+
+    Applied as an exponent on the preset's GPU multiplier, and only above
+    High. High is 1.0 and the pivot, so High itself is untouched and the
+    game's cost keeps meaning what it meant. Below High stays on the common
+    ladder because nothing measured it: Battlefield 6's pairs are all High
+    against Overkill, and an exponent fitted there would otherwise tell a Low
+    player the preset buys them 19% where the ladder says 72% — a claim with
+    no measurement under it.
+
+    NULL is 1.0 — the common ladder — which is what every game without
+    GPU-bound measurements at two presets on one system has to read.
+    """
+    return float(game.get("preset_gpu_exp") or 1.0)
+
+
 def _frame_times(gpu_cost, cpu_cost, gpu_score, cpu_score, resolution, quality,
                  ray_tracing, path_tracing, render_scale, upscale_pass_ms,
-                 frame_gen_mode, rt_gpu_mult=None):
+                 frame_gen_mode, rt_gpu_mult=None, preset_gpu_exp=1.0):
     """Per-frame GPU and CPU cost in milliseconds, before memory effects."""
     q_gpu, q_cpu, _ = bc.quality_multipliers(quality)
+    if q_gpu > 1.0:
+        q_gpu **= preset_gpu_exp
 
     # GPU: pixels × quality × ray tracing, divided by throughput.
     pixels = bc.RESOLUTION_PIXELS.get(resolution, 1.0) ** bc.RES_PIXEL_EXPONENT
@@ -606,7 +631,7 @@ def estimate_fps_detailed(cpu_data, gpu_data, game, resolution="1080p",
     ft_gpu, ft_cpu = _frame_times(
         gpu_cost, cpu_cost, gpu_score, cpu_score, resolution, quality,
         ray_tracing, path_tracing, render_scale, upscale_pass_ms, fg_mode,
-        _rt_gpu_mult(game),
+        _rt_gpu_mult(game), _preset_gpu_exp(game),
     )
     rendered_fps = 1000.0 / _blend_frame_time(ft_gpu, ft_cpu)
 

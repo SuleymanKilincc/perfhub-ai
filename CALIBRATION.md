@@ -10,12 +10,12 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 611 (525 fitted, 86 held out) |
-| Mean absolute error | **6.8%** fitted, **30.7%** gameplay, **44.3%** texture-pack, **17.9%** ray-reconstruction |
-| Systematic bias | −0.2% fitted, +9.8% gameplay |
+| Measurements in `benchmarks` table | 683 (585 fitted, 98 held out) |
+| Mean absolute error | **6.9%** fitted, **30.7%** gameplay, **44.3%** texture-pack, **17.9%** ray-reconstruction, **21.2%** out-of-VRAM |
+| Systematic bias | −0.1% fitted, +9.8% gameplay, +21.0% out-of-VRAM |
 | Derived profiles, leave-one-game-out | **52.3%** per game, against 6.4% for the same games fitted |
-| Within 10% of measured | 80% |
-| Within 20% of measured | 94% |
+| Within 10% of measured | 78% (fitted rows) |
+| Within 20% of measured | 94% (fitted rows) |
 | Run-to-run noise | **1.1%** (one repeated configuration) |
 
 The noise figure is new and it bounds everything above it. Cyberpunk 2077's
@@ -45,6 +45,7 @@ Fitted in `core/balance_config.py` from the batches noted below.
 | `PT_GPU_COST_MULT` | 3.10 | 3.76 | 2 rows, both Cyberpunk 2077, PT on and off |
 | `FG_GPU_OVERHEAD` | .22/.31/.38 | .45/.81/1.17 | GTA V Enhanced 2x/3x/4x ladder |
 | `games.rt_gpu_mult` | — | 2.92 / 1.68 | per game, where RT was measured on and off |
+| `games.preset_gpu_exp` | — | 0.32 | Battlefield 6 only; 8 cards at High and Overkill (gap 6h) |
 
 `rt_gpu_mult` is NULL for 174 of the 176 games and they read `RT_GPU_COST_MULT`.
 Only Hitman 3 and Forza Horizon 6 have enough of their own ray-tracing rows to
@@ -380,7 +381,9 @@ Open items. All are visible in the validation output; none are hidden.
    wearing a "n=28" label.
    Battlefield 6 left the list in batch 20: 34 GPU-bound rows from a
    17-card comparison moved its `gpu_cost` from the prior's 1.50 to a fitted
-   1.00 and its own error from 19.7% to 6.0%. The prior had it a third too
+   1.00 and its own error from 19.7% to 6.0%. (Batch 21 moved it back to 1.50
+   for a different reason — the 1.00 was the Overkill cost read through a
+   ladder that overstates Overkill; see 6h.) The prior had it a third too
    heavy — an RTX 5090 at 1440p was predicted at 105 fps against 192 — and
    NVIDIA and AMD cards were off by the same amount, which is what a wrong
    game cost looks like as opposed to wrong card scores. Five games remain.
@@ -474,6 +477,54 @@ Open items. All are visible in the validation output; none are hidden.
    Seven games lose their only VRAM evidence and fall back to derivation,
    which puts RDR2 at 7.4 GB against ~6.7 measured. Still high, no longer 73%
    out. A paired reading on a large card is what would fix it properly.
+
+6h. **Presets are not one ladder.** `QUALITY_TIERS` gives every game the same
+   GPU spread — Extreme costs 1.70x High — and Battlefield 6 measured against
+   it disagrees: eight cards at both High and Overkill, same machine, same
+   mission, all GPU-bound, cost 1.24-1.26x from one to the other where the
+   ladder says 1.54-1.61x. With batch 20's Overkill rows setting the cost,
+   every 1080p High row in batch 21 read 30-70% fast.
+   Is the ladder wrong, or is Battlefield 6? The whole table holds 14 such
+   pairs across four games and they do not agree: exponents of 0.52 (BF6),
+   0.80 (Forza Horizon 6), 1.39 (Counter-Strike 2, one pair) and 1.67 (The
+   Last of Us Part II, one pair) on the ladder. No shared correction is in
+   that. So it is per game, the same shape as `rt_gpu_mult`:
+   `games.preset_gpu_exp`, an exponent on the preset's GPU multiplier, NULL
+   for every game without evidence. It pivots on High and applies only above
+   it — Battlefield 6's pairs are all High against Overkill, and an exponent
+   fitted there would otherwise tell a Low player the preset buys them 19%
+   where the ladder says 72%, with no measurement under either number.
+   A game earns one with four GPU-bound pairs from three cards. Fitted in
+   turn with the cost, it stalled at 0.74 with the High rows still 23% fast —
+   the two trade along a diagonal — so they are searched jointly: 0.32, with
+   `gpu_cost` 1.50, Battlefield 6's error 11.6% to 6.7%, the fitted set 7.5%
+   to 6.9%. 0.32 sits one step inside the 0.30 floor of its search, close
+   enough to note: Overkill in this game is barely heavier than High on the
+   GPU at all.
+   1080p High now reads +4% on average, against +23% before. What remains is
+   resolution: Overkill reads +4% at 1080p, −3% at 1440p and −8% at 4K, so
+   the game scales with pixels more gently than
+   `RES_PIXEL_EXPONENT` assumes. One game is not a reason to move a global
+   exponent.
+6i. **The VRAM penalty is too mild for an 8 GB card at Battlefield 6
+   Overkill.** Batch 21 is the first time the table holds the same GPU in two
+   memory sizes under identical conditions at scale: RTX 5060 Ti 8/16 GB and
+   RX 9060 XT 8/16 GB at two resolutions, and an 8 GB RTX 3070 tying a 12 GB
+   RTX 3060 at 1080p Overkill (49 and 49) where at High it leads by 46%.
+   The 5060 Ti 8 GB's 1% low collapses to 37 against its twin's 85.
+   Those twelve rows are marked `vram_limited` and kept out of the cost and
+   1%-low fits — they measure the memory model, not the game, and folding the
+   5060 Ti's 37 into the game's 1%-low ratio would tell every 16 GB owner to
+   expect stutter they will not get. `validate_engine.py` reports them as
+   their own group, and the engine reads them +21% fast on average: it calls
+   the 1080p rows `vram_tight` (which costs ~3%) and the 1440p ones
+   `vram_spill`, and the 3070 is still +63% at 1080p. The flag is set on every
+   card of 8 GB or less at Overkill, and at High only on the RTX 4060 Ti 8 GB,
+   the one card whose twin shows it there (90 against 104).
+   Not refitted: `VRAM_SPILL_SEVERITY` and `VRAM_SPILL_FLOOR` came from 8 vs
+   16 GB pairs in other games that degraded far less, and one game's collapse
+   is not an average. A second game with twin cards would say whether
+   Battlefield 6 is unusual or the penalty is.
 
 **Coverage**
 
@@ -743,6 +794,20 @@ wrong is worth more than a list of what works.
    branches — 1,385 cases ask a non-RTX card for DLSS and 848 ask a card
    without ray-tracing hardware for it — and breaking the TypeScript side on
    purpose makes 1,088 of 4,384 cases diverge.
+
+16. **Catalogue facts nobody checked against a spec sheet.** Matching batch
+   21's card names turned up the desktop RTX 5050 recorded with 6 GB and the
+   RX 9060 with 12 GB; both have 8. Then, looking at why a desktop picker
+   listed an RX 7600S: the form-factor rules from mistake 14 recognised only
+   "Mobile", "Laptop" and "Max-Q", and filed 28 mobile parts as desktop ones —
+   every AMD and older NVIDIA card whose mobile mark is a letter glued to the
+   model number (RX 7600M, RX 7700S, RX 6850M XT, GTX 980M, Arc A770M), plus
+   Intel's G7 processors and AMD's Ryzen AI Max. The G7s are the chips Iris
+   Xe ships in, so the one integrated GPU the builder pairs with a laptop could
+   not be paired with the laptops that carry it. The same enumeration that
+   closed mistake 14 had passed, because it checked pairs against the labels
+   and the labels were what was wrong. No measured row paired parts across
+   the corrected line.
 
 ## Closed
 

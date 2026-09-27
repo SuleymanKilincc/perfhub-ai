@@ -37,8 +37,17 @@ from core import db_manager
 
 # Suffixes Intel and AMD both use for mobile parts. Anchored to the end of the
 # model number so a desktop "Ryzen 5 5600" is never caught by the "U" rule.
-CPU_LAPTOP = re.compile(r"\d+(HX|HS|H|U)$")
-GPU_LAPTOP = re.compile(r"\b(Mobile|Laptop|Max-Q)\b", re.I)
+#
+# The first version stopped at those suffixes and filed mobile parts as
+# desktop ones (28 parts): Intel's G7 chips (i5-1135G7, i7-1185G7 — the processors Iris Xe
+# ships in, so Iris could not be paired with the very chips that carry it),
+# AMD's Ryzen AI Max, and every GPU whose mobile mark is a letter glued to the
+# model number — RX 7600M, RX 7700S, RX 6850M XT, Arc A770M, GTX 980M. The
+# builder then offered a desktop Ryzen with an RX 7600S and hid that card from
+# every laptop processor.
+CPU_LAPTOP = re.compile(r"\d+(HX|HS|H|U)$|\d{4}G\d$|Ryzen AI Max")
+GPU_LAPTOP = re.compile(r"\b(Mobile|Laptop|Max-Q)\b"
+                        r"|\b(RX|GTX)\s*\d{3,4}[MS]\b|\bArc A\d{3}M\b", re.I)
 GPU_INTEGRATED = re.compile(r"\b(Iris|UHD Graphics|HD Graphics|Vega \d+ Graphics"
                             r"|Radeon \d{3}M|Radeon Graphics)\b", re.I)
 

@@ -44,7 +44,7 @@ OUT_DIR = os.path.join("frontend", "src", "engine")
 GAME_COLUMNS = [
     "id", "name", "genre", "gpu_cost", "cpu_cost", "vram_base_gb", "ram_base_gb",
     "tier_min", "tier_max", "fps_cap", "fps_low_ratio", "fps_low_measured",
-    "rt_gpu_mult", "gpu_measured", "supports_rt", "supports_pt",
+    "rt_gpu_mult", "preset_gpu_exp", "gpu_measured", "supports_rt", "supports_pt",
     "supports_dlss", "supports_fsr", "supports_xess",
     "competitive", "target_fps", "cover_url", "flags_verified",
 ]
@@ -138,7 +138,8 @@ def engine_stats(conn):
     gpus = {g["name"]: g for g in db_manager.get_all_gpus()}
     fitted = [dict(r) for r in conn.execute(
         "SELECT * FROM benchmarks WHERE COALESCE(scene,'benchmark')='benchmark'"
-        " AND COALESCE(texture_pack,0)=0 AND COALESCE(ray_reconstruction,0)=0")]
+        " AND COALESCE(texture_pack,0)=0 AND COALESCE(ray_reconstruction,0)=0"
+        " AND COALESCE(vram_limited,0)=0")]
 
     def err(row, game):
         p = se.estimate_fps(
@@ -157,7 +158,8 @@ def engine_stats(conn):
         ratio = _solve_cpu_gpu_ratio(n4) * (1 - w) + prior * w
         gpu = total / ((ratio ** BLEND_K + 1.0) ** (1.0 / BLEND_K))
         out = dict(g)
-        out.update(gpu_cost=gpu, cpu_cost=gpu * ratio, rt_gpu_mult=None)
+        out.update(gpu_cost=gpu, cpu_cost=gpu * ratio, rt_gpu_mult=None,
+                   preset_gpu_exp=None)
         return out
 
     per_row, meas_g, der_g = [], [], []

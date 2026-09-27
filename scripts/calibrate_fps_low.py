@@ -52,10 +52,16 @@ def main(apply_changes):
     # But the two are not interchangeable and nothing here can test whether
     # they differ, so which source a game's ratio came from is printed rather
     # than blended out of sight.
+    #
+    # Rows where the card ran out of VRAM are left out. Their 1% low is the
+    # memory collapse — an 8 GB RTX 5060 Ti reads 37 against its 16 GB twin's
+    # 85 at the same average — and folding that into Battlefield 6's ratio
+    # would tell every 16 GB owner to expect stutter they will not get.
     ratios = defaultdict(list)
     scenes = defaultdict(set)
     for r in cur.execute("SELECT game, fps_avg, fps_1pct_low, scene FROM benchmarks"
-                         " WHERE fps_1pct_low IS NOT NULL AND fps_avg > 0"):
+                         " WHERE fps_1pct_low IS NOT NULL AND fps_avg > 0"
+                         " AND COALESCE(vram_limited,0)=0"):
         ratios[r["game"]].append(r["fps_1pct_low"] / r["fps_avg"])
         scenes[r["game"]].add(r["scene"] or "benchmark")
 
