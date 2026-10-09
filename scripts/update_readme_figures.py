@@ -118,6 +118,16 @@ def compute():
     import conformance_test
     v["conformance_fields"] = len(conformance_test.FIELDS)
 
+    # The same chip at 8 and 16 GB: the memory model's one direct test.
+    import memory_pairs
+    ctx = memory_pairs.load()
+    s = memory_pairs.summary(ctx, memory_pairs.find_pairs(ctx[3]))
+    v["mem_pairs"], v["mem_games"] = s["pairs"], s["games"]
+    v["mem_measured_min"], v["mem_measured_max"] = (
+        f"{s['measured_min']:.2f}", f"{s['measured_max']:.2f}")
+    v["mem_engine_min"], v["mem_engine_max"] = (
+        f"{s['engine_min']:.2f}", f"{s['engine_max']:.2f}")
+
     # The one configuration the README shows with its error, so the example
     # cannot drift from the engine either: a recalibration that moves 165 to
     # 160 changes the table instead of leaving a figure the engine no longer

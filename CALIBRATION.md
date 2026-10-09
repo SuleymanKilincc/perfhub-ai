@@ -10,9 +10,9 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 683 (585 fitted, 98 held out) |
-| Mean absolute error | **6.9%** fitted, **30.7%** gameplay, **44.3%** texture-pack, **17.9%** ray-reconstruction, **21.2%** out-of-VRAM |
-| Systematic bias | −0.1% fitted, +9.8% gameplay, +21.0% out-of-VRAM |
+| Measurements in `benchmarks` table | 713 (585 fitted, 128 held out) |
+| Mean absolute error | **6.9%** fitted, **30.3%** gameplay, **44.3%** texture-pack, **17.9%** ray-reconstruction, **21.2%** out-of-VRAM |
+| Systematic bias | −0.1% fitted, +11.7% gameplay, +21.0% out-of-VRAM |
 | Derived profiles, leave-one-game-out | **52.3%** per game, against 6.4% for the same games fitted |
 | Within 10% of measured | 78% (fitted rows) |
 | Within 20% of measured | 94% (fitted rows) |
@@ -509,25 +509,42 @@ Open items. All are visible in the validation output; none are hidden.
    the game scales with pixels more gently than
    `RES_PIXEL_EXPONENT` assumes. One game is not a reason to move a global
    exponent.
-6i. **The VRAM penalty is too mild for an 8 GB card at Battlefield 6
-   Overkill.** Batch 21 is the first time the table holds the same GPU in two
-   memory sizes under identical conditions at scale: RTX 5060 Ti 8/16 GB and
-   RX 9060 XT 8/16 GB at two resolutions, and an 8 GB RTX 3070 tying a 12 GB
-   RTX 3060 at 1080p Overkill (49 and 49) where at High it leads by 46%.
-   The 5060 Ti 8 GB's 1% low collapses to 37 against its twin's 85.
-   Those twelve rows are marked `vram_limited` and kept out of the cost and
-   1%-low fits — they measure the memory model, not the game, and folding the
-   5060 Ti's 37 into the game's 1%-low ratio would tell every 16 GB owner to
-   expect stutter they will not get. `validate_engine.py` reports them as
-   their own group, and the engine reads them +21% fast on average: it calls
-   the 1080p rows `vram_tight` (which costs ~3%) and the 1440p ones
-   `vram_spill`, and the 3070 is still +63% at 1080p. The flag is set on every
-   card of 8 GB or less at Overkill, and at High only on the RTX 4060 Ti 8 GB,
-   the one card whose twin shows it there (90 against 104).
-   Not refitted: `VRAM_SPILL_SEVERITY` and `VRAM_SPILL_FLOOR` came from 8 vs
-   16 GB pairs in other games that degraded far less, and one game's collapse
-   is not an average. A second game with twin cards would say whether
-   Battlefield 6 is unusual or the penalty is.
+6i. **The engine cannot tell which games collapse on 8 GB, and a refit does
+   not fix that.** Batch 21 was the first time the table held the same GPU in
+   two memory sizes at scale, and left the question whether Battlefield 6 was
+   unusual or the penalty was wrong. Batch 22 — a 15-game JEGS TV video with an
+   RTX 5060 Ti at 8 and 16 GB on one machine — answers it: both.
+   Across 19 same-chip pairs in 14 games (`scripts/memory_pairs.py`) the measured
+   8 GB / 16 GB ratio runs from 0.50 to 1.02 and the engine's from 0.80 to 0.97.
+   Grouped by what the engine says: where it says `ok` (4 pairs) the measured
+   mean is 0.96 — right; `vram_tight` (6) 0.93 against ~0.90 — close; `vram_spill`
+   (9) 0.78 against ~0.88 — too mild on average, and the spread inside the group
+   is the finding: A Plague Tale 0.50, Battlefield 6 at Overkill 0.64, Forza
+   Horizon 5/6 0.73/0.72, The Last of Us 0.75, Hogwarts Legacy 0.95, Kingdom
+   Come 2 0.98. The model has one number for "does not fit" and the games have
+   a range of half the frame rate.
+   Cyberpunk, Monster Hunter Wilds, Path of Exile 2 and Kingdom Come 2 lose 0-2%
+   on the 8 GB card although the engine marks them tight or spilling, while the
+   overlay shows what a game *reserves* — 11.2 GB for Monster Hunter Wilds on
+   the 16 GB card, 12.0 for Black Ops 7 — with no frame-rate cost on the 8 GB
+   one. Allocation is not the working set again (see the VRAM section); the
+   overlay readings were not loaded as measurements for that reason.
+   Two fixes were tested and **rejected**:
+   - *Same-chip cards share a score.* The 8 GB variants' scores come from a 1440p
+     Ultra hierarchy in which they already read low because of their memory
+     (RTX 5060 Ti 41.0 against 43.9), so the memory model charges for it twice.
+     True in principle. Equalising them makes the 8/16 ratio error worse, 13.3% to
+     15.5%, because for the spilling games the engine is too mild and the double
+     count was accidentally compensating.
+   - *Refit tight, severity and floor on the 19 pairs.* In sample it helps
+     (13.3% to 12.0%, to 0.92 / 4.0 / 0.70). Leave-one-game-out it is **worse**
+     than leaving the model alone, 13.6% against 13.3%. A constant tuned to nine
+     games' collapse is wrong for the next one.
+   What would help is not a constant but a per-game working set that separates a
+   game that fits in 8 GB from one that does not — which needs a VRAM reading
+   from a card with room to spare *and* the frame-time cost on a card without,
+   in the same game. Left as it is; the interface already hedges 8 GB results
+   and the README states the spread.
 
 **Coverage**
 
@@ -744,7 +761,12 @@ wrong is worth more than a list of what works.
    an upscaling pass where Native does not.
 12. **An API key committed and then deleted.** Deleting a file does not remove
    it from git history, and the repository is public. Revoking the key is the
-   only fix; the file removal was not one.
+   only fix; the file removal was not one. There were two keys in the history,
+   not one — the file in the first commit and a default value hard-coded in the
+   code of two releases. Neither appears in the owner's AI Studio key list
+   (checked 2026-10-09 by comparing the last four characters of every key found
+   in `git log -S AIza` against the list), consistent with both having been
+   revoked.
 13. **Three rounds of calibration output never reached the code.** The
    calibrator writes game profiles to the database but prints the global
    constants for a human to copy, and two of those print statements announced
