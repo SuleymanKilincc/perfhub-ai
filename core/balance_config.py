@@ -93,6 +93,13 @@ RES_VRAM_FACTOR = {
     "8k":    1.85,
 }
 
+# How much of a game's VRAM demand ignores the internal render resolution. An
+# upscaler renders fewer pixels, but textures, the output-sized buffers and the
+# upscaler's own history do not shrink with it: 0.72 means 72% of the demand is
+# the same at DLSS Quality as at native. (Unchanged from the value that used to
+# be written into the engine; see scripts/memory_pairs.py.)
+UPSCALE_VRAM_FIXED = 0.72
+
 # ─── Quality presets ────────────────────────────────────────────────────────
 # (gpu_cost_mult, cpu_cost_mult, vram_mult), all relative to High = 1.0.
 # Quality settings hit the GPU hard and the CPU only lightly — draw distance
@@ -193,6 +200,15 @@ UPSCALING_RENDER_SCALE = {
 # Part of the GPU frame does not shrink with render resolution (post
 # processing at output res, UI, driver overhead), so the saving is damped.
 UPSCALING_UNSCALED_FRACTION = 0.16
+# The upscaler's own pass is GPU work sized by the *output* resolution and run
+# at the card's speed, so it costs a slow card at 4K several times what it costs
+# a fast card at 1440p. UPSCALING_PASS_COST_MS above is a flat figure, which is
+# right for a 4090 and wrong for an RTX 4060 Ti: its DLSS rows read 52% too fast on
+# average, and the pass cost explains about a third of that. This adds K * output pixels / GPU throughput to
+# any frame rendered below output resolution (DLAA does not get it). Fitted on
+# the 16 ratio-free benchmark rows with an upscaler on; the held-out gameplay
+# rows then improved on their own (bias +25% to +8% outside the 4060 Ti video).
+UPSCALING_PASS_GPU_K = 0.5
 # The upscaling pass itself costs GPU time (roughly constant per frame).
 UPSCALING_PASS_COST_MS = {
     "dlss": 0.35,

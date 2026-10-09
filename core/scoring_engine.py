@@ -403,6 +403,9 @@ def _frame_times(gpu_cost, cpu_cost, gpu_score, cpu_score, resolution, quality,
 
     ft_gpu = bc.GPU_MS_CONST * gpu_cost * pixels * q_gpu * rt_gpu / _perf(gpu_score, bc.GPU_PERF_EXPONENT)
     ft_gpu += upscale_pass_ms
+    if render_scale < 1.0:
+        ft_gpu += (bc.UPSCALING_PASS_GPU_K * bc.RESOLUTION_PIXELS.get(resolution, 1.0)
+                   / _perf(gpu_score, bc.GPU_PERF_EXPONENT))
 
     # Generating extra frames is GPU work on top of the rendered frame.
     if frame_gen_mode in bc.FG_GPU_OVERHEAD:
@@ -429,7 +432,7 @@ def _vram_demand(vram_base, quality, resolution, render_scale,
     # Rendering at a lower internal resolution shrinks the framebuffers, but
     # not the textures, so only part of the demand comes down.
     if render_scale < 1.0:
-        demand *= (0.72 + 0.28 * render_scale ** 2)
+        demand *= (bc.UPSCALE_VRAM_FIXED + (1.0 - bc.UPSCALE_VRAM_FIXED) * render_scale ** 2)
 
     if path_tracing:
         demand += bc.PT_VRAM_ADD_GB

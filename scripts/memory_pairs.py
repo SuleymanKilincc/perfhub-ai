@@ -6,18 +6,19 @@ a ratio — 8 GB frame rate over 16 GB — that nothing else can move. The engin
 predicts the same ratio. Where they disagree, the memory model is wrong, and
 nothing about the game's cost or the chip's speed can be blamed for it.
 
-The table holds 19 such pairs (RTX 5060 Ti, RTX 4060 Ti, RX 9060 XT), from
-three sources: a 43-card Battlefield 6 comparison, a 15-game JEGS TV video, and
-older single-game 4060 Ti comparisons. Far Cry 6's HD-texture-pack pair is left
+The table holds such pairs for the RTX 5060 Ti, RTX 4060 Ti and RX 9060 XT, from
+four sources: a 43-card Battlefield 6 comparison, a 15-game JEGS TV video, a
+7-game 4060 Ti video at two resolutions, and older single-game comparisons. Far Cry 6's HD-texture-pack pair is left
 out, as it is everywhere: the model has no term for the pack.
 
-This script reports how far apart they are, then asks the question a refit
-would have to answer: is a better set of memory constants better *outside the
-games it was fitted on*? Leave-one-game-out says no (see CALIBRATION.md, gap
-6i), which is why the constants and the GPU scores were not changed.
+This script reports how far apart they are, then asks the question any change
+has to answer: is it better *outside the games it was fitted on*?
+Leave-one-game-out is the test, and it has refused changes before (see
+CALIBRATION.md, gap 6i).
 
     python scripts/memory_pairs.py            # measured vs predicted ratios
-    python scripts/memory_pairs.py --refit    # + the refit and its cross-check
+    python scripts/memory_pairs.py --refit    # + would a change generalise?
+    python scripts/memory_pairs.py --resolution   # games measured at 1440p and 4K
 """
 import argparse
 import itertools
@@ -105,7 +106,89 @@ def summary(ctx, pairs):
     }
 
 
-def main(refit):
+def resolution_test(ctx, pairs):
+    """What the same-game-at-two-resolutions pairs say, and what acting on it costs.
+
+    Fits a working set per game (`vram_base_gb`) together with the memory
+    constants, on games that have a pair at both 1440p and 4K, and then asks
+    what that regime does to everything it was not fitted on.
+    """
+    games, cpus, gpus, rows = ctx
+    by_game = defaultdict(set)
+    for _, a, _ in pairs:
+        by_game[a["game"]].add(a["resolution"])
+    multi = sorted(g for g, rs in by_game.items() if len(rs) >= 2)
+    fit_pairs = [p for p in pairs if p[1]["game"] in multi]
+    rest = [p for p in pairs if p[1]["game"] not in multi]
+    names = ("UPSCALE_VRAM_FIXED", "VRAM_TIGHT_PENALTY", "VRAM_SPILL_SEVERITY",
+             "VRAM_SPILL_FLOOR")
+    orig = tuple(getattr(bc, n) for n in names)
+    saved = {g: games[g]["vram_base_gb"] for g in multi}
+
+    def set_consts(c):
+        for n, v in zip(names, c):
+            setattr(bc, n, v)
+
+    def err(sel, consts, bases=None):
+        set_consts(consts)
+        for g in multi:
+            games[g]["vram_base_gb"] = (bases or saved)[g]
+        e = [abs(r["engine"] - r["measured"]) / r["measured"] * 100
+             for r in ratios(ctx, sel)]
+        return e
+
+    print(f"\n  --- {len(multi)} games measured at two resolutions: {', '.join(multi)} ---")
+    print("  measured 8 GB / 16 GB ratio by resolution:")
+    for g in multi:
+        cell = {}
+        for _, a, b in [p for p in fit_pairs if p[1]["game"] == g]:
+            cell[a["resolution"]] = a["fps_avg"] / b["fps_avg"]
+        print(f"    {g:30s} " + "  ".join(f"{k} {v:.2f}" for k, v in sorted(cell.items())))
+
+    bases = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14]
+    best = None
+    for c in itertools.product([0.72, 1.0], [0.94, 0.97], [0.5, 1.0, 2.0, 4.0, 8.0],
+                               [0.3, 0.5, 0.8]):
+        picks = {g: min(bases, key=lambda b: statistics.mean(
+            err([p for p in fit_pairs if p[1]["game"] == g], c, {**saved, g: b})))
+            for g in multi}
+        e = statistics.mean(err(fit_pairs, c, picks))
+        if best is None or e < best[0]:
+            best = (e, c, picks)
+    harsh_e, harsh, picks = best
+    print(f"\n  {'':44s} {'these pairs':>11s} {'all other pairs':>16s}")
+    print(f"  {'current model':44s} {statistics.mean(err(fit_pairs, orig)):10.1f}% "
+          f"{statistics.mean(err(rest, orig)):15.1f}%")
+    print(f"  {'best constants, current working sets':44s} "
+          f"{statistics.mean(err(fit_pairs, harsh)):10.1f}% "
+          f"{statistics.mean(err(rest, harsh)):15.1f}%")
+    print(f"  {'best constants + fitted working sets':44s} {harsh_e:10.1f}% "
+          f"{statistics.mean(err(rest, harsh, picks)):15.1f}%")
+    print(f"  fitted: fixed={harsh[0]} tight={harsh[1]} severity={harsh[2]} "
+          f"floor={harsh[3]}; working sets {picks}")
+
+    # The cost: what that regime does to games nobody measured.
+    measured_games = {r["game"] for r in rows}
+    cpu = dict(cpus["Intel Core i9-13900K"])
+    g8, g16 = (dict(gpus[f"NVIDIA GeForce RTX 4060 Ti {t}"]) for t in ("8GB", "16GB"))
+    print("\n  unmeasured games an 8 GB card is predicted to run at under 0.70 of a 16 GB card "
+          "(High, DLSS Quality):")
+    for label, c in (("current", orig), ("best constants", harsh)):
+        set_consts(c)
+        for g in multi:
+            games[g]["vram_base_gb"] = saved[g]
+        for res in ("1440p", "4k"):
+            pool = [g for n, g in games.items() if n not in measured_games]
+            low = sum(se.estimate_fps(cpu, g8, g, res, "High", "DLSS Quality", "Kapalı", 32)
+                      / se.estimate_fps(cpu, g16, g, res, "High", "DLSS Quality", "Kapalı", 32)
+                      < 0.70 for g in pool)
+            print(f"    {label:15s} {res:5s} {low:3d} of {len(pool)}")
+    set_consts(orig)
+    for g in multi:
+        games[g]["vram_base_gb"] = saved[g]
+
+
+def main(refit, resolution=False):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ctx = load()
     pairs = find_pairs(ctx[3])
@@ -125,6 +208,8 @@ def main(refit):
         by_status[r["status"].split("/")[0]].append(r["measured"])
     for k, v in sorted(by_status.items()):
         print(f"    engine says {k:11s} n={len(v):2d}  measured mean {statistics.mean(v):.2f}")
+    if resolution:
+        resolution_test(ctx, pairs)
     if not refit:
         return
 
@@ -135,34 +220,56 @@ def main(refit):
     for chip in CHIPS:
         equal[f"{chip} 8GB"] = gpus[f"{chip} 16GB"]["power_score"]
 
-    orig = (bc.VRAM_TIGHT_PENALTY, bc.VRAM_SPILL_SEVERITY, bc.VRAM_SPILL_FLOOR)
+    names = ("UPSCALE_VRAM_FIXED", "VRAM_TIGHT_PENALTY", "VRAM_SPILL_SEVERITY",
+             "VRAM_SPILL_FLOOR")
+    orig = tuple(getattr(bc, n) for n in names)
 
     def err(sel, scores, consts):
-        bc.VRAM_TIGHT_PENALTY, bc.VRAM_SPILL_SEVERITY, bc.VRAM_SPILL_FLOOR = consts
-        return ratio_error(ctx, sel, scores)
+        for n, v in zip(names, consts):
+            setattr(bc, n, v)
+        return [abs(r["engine"] - r["measured"]) / r["measured"] * 100
+                for r in ratios(ctx, sel, scores)]
 
-    grid = list(itertools.product([0.90, 0.92, 0.94, 0.96, 0.98],
-                                  [0.5, 1.0, 1.5, 2.0, 3.0, 4.0],
-                                  [0.4, 0.5, 0.6, 0.7, 0.8]))
-    best = lambda sel, scores: min(grid, key=lambda c: err(sel, scores, c))
+    fixed_only = [(f,) + orig[1:] for f in (0.72, 0.80, 0.90, 0.95, 1.00)]
+    everything = [(f, t, sv, fl) for f in (0.72, 0.85, 1.00)
+                  for t in (0.92, 0.94, 0.97) for sv in (0.5, 1.0, 2.0, 4.0)
+                  for fl in (0.5, 0.7, 0.8)]
+    variants = [
+        ("current model", [orig], None),
+        ("UPSCALE_VRAM_FIXED only", fixed_only, None),
+        ("  + same-chip scores equal", fixed_only, equal),
+        ("all four constants", everything, None),
+    ]
 
-    print("\n  --- would a refit generalise? ---")
-    print(f"  current scores, current constants {orig}: {err(pairs, None, orig):.2f}%")
-    print(f"  same-chip scores equal, current constants:    {err(pairs, equal, orig):.2f}%")
-    b = best(pairs, equal)
-    print(f"  equal scores, refitted on all pairs {b}:  {err(pairs, equal, b):.2f}%  (in sample)")
-    cv = []
-    for game in sorted({p[1]["game"] for p in pairs}):
-        train = [p for p in pairs if p[1]["game"] != game]
-        test = [p for p in pairs if p[1]["game"] == game]
-        cv.append(err(test, equal, best(train, equal)))
-    print(f"  the same refit, leave-one-game-out:           {statistics.mean(cv):.2f}%")
-    bc.VRAM_TIGHT_PENALTY, bc.VRAM_SPILL_SEVERITY, bc.VRAM_SPILL_FLOOR = orig
-    verdict = ("worse" if statistics.mean(cv) > err(pairs, None, orig) else "better")
-    print(f"  -> out of sample it is {verdict} than leaving the model alone")
+    print("\n  --- would a change generalise? (leave-one-game-out, all pairs pooled) ---")
+    print(f"  {len(pairs)} pairs, {len({p[1]['game'] for p in pairs})} games\n")
+    print(f"  {'variant':32s} {'in sample':>10s} {'held out':>9s}   chosen constants")
+    best_held = None
+    for label, grid, scores in variants:
+        pick = lambda sel: min(grid, key=lambda c: statistics.mean(err(sel, scores, c)))
+        full = pick(pairs)
+        in_sample = statistics.mean(err(pairs, scores, full))
+        held = []
+        for game in sorted({p[1]["game"] for p in pairs}):
+            train = [p for p in pairs if p[1]["game"] != game]
+            test = [p for p in pairs if p[1]["game"] == game]
+            held += err(test, scores, pick(train))
+        held_mean = statistics.mean(held)
+        if label != "current model" and (best_held is None or held_mean < best_held[0]):
+            best_held = (held_mean, label, full)
+        print(f"  {label:32s} {in_sample:9.2f}% {held_mean:8.2f}%   "
+              + ", ".join(f"{n.split('_', 1)[1][:9]}={v}" for n, v in zip(names, full)))
+    for n, v in zip(names, orig):
+        setattr(bc, n, v)
+    base = statistics.mean(err(pairs, None, orig))
+    print(f"\n  best held-out: {best_held[1].strip()} at {best_held[0]:.2f}% "
+          f"against {base:.2f}% for the current model")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--refit", action="store_true")
-    main(ap.parse_args().refit)
+    ap.add_argument("--resolution", action="store_true",
+                    help="games measured at two resolutions: fitted working sets and their cost")
+    args = ap.parse_args()
+    main(args.refit, args.resolution)

@@ -63,12 +63,14 @@ export const RES_VRAM_FACTOR = {
 export const RT_CPU_COST_MULT = 1.08 as const;
 export const RT_GPU_COST_MULT = 1.7 as const;
 export const RT_VRAM_ADD_GB = 1.1 as const;
+export const UPSCALE_VRAM_FIXED = 0.72 as const;
 export const UPSCALING_PASS_COST_MS = {
     "dlss": 0.35,
     "fsr": 0.3,
     "xess": 0.55,
     "dlaa": 0.45,
   } as const;
+export const UPSCALING_PASS_GPU_K = 0.5 as const;
 export const UPSCALING_RENDER_SCALE = {
     "ultra performance": 0.333,
     "performance": 0.5,

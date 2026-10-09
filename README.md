@@ -1,7 +1,7 @@
 # PerfHub
 
 Frame-rate estimates for a CPU, GPU and RAM combination across <!--v:games-->176<!--/v--> PC games,
-computed in the browser and checked against <!--v:measurements-->713<!--/v--> recorded benchmark results.
+computed in the browser and checked against <!--v:measurements-->741<!--/v--> recorded benchmark results.
 
 [![Checks](https://github.com/SuleymanKilincc/perfhub-ai/actions/workflows/checks.yml/badge.svg)](https://github.com/SuleymanKilincc/perfhub-ai/actions/workflows/checks.yml)
 [![Live site](https://img.shields.io/badge/live-perfhub.suleymankilinc.com-2ea44f)](https://perfhub.suleymankilinc.com)
@@ -22,9 +22,9 @@ given number depends on whether that game has been measured, and the interface
 says which:
 
 - **<!--v:fitted_games-->28<!--/v--> games are fitted.** Their cost profiles come from recorded
-  benchmarks, and on those rows the engine is within <!--v:fitted_err-->6.9<!--/v-->% on average.
+  benchmarks, and on those rows the engine is within <!--v:fitted_err-->6.7<!--/v-->% on average.
   Games whose measurements are all held out (free gameplay, texture packs):
-  <!--v:heldout_only_games-->4<!--/v-->. Their profiles are still derived.
+  <!--v:heldout_only_games-->6<!--/v-->. Their profiles are still derived.
 - **<!--v:derived_games-->148<!--/v--> games are derived** from a hand-built profile and a genre prior.
   Tested by holding each measured game out and deriving it as if it had never
   been measured, that method is about <!--v:derived_err-->52<!--/v-->% out. These games are labelled as
@@ -41,14 +41,14 @@ Every figure on this page is regenerated from the recorded data by
 
 | Set | Rows | Mean error | Bias |
 |---|---|---|---|
-| Fitted benchmark runs | <!--v:fitted_n-->585<!--/v--> | **<!--v:fitted_err-->6.9<!--/v-->%** | <!--v:fitted_bias-->-0.1<!--/v-->% |
-| Held out: free gameplay | <!--v:gameplay_n-->104<!--/v--> | <!--v:gameplay_err-->30.3<!--/v-->% | <!--v:gameplay_bias-->+11.7<!--/v-->% |
+| Fitted benchmark runs | <!--v:fitted_n-->585<!--/v--> | **<!--v:fitted_err-->6.7<!--/v-->%** | <!--v:fitted_bias-->-0.7<!--/v-->% |
+| Held out: free gameplay | <!--v:gameplay_n-->132<!--/v--> | <!--v:gameplay_err-->29.8<!--/v-->% | <!--v:gameplay_bias-->+9.6<!--/v-->% |
 | Held out: card ran out of VRAM (memory-model test) | <!--v:vram_n-->12<!--/v--> | <!--v:vram_err-->21.2<!--/v-->% | <!--v:vram_bias-->+21.0<!--/v-->% |
-| Held out: optional HD texture packs (not modelled) | <!--v:texture_n-->8<!--/v--> | <!--v:texture_err-->44.3<!--/v-->% | <!--v:texture_bias-->+14.4<!--/v-->% |
-| Held out: DLSS Ray Reconstruction (not modelled) | <!--v:rr_n-->4<!--/v--> | <!--v:rr_err-->17.9<!--/v-->% | <!--v:rr_bias-->-0.9<!--/v-->% |
+| Held out: optional HD texture packs (not modelled) | <!--v:texture_n-->8<!--/v--> | <!--v:texture_err-->33.1<!--/v-->% | <!--v:texture_bias-->+3.3<!--/v-->% |
+| Held out: DLSS Ray Reconstruction (not modelled) | <!--v:rr_n-->4<!--/v--> | <!--v:rr_err-->18.2<!--/v-->% | <!--v:rr_bias-->-9.2<!--/v-->% |
 
 On the fitted set, <!--v:within10-->78<!--/v-->% of predictions land within 10% of the measured value and
-<!--v:within20-->94<!--/v-->% within 20%.
+<!--v:within20-->95<!--/v-->% within 20%.
 
 The held-out rows are the ones the fit never sees, and they are reported
 separately because they answer a different question. Free gameplay reads
@@ -101,6 +101,11 @@ High to Overkill costs Battlefield 6 about 1.25x on eight cards where the
 shared preset ladder says 1.55x. Games measured both ways carry their own
 value, and the rest fall back to the global one.
 
+**Upscaling saves less on a slow card.** DLSS and FSR render fewer pixels, but
+the upscaler's own pass is sized by the output resolution and runs at the
+card's speed. Charged at a flat figure, it was right for an RTX 4090 and made
+DLSS on a mid-range card read far too fast; it now scales with both.
+
 **Features the hardware cannot run are not applied.** DLSS needs an RTX card;
 ray tracing needs RTX, Radeon RX 6000 or newer, or Arc. A request the card
 cannot honour renders without the feature and says why, in both engines.
@@ -115,14 +120,17 @@ compressed; the CPU scores ranked all-core throughput and were rebuilt as a
 - <!--v:derived_games-->148<!--/v--> of <!--v:games-->176<!--/v--> games are estimates, as above.
 - <!--v:cpu_only_games-->5<!--/v--> of the <!--v:fitted_games-->28<!--/v--> fitted games have only processor-limited measurements, so
   their graphics cost has never been tested; the interface flags this.
-- The measurements are overwhelmingly NVIDIA: <!--v:nvidia_rows-->658<!--/v--> of <!--v:measurements-->713<!--/v--> rows, across
+- The measurements are overwhelmingly NVIDIA: <!--v:nvidia_rows-->686<!--/v--> of <!--v:measurements-->741<!--/v--> rows, across
   <!--v:nvidia_cards-->25<!--/v--> cards. <!--v:amd_cards-->17<!--/v--> Radeon cards have <!--v:amd_rows-->49<!--/v--> rows between them, mostly one game, and
   Intel Arc has <!--v:intel_rows-->6<!--/v--> rows on <!--v:intel_cards-->2<!--/v--> cards. There are <!--v:laptop_rows-->0<!--/v--> laptop measurements.
-- Memory is the weakest part of the model. Across <!--v:mem_pairs-->19<!--/v--> pairs of the same chip at 8 and
-  16 GB, in <!--v:mem_games-->14<!--/v--> games, the measured 8 GB / 16 GB frame-rate ratio runs from
-  <!--v:mem_measured_min-->0.50<!--/v--> to <!--v:mem_measured_max-->1.02<!--/v--> and the engine's from <!--v:mem_engine_min-->0.80<!--/v--> to <!--v:mem_engine_max-->0.97<!--/v-->: it knows an 8 GB card
+- Memory is the weakest part of the model. Across <!--v:mem_pairs-->33<!--/v--> pairs of the same chip at 8 and
+  16 GB, in <!--v:mem_games-->19<!--/v--> games, the measured 8 GB / 16 GB frame-rate ratio runs from
+  <!--v:mem_measured_min-->0.40<!--/v--> to <!--v:mem_measured_max-->1.02<!--/v--> and the engine's from <!--v:mem_engine_min-->0.80<!--/v--> to <!--v:mem_engine_max-->0.97<!--/v-->: it knows an 8 GB card
   is at risk but not which games collapse. Where a card did run out of memory
   the engine read <!--v:vram_bias-->+21.0<!--/v-->% fast.
+- Upscaling is the least-measured major feature: <!--v:upscaled_fitted_n-->16<!--/v--> benchmark rows have a DLSS or FSR
+  mode on. The <!--v:upscaled_heldout_n-->59<!--/v--> held-out rows that use one read <!--v:upscaled_heldout_bias-->+13.5<!--/v-->% fast on
+  average, which is why the upscaler's own cost is modelled per card.
 - Pre-2019 GPU architectures are unvalidated, and the interface says so.
 - Not modelled: MSAA, optional high-resolution texture packs, DLSS Ray
   Reconstruction, and how much a game's cost varies between areas of the same
@@ -152,7 +160,7 @@ resolutions — see [Contributing](#contributing).
 PerfHub is built by two contributors, and the split is deliberate.
 
 **Süleyman Kılınç** — product direction and the measurement programme. That
-means sourcing the <!--v:measurements-->713<!--/v--> benchmark results from published reviews and benchmark
+means sourcing the <!--v:measurements-->741<!--/v--> benchmark results from published reviews and benchmark
 videos, supplying and checking them, deciding what to measure next, and using
 the site against real hardware. Several defects in the log were found that
 way: an inflated VRAM figure for Red Dead Redemption 2 traced to MSAA, upscaling

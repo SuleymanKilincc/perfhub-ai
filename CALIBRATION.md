@@ -10,12 +10,12 @@ context.
 | Metric | Value |
 |---|---|
 | Engine | Cadence 1.0 |
-| Measurements in `benchmarks` table | 713 (585 fitted, 128 held out) |
-| Mean absolute error | **6.9%** fitted, **30.3%** gameplay, **44.3%** texture-pack, **17.9%** ray-reconstruction, **21.2%** out-of-VRAM |
-| Systematic bias | −0.1% fitted, +11.7% gameplay, +21.0% out-of-VRAM |
+| Measurements in `benchmarks` table | 741 (585 fitted, 156 held out) |
+| Mean absolute error | **6.7%** fitted, **29.8%** gameplay, **33.1%** texture-pack, **18.2%** ray-reconstruction, **21.2%** out-of-VRAM |
+| Systematic bias | −0.7% fitted, +9.6% gameplay, +21.0% out-of-VRAM |
 | Derived profiles, leave-one-game-out | **52.3%** per game, against 6.4% for the same games fitted |
 | Within 10% of measured | 78% (fitted rows) |
-| Within 20% of measured | 94% (fitted rows) |
+| Within 20% of measured | 95% (fitted rows) |
 | Run-to-run noise | **1.1%** (one repeated configuration) |
 
 The noise figure is new and it bounds everything above it. Cyberpunk 2077's
@@ -46,6 +46,7 @@ Fitted in `core/balance_config.py` from the batches noted below.
 | `FG_GPU_OVERHEAD` | .22/.31/.38 | .45/.81/1.17 | GTA V Enhanced 2x/3x/4x ladder |
 | `games.rt_gpu_mult` | — | 2.92 / 1.68 | per game, where RT was measured on and off |
 | `games.preset_gpu_exp` | — | 0.32 | Battlefield 6 only; 8 cards at High and Overkill (gap 6h) |
+| `UPSCALING_PASS_GPU_K` | — (flat 0.35 ms) | 0.5 | 16 benchmark rows with an upscaler; validated on 59 held-out (gap 6j) |
 
 `rt_gpu_mult` is NULL for 174 of the 176 games and they read `RT_GPU_COST_MULT`.
 Only Hitman 3 and Forza Horizon 6 have enough of their own ray-tracing rows to
@@ -543,8 +544,55 @@ Open items. All are visible in the validation output; none are hidden.
    What would help is not a constant but a per-game working set that separates a
    game that fits in 8 GB from one that does not — which needs a VRAM reading
    from a card with room to spare *and* the frame-time cost on a card without,
-   in the same game. Left as it is; the interface already hedges 8 GB results
-   and the README states the spread.
+   in the same game.
+   **Batch 23 — RTX 4060 Ti 8 and 16 GB, seven games each at 1440p and 4K —
+   sharpened that into a pattern.** At 1440p the 8 GB card loses nothing in all
+   seven (ratio 0.98-0.99); at 4K it loses 0% in Red Dead Redemption 2 and
+   23-60% in the others (Diablo IV 0.40, Hogwarts Legacy 0.72, Witcher 3 0.76,
+   Watch Dogs Legion 0.77, Cyberpunk 0.77, Flight Simulator 0.79). The engine
+   says 0.77-0.96 at both, and at DLSS Quality, the setting used, it calls the
+   4K rows `ok`, because it shrinks VRAM demand with the internal resolution
+   (`UPSCALE_VRAM_FIXED`, 0.72) where the games evidently do not.
+   Acting on it was tested three ways, none adopted
+   (`scripts/memory_pairs.py --refit --resolution`):
+   - the upscaling factor alone: no better, even in sample — raising it to 1.0
+     repairs 4K and breaks 1440p;
+   - all four memory constants, leave-one-game-out over 33 pairs: 14.8% against
+     15.3% for the current model, a 3% relative gain for four constants that
+     every derived game reads;
+   - a working set fitted per game with a much harsher penalty (severity 8, floor
+     0.3): the eight games' ratio error falls from 15.3% to 8.2%, but the other
+     25 pairs go from 15.2% to 24.8%, and it would predict 20 of the 142
+     unmeasured games at under 0.70 of a 16 GB card at 4K and 6 at 1440p, where
+     all seven measured games lose nothing.
+   The pattern is real and the fix is per game: a regime harsh enough for
+   Diablo IV is wrong for the games nobody measured. Left as it is; the
+   interface already hedges 8 GB results and the README states the spread.
+6j. **The upscaler's cost was a flat 0.35 ms, and DLSS read far too fast on a
+   mid-range card.** Found by accident, while looking at the memory pairs: the
+   engine's error is -0.5% on native and DLAA benchmark rows and +8% to +21% on
+   the 16 benchmark rows with DLSS or FSR, and on held-out gameplay it is +7%
+   native against +44% with DLSS Quality (41 rows). Only 16 benchmark rows had
+   ever fitted anything about upscaling, every one on an RTX 3070 or faster, so
+   the one thing they could not show was a slow card.
+   The cost of an upscaler's pass is sized by the output resolution and run at
+   the card's speed, so a 4K pass on an RTX 4060 Ti costs several times what it
+   costs a 4090. `UPSCALING_PASS_GPU_K` adds `K x output pixels / GPU throughput`
+   to any frame rendered below output resolution; DLAA, which does not render
+   below it, is untouched. One parameter, fitted on the 16 benchmark rows only
+   (K = 0.5, the middle of a flat optimum from 0.4 to 0.6), with
+   `UPSCALING_UNSCALED_FRACTION` left at 0.16:
+   - the 16 fitted rows: 18.3% to 13.3%, bias +14.2% to -3.7%;
+   - held-out gameplay with an upscaler, outside the 4060 Ti video: 31.3% to
+     21.3%, bias +25.3% to +7.8%;
+   - the 4060 Ti video itself: 63.9% to 36.7%, bias +52.0% to +18.7% — the pass
+     cost explains about a third of it, and the rest is those games' profiles;
+   - native and DLAA rows: unchanged to the digit (7.2%, -0.5%).
+   Larger K fits the 4060 Ti video better still (K = 1.0 puts it at 22%) and
+   the benchmark rows worse (19.5%, bias -17%); it was not chosen, because the
+   held-out set may not be used to select what it is meant to test. What remains
+   is the games' own profiles at 4K — Red Dead Redemption 2 still reads high — and
+   that mid-range DLSS has no benchmark-loop row at all.
 
 **Coverage**
 

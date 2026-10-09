@@ -59,6 +59,7 @@ def compute():
     gpus = {g["name"]: dict(g) for g in db_manager.get_all_gpus()}
 
     groups = {}
+    upscaled = {}
     fitted_games = set()
     for r in conn.execute("SELECT * FROM benchmarks"):
         r = dict(r)
@@ -68,6 +69,10 @@ def compute():
             ray_tracing=bool(r["ray_tracing"]), path_tracing=bool(r["path_tracing"]))
         signed_err = (pred - r["fps_avg"]) / r["fps_avg"] * 100
         groups.setdefault(bucket(r), []).append(signed_err)
+        # Upscaling is its own question: the least-measured major feature.
+        if r["upscaling"] not in ("Native", "DLAA") and r["frame_gen"] == "Kapalı":
+            upscaled.setdefault("fitted" if bucket(r) == "fitted" else "heldout",
+                                []).append(signed_err)
         if bucket(r) == "fitted":
             fitted_games.add(r["game"])
 
@@ -80,6 +85,9 @@ def compute():
     v["within10"] = f"{sum(e <= 10 for e in fitted) / len(fitted) * 100:.0f}"
     v["within20"] = f"{sum(e <= 20 for e in fitted) / len(fitted) * 100:.0f}"
     v["measurements"] = sum(len(e) for e in groups.values())
+    v["upscaled_fitted_n"] = len(upscaled["fitted"])
+    v["upscaled_heldout_n"] = len(upscaled["heldout"])
+    v["upscaled_heldout_bias"] = signed(statistics.mean(upscaled["heldout"]))
 
     measured = {r[0] for r in conn.execute("SELECT DISTINCT game FROM benchmarks")}
     # "Fitted" means a game has at least one row the calibration actually uses.

@@ -343,6 +343,12 @@ function frameTimes(
   let ftGpu =
     (bc.GPU_MS_CONST * gpuCost * pixels * qGpu * rtGpu) / perf(gpuScore, bc.GPU_PERF_EXPONENT);
   ftGpu += upscalePassMs;
+  // The upscaler's own pass: sized by output resolution, run at the card's speed.
+  if (renderScale < 1.0) {
+    ftGpu +=
+      (bc.UPSCALING_PASS_GPU_K * (asRecord<number>(bc.RESOLUTION_PIXELS)[resolution] ?? 1.0)) /
+      perf(gpuScore, bc.GPU_PERF_EXPONENT);
+  }
 
   const fgOverhead = asRecord<number>(bc.FG_GPU_OVERHEAD);
   if (frameGenMode !== null && frameGenMode in fgOverhead) {
@@ -366,7 +372,9 @@ function vramDemand(
   const qVram = bc.qualityMultipliers(quality)[2];
   let demand = vramBase * qVram * (asRecord<number>(bc.RES_VRAM_FACTOR)[resolution] ?? 1.0);
 
-  if (renderScale < 1.0) demand *= 0.72 + 0.28 * renderScale ** 2;
+  if (renderScale < 1.0) {
+    demand *= bc.UPSCALE_VRAM_FIXED + (1.0 - bc.UPSCALE_VRAM_FIXED) * renderScale ** 2;
+  }
 
   if (pathTracing) demand += bc.PT_VRAM_ADD_GB;
   else if (rayTracing) demand += bc.RT_VRAM_ADD_GB;
