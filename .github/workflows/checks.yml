@@ -1,0 +1,44 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: frontend
+
+      # The website runs generated copies of the constants and the catalogue.
+      # A batch loaded without re-running the export ships stale data, and
+      # nothing else would notice: both engines agree on whatever they are given.
+      - name: Generated engine data matches the database
+        run: |
+          python scripts/export_engine_data.py
+          git diff --exit-code -- frontend/src/engine
+
+      - name: Figures in the README match the data
+        run: python scripts/update_readme_figures.py --check
+
+      - name: Python and TypeScript engines agree
+        run: python scripts/conformance_test.py
+
+      - name: Web app builds
+        run: npm run build
+        working-directory: frontend

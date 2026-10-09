@@ -72,12 +72,15 @@ Three findings worth remembering:
 
 ## Games with calibrated cost profiles
 
-Twenty-nine of the catalog's 176 games have measurements behind them. The
-remaining 147 carry values derived from the old model's hand-tuned scalings
-and genre priors, and measured leave-one-game-out that derivation is 51.5%
-out per game — the accuracy figure above applies to the measured set, not to
-the whole catalog. Eight of the 29 are measured on one axis only: every row is
-processor-limited, so their graphics cost is still a prior (gap 6e).
+Twenty-eight of the catalog's 176 games are fitted to measurements. The
+remaining 148 carry values derived from the old model's hand-tuned scalings
+and genre priors, and measured leave-one-game-out that derivation is about 52%
+out per game — the accuracy figure above applies to the fitted set, not to
+the whole catalog. Far Cry 6 has measurements but every one is held out (free
+gameplay or a texture pack), so it is among the derived. Five of the 28 are
+measured on one axis only: every row is processor-limited, so their graphics
+cost is still a prior (gap 6e). The README quotes the same counts, generated
+by `scripts/update_readme_figures.py` rather than typed.
 
 A Plague Tale: Requiem · Alan Wake 2 · Assetto Corsa Competizione ·
 Baldur's Gate 3 · Battlefield 6 · Black Myth: Wukong · Cities: Skylines II ·

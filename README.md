@@ -1,8 +1,9 @@
 # PerfHub
 
-Frame-rate estimates for a CPU, GPU and RAM combination across 176 PC games,
-computed in the browser and checked against 577 recorded benchmark results.
+Frame-rate estimates for a CPU, GPU and RAM combination across <!--v:games-->176<!--/v--> PC games,
+computed in the browser and checked against <!--v:measurements-->683<!--/v--> recorded benchmark results.
 
+[![Checks](https://github.com/SuleymanKilincc/perfhub-ai/actions/workflows/checks.yml/badge.svg)](https://github.com/SuleymanKilincc/perfhub-ai/actions/workflows/checks.yml)
 [![Live site](https://img.shields.io/badge/live-perfhub.suleymankilinc.com-2ea44f)](https://perfhub.suleymankilinc.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -20,11 +21,13 @@ measurements, not a lookup table and not a language model. How much to trust a
 given number depends on whether that game has been measured, and the interface
 says which:
 
-- **29 games are measured.** Their cost profiles are fitted to recorded
-  benchmarks, and on those rows the engine is within 6.9% on average.
-- **147 games are derived** from a hand-built profile and a genre prior. Tested
-  by holding each measured game out and deriving it as if it had never been
-  measured, that method is about 52% out. These games are labelled as
+- **<!--v:fitted_games-->28<!--/v--> games are fitted.** Their cost profiles come from recorded
+  benchmarks, and on those rows the engine is within <!--v:fitted_err-->6.9<!--/v-->% on average.
+  <!--v:heldout_only_games-->1<!--/v--> more game has measurements that are all held out (free gameplay and
+  texture packs), so its profile is still derived.
+- **<!--v:derived_games-->148<!--/v--> games are derived** from a hand-built profile and a genre prior.
+  Tested by holding each measured game out and deriving it as if it had never
+  been measured, that method is about <!--v:derived_err-->52<!--/v-->% out. These games are labelled as
   estimates, and the results list shows only measured games by default.
 
 The full accounting — what has been fitted, what has been held out, every
@@ -33,34 +36,37 @@ known gap and every mistake along the way — is in
 
 ## Accuracy
 
-Every figure here is produced by `scripts/validate_engine.py` and
-`scripts/export_engine_data.py` against the recorded data.
+Every figure on this page is regenerated from the recorded data by
+`scripts/update_readme_figures.py`, and CI fails if one is out of date.
 
 | Set | Rows | Mean error | Bias |
 |---|---|---|---|
-| Fitted benchmark runs | 491 | **6.9%** | +0.1% |
-| Held out: free gameplay | 74 | 32.0% | +13.3% |
-| Held out: optional HD texture packs (not modelled) | 8 | 44.3% | +14.4% |
-| Held out: DLSS Ray Reconstruction (not modelled) | 4 | 16.9% | 0.0% |
+| Fitted benchmark runs | <!--v:fitted_n-->585<!--/v--> | **<!--v:fitted_err-->6.9<!--/v-->%** | <!--v:fitted_bias-->-0.1<!--/v-->% |
+| Held out: free gameplay | <!--v:gameplay_n-->74<!--/v--> | <!--v:gameplay_err-->30.7<!--/v-->% | <!--v:gameplay_bias-->+9.8<!--/v-->% |
+| Held out: card ran out of VRAM (memory-model test) | <!--v:vram_n-->12<!--/v--> | <!--v:vram_err-->21.2<!--/v-->% | <!--v:vram_bias-->+21.0<!--/v-->% |
+| Held out: optional HD texture packs (not modelled) | <!--v:texture_n-->8<!--/v--> | <!--v:texture_err-->44.3<!--/v-->% | <!--v:texture_bias-->+14.4<!--/v-->% |
+| Held out: DLSS Ray Reconstruction (not modelled) | <!--v:rr_n-->4<!--/v--> | <!--v:rr_err-->17.9<!--/v-->% | <!--v:rr_bias-->-0.9<!--/v-->% |
 
-On the fitted set, 80% of predictions land within 10% of the measured value and
-94% within 20%.
+On the fitted set, <!--v:within10-->78<!--/v-->% of predictions land within 10% of the measured value and
+<!--v:within20-->94<!--/v-->% within 20%.
 
 The held-out rows are the ones the fit never sees, and they are reported
 separately because they answer a different question. Free gameplay reads
 lower than a benchmark loop — the model predicts benchmark averages, and
 measured on one graphics card, Cyberpunk 2077's built-in benchmark runs 1.7x
 faster than free play in its city at 1440p. That gap is measured but not yet
-corrected; see gap 10 in the calibration log.
+corrected; see gap 10 in the calibration log. A positive bias means the engine
+reads faster than the measurement, and it is the direction the held-out sets
+err in.
 
 One configuration, shown with its error rather than chosen for it — Cyberpunk
 2077 at Ultra, native, no ray tracing, RTX 4090 with a Ryzen 7 7800X3D:
 
 | Resolution | Predicted | Measured | Error |
 |---|---|---|---|
-| 1080p | 165 fps | 140 fps | +18% |
-| 1440p | 127 fps | 125 fps | +2% |
-| 4K | 69 fps | 60 fps | +15% |
+| 1080p | <!--v:cp_1080p_pred-->165<!--/v--> fps | <!--v:cp_1080p_meas-->140<!--/v--> fps | <!--v:cp_1080p_err-->+18<!--/v-->% |
+| 1440p | <!--v:cp_1440p_pred-->127<!--/v--> fps | <!--v:cp_1440p_meas-->125<!--/v--> fps | <!--v:cp_1440p_err-->+2<!--/v-->% |
+| 4K | <!--v:cp_4k_pred-->69<!--/v--> fps | <!--v:cp_4k_meas-->60<!--/v--> fps | <!--v:cp_4k_err-->+15<!--/v-->% |
 
 ## How the engine works
 
@@ -87,11 +93,17 @@ and resolution and compared with the card. What does not fit spills across
 PCIe into system RAM, and if system RAM cannot absorb it either the result is
 reported as unplayable rather than given an optimistic number.
 
-**Ray tracing is per game where it has been measured.** Turning it on costs
-Far Cry 6 a factor of 1.10 in frame rate and Hitman a factor of 3.25 to 3.67
-across three independent measurements; one global multiplier cannot describe
-both. Games measured with ray tracing on and off carry their own cost, and the
-rest fall back to a global average.
+**Ray tracing and quality presets are per game where they have been
+measured.** Turning ray tracing on costs Far Cry 6 a factor of 1.10 in frame
+rate and Hitman a factor of 3.25 to 3.67 across three independent
+measurements; one global multiplier cannot describe both. Likewise, going from
+High to Overkill costs Battlefield 6 about 1.25x on eight cards where the
+shared preset ladder says 1.55x. Games measured both ways carry their own
+value, and the rest fall back to the global one.
+
+**Features the hardware cannot run are not applied.** DLSS needs an RTX card;
+ray tracing needs RTX, Radeon RX 6000 or newer, or Arc. A request the card
+cannot honour renders without the feature and says why, in both engines.
 
 **Hardware scores were rebuilt against published data.** The GPU ladder was
 checked against a 1440p performance hierarchy and found systematically
@@ -100,10 +112,15 @@ compressed; the CPU scores ranked all-core throughput and were rebuilt as a
 
 ## Known limitations
 
-- 147 of 176 games are estimates, as above.
-- 8 of the 29 measured games have only processor-limited measurements, so
+- <!--v:derived_games-->148<!--/v--> of <!--v:games-->176<!--/v--> games are estimates, as above.
+- <!--v:cpu_only_games-->5<!--/v--> of the <!--v:fitted_games-->28<!--/v--> fitted games have only processor-limited measurements, so
   their graphics cost has never been tested; the interface flags this.
-- AMD graphics cards have very few measurements; laptop hardware has none.
+- The measurements are overwhelmingly NVIDIA: <!--v:nvidia_rows-->628<!--/v--> of <!--v:measurements-->683<!--/v--> rows, across
+  <!--v:nvidia_cards-->25<!--/v--> cards. <!--v:amd_cards-->17<!--/v--> Radeon cards have <!--v:amd_rows-->49<!--/v--> rows between them, mostly one game, and
+  Intel Arc has <!--v:intel_rows-->6<!--/v--> rows on <!--v:intel_cards-->2<!--/v--> cards. There are <!--v:laptop_rows-->0<!--/v--> laptop measurements.
+- An 8 GB card at the heaviest presets is the weakest case: where one ran out
+  of memory the engine read <!--v:vram_bias-->+21.0<!--/v-->% fast, because the memory penalty was fitted to
+  games that degrade more gently than Battlefield 6 does.
 - Pre-2019 GPU architectures are unvalidated, and the interface says so.
 - Not modelled: MSAA, optional high-resolution texture packs, DLSS Ray
   Reconstruction, and how much a game's cost varies between areas of the same
@@ -114,15 +131,16 @@ resolutions — see [Contributing](#contributing).
 
 ## Features
 
-- Frame-rate estimates with an expected range; for 19 games the lower bound
+- Frame-rate estimates with an expected range; for <!--v:fps_low_games-->19<!--/v--> games the lower bound
   comes from that game's own measured 1%-low ratio
-- A per-game breakdown of how busy the CPU, GPU and memory are, and a
-  machine-level note when a build is lopsided, naming the smallest part that
+- A per-game breakdown of how busy the CPU, GPU, VRAM and system RAM are, and
+  a machine-level note when a build is lopsided, naming the smallest part that
   would even it out
 - DLSS, FSR and XeSS upscaling, 2x/3x/4x frame generation, ray tracing and
-  path tracing, applied only where the game supports them
+  path tracing, applied only where the game and the card support them
 - VRAM and system-RAM pressure, including spill and out-of-memory conditions
-- 222 CPUs and 164 GPUs, desktop and laptop kept separate
+- <!--v:cpus-->222<!--/v--> CPUs and <!--v:gpus-->164<!--/v--> GPUs, with desktop and laptop parts kept apart so the builder
+  cannot offer a machine that does not exist
 - Turkish and English interface; shareable result links
 
 ![Detail panel for Cyberpunk 2077](screenshots/detail.png)
@@ -132,7 +150,7 @@ resolutions — see [Contributing](#contributing).
 PerfHub is built by two contributors, and the split is deliberate.
 
 **Süleyman Kılınç** — product direction and the measurement programme. That
-means sourcing the 577 benchmark results from published reviews and benchmark
+means sourcing the <!--v:measurements-->683<!--/v--> benchmark results from published reviews and benchmark
 videos, supplying and checking them, deciding what to measure next, and using
 the site against real hardware. Several defects in the log were found that
 way: an inflated VRAM figure for Red Dead Redemption 2 traced to MSAA, upscaling
@@ -164,12 +182,14 @@ perfhub-ai/
 │       └── catalog.generated.json Generated from the database
 ├── backend/                      FastAPI service for the chat assistant
 ├── data/hardware_db.sqlite       Hardware, games and benchmark results
+├── .github/workflows/checks.yml  CI: generated files, README figures, conformance, build
 └── scripts/
     ├── validate_engine.py        Accuracy against the recorded benchmarks
     ├── calibrate_engine.py       Fits per-game costs and multipliers
     ├── calibrate_vram.py         Fits VRAM working sets
     ├── calibrate_fps_low.py      Fits per-game 1%-low ratios
     ├── export_engine_data.py     Generates the web engine's data and figures
+    ├── update_readme_figures.py  Regenerates the numbers quoted on this page
     ├── conformance_test.py       Checks the two engines agree
     └── load_benchmarks_*.py      One script per batch of measurements
 ```
@@ -178,10 +198,13 @@ perfhub-ai/
 prediction needs no server: the engine and a ~140 KB catalogue ship with the
 page. Two implementations can drift, so every constant and the catalogue are
 generated rather than edited by hand, and `scripts/conformance_test.py` runs
-both engines over 4,384 generated cases and fails on any difference across 16
-output fields.
+both engines over several thousand generated cases and fails on any difference
+across <!--v:conformance_fields-->18<!--/v--> output fields. CI runs it on every push, along with a check that the
+generated files and the figures on this page match the database.
 
 ## Running locally
+
+Requires Node 20 or newer; Python 3.11 for the scripts.
 
 ```bash
 git clone https://github.com/SuleymanKilincc/perfhub-ai.git
@@ -207,6 +230,7 @@ To check or refit the model:
 python scripts/validate_engine.py            # accuracy report
 python scripts/calibrate_engine.py --apply   # refit costs and multipliers
 python scripts/export_engine_data.py         # regenerate the web data
+python scripts/update_readme_figures.py      # regenerate the figures on this page
 python scripts/conformance_test.py           # confirm both engines agree
 ```
 
@@ -223,7 +247,9 @@ python modern_desktop_app.py
 ```
 
 Builds are on the [Releases page](https://github.com/SuleymanKilincc/perfhub-ai/releases).
-They are unsigned, so Windows shows an "Unknown publisher" warning.
+They lag the website: the latest was built in April 2026, before the current
+engine and its figures. They are also unsigned, so Windows shows an "Unknown
+publisher" warning.
 
 ## Contributing
 
@@ -233,7 +259,8 @@ cost from its GPU cost. Useful details: the exact CPU and GPU (including the
 memory variant), RAM, preset, upscaling mode, whether frame generation and ray
 tracing were on, and whether the numbers come from the game's built-in
 benchmark or from free play. [CALIBRATION.md](CALIBRATION.md) lists what is
-most needed.
+most needed. Open an issue with the numbers, or a pull request that adds a
+`scripts/load_benchmarks_N.py`.
 
 ## License
 
